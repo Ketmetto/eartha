@@ -1,0 +1,96 @@
+"""
+Transition logic lives here, not in views/serializers, so it's testable
+and reusable from the admin views, the API, and management commands.
+"""
+from rest_framework.exceptions import ValidationError
+from django.db import transaction
+from .models import Item, ItemPhoto, DriverAssignment
+from .state_machine import can_transition
+
+
+def transition_item_status(item: Item, target_status: str, *, reason: str = "") -> Item:
+    """
+    Drive an item through the state machine.
+    Raises DRF ValidationError so DRF's exception handler returns 400,
+    not an unhandled 500.
+    """
+    if not can_transition(item.status, target_status):
+        raise ValidationError(
+            {"status": f"Cannot move item from {item.status} to {target_status}."}
+        )
+
+    item.status = target_status
+    if target_status == Item.Status.REJECTED:
+        item.rejection_reason = reason
+    item.save(update_fields=["status", "rejection_reason", "updated_at"])
+
+    if target_status == Item.Status.ACCEPTED:
+        # Points award is handled by apps.points.services, called from
+        # here so submissions doesn't import points models directly at
+        # module load time (avoids circular imports).
+        from apps.points.services import award_points_for_item
+        award_points_for_item(item)
+
+    from notifications.tasks import notify_submission_status_changed
+    notify_submission_status_changed.delay(str(item.id), target_status)
+
+    return item
+
+
+def create_item_with_photos(*, user, category: str, condition: str, description: str = "", photos: list) -> Item:
+    """
+    Create an Item only if at least one valid photo is provided.
+    All photos are saved inside the same transaction.
+    Raises DRF ValidationError if no photos or photo validation fails.
+    """
+    if not photos:
+        raise ValidationError({"photos": "At least one photo is required."})
+
+    with transaction.atomic():
+        item = Item.objects.create(
+            user=user,
+            category=category,
+            condition=condition,
+            description=description,
+        )
+
+        for photo_file in photos:
+            # validate_image_size runs automatically via the model field validator
+            ItemPhoto.objects.create(item=item, image=photo_file)
+
+    return item
+
+
+def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str) -> DriverAssignment:
+    """
+    Create a DriverAssignment for an ACCEPTED item and transition it to DISPATCHED.
+    Raises DRF ValidationError if the item is not in ACCEPTED status.
+    """
+    if item.status != Item.Status.ACCEPTED:
+        raise ValidationError(
+            {"item": f"Cannot assign driver to item with status '{item.status}'. Must be 'accepted'."}
+        )
+
+    with transaction.atomic():
+        # Create the driver assignment
+        assignment, created = DriverAssignment.objects.get_or_create(
+            item=item,
+            defaults={
+                "driver_name": driver_name,
+                "pickup_address_snapshot": pickup_address_snapshot,
+            },
+        )
+
+        if not created:
+            raise ValidationError(
+                {"item": "Driver already assigned to this item."}
+            )
+
+        # Transition the item through the state machine
+        transition_item_status(item, Item.Status.DISPATCHED)
+
+        # Update assignment status to dispatched
+        assignment.status = DriverAssignment.DispatchStatus.DISPATCHED
+        assignment.save(update_fields=["status", "updated_at"])
+
+    return assignment

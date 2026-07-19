@@ -1,0 +1,15 @@
+.git
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+!.env.example
+db.sqlite3
+media/
+staticfiles/
+*.egg-info/
+docker-compose*.yml
+Dockerfile
+.dockerignore
