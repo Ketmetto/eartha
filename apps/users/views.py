@@ -22,6 +22,59 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    def perform_create(self, serializer):
+        user = serializer.save()
+        # Send verification email after registration
+        services.send_verification_email(user, self.request)
+        return user
+
+
+class VerifyEmailView(APIView):
+    """
+    GET /api/v1/auth/verify-email/?uid=<uidb64>&token=<token>
+    Validates the token and marks the email as verified.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        uidb64 = request.query_params.get("uid")
+        token = request.query_params.get("token")
+
+        if not uidb64 or not token:
+            return Response(
+                {"detail": "Missing verification parameters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        success, message = services.verify_email_token(uidb64, token)
+        status_code = status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST
+        return Response({"detail": message}, status=status_code)
+
+
+class ResendVerificationView(APIView):
+    """
+    POST /api/v1/auth/resend-verification/
+    Body: {"email": "user@example.com"}
+    Resends the verification email. Always returns 200 to prevent email enumeration.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email", "").strip().lower()
+        if email:
+            try:
+                user = User.objects.get(email=email)
+                # Only resend if not already verified
+                from allauth.account.models import EmailAddress
+                if not EmailAddress.objects.filter(user=user, verified=True).exists():
+                    services.send_verification_email(user, request)
+            except User.DoesNotExist:
+                pass  # Silently ignore to prevent email enumeration
+        return Response(
+            {"detail": "If an account exists with this email, a verification link has been sent."},
+            status=status.HTTP_200_OK,
+        )
+
 
 class MeView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer

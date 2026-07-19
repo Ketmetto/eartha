@@ -1,0 +1,82 @@
+
+================================================================================
+EMAIL VERIFICATION SETUP — Complete Instructions
+================================================================================
+
+1. UPDATE apps/users/models.py
+   Replace with: users_models.py
+   (Adds sync signal + keeps existing models)
+
+2. UPDATE apps/users/services.py  
+   Replace with: users_services.py
+   (Adds email verification logic)
+
+3. UPDATE apps/users/views.py
+   Replace with: users_views.py
+   (Adds VerifyEmailView, ResendVerificationView, sends email on register)
+
+4. UPDATE apps/users/urls.py
+   Replace with: users_urls.py
+   (Adds /verify-email/ and /resend-verification/ endpoints)
+
+5. ADD EMAIL TEMPLATES
+   Place these in notifications/templates/emails/:
+   - verify_email.html
+   - verify_email.txt
+
+6. UPDATE notifications/tasks.py (if needed)
+   Make sure send_transactional_email supports template_name + context.
+   It should render both HTML and text versions.
+
+7. MIGRATE (if you changed models — you didn't, just added signal)
+   docker compose exec web python manage.py migrate
+
+8. RESTART
+   docker compose restart web
+
+================================================================================
+NEW ENDPOINTS
+================================================================================
+
+POST /api/v1/auth/register/
+  → Now automatically sends verification email
+
+GET /api/v1/auth/verify-email/?uid=<uid>&token=<token>
+  → Verifies email, returns {"detail": "Email verified successfully."}
+
+POST /api/v1/auth/resend-verification/
+  Body: {"email": "user@example.com"}
+  → Resends verification email (always returns 200 to prevent enumeration)
+
+================================================================================
+HOW IT WORKS
+================================================================================
+
+1. User registers → RegisterView calls services.send_verification_email()
+2. Celery task sends email with uidb64 + token link
+3. User clicks link → frontend calls GET /verify-email/?uid=...&token=...
+4. Backend validates token, marks EmailAddress.verified = True
+5. User can now do verified-only actions
+
+================================================================================
+FRONTEND INTEGRATION
+================================================================================
+
+After registration, show: "Check your email for a verification link."
+
+The verification link should point to a frontend route like:
+  /verify-email?uid=<uid>&token=<token>
+
+That page should immediately call:
+  GET /api/v1/auth/verify-email/?uid=<uid>&token=<token>
+
+Then show success or error based on the response.
+
+================================================================================
+SECURITY NOTES
+================================================================================
+
+- Token expires after PASSWORD_RESET_TIMEOUT (default 3 days in Django)
+- Token is invalidated if user changes email
+- Resend endpoint always returns 200 to prevent email enumeration attacks
+- Social users are auto-verified by allauth (Google/Apple already verified them)
