@@ -13,7 +13,7 @@
 </head>
 <body>
     <h2>Verify your email address</h2>
-    <p>Hi {{ user.first_name|default:user.email }},</p>
+    <p>Hi {{ first_name|default:email }},</p>
     <p>Thanks for signing up! Please verify your email address by clicking the button below:</p>
     <a href="{{ verification_url }}" class="btn">Verify Email</a>
     <p>Or copy and paste this link into your browser:</p>

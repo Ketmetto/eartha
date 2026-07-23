@@ -1,0 +1,87 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login / Register — EARTHA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+  {{ firebase_config|json_script:"firebase-config" }}
+</head>
+<body class="lock-viewport">
+  {% csrf_token %}
+
+  <header class="app-header" id="appHeader"></header>
+
+  <div class="auth-page">
+    <div class="auth-visual" role="img" aria-label="Two figures in linen, arms linked"></div>
+
+    <div class="auth-panel">
+      <div class="auth-switch" role="tablist">
+        <button class="tab is-active" id="tabLogin" role="tab" aria-selected="true">SIGN IN</button>
+        <button class="tab" id="tabRegister" role="tab" aria-selected="false">CREATE ACCOUNT</button>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-block" id="googleSignInBtn">CONTINUE WITH GOOGLE</button>
+      <button type="button" class="btn btn-ghost btn-block" id="appleSignInBtn" style="margin-top:12px;">CONTINUE WITH APPLE</button>
+      <p class="hint muted" style="text-align:center;margin:18px 0;">OR</p>
+
+      <!-- LOGIN -->
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="loginEmail">EMAIL ADDRESS</label>
+          <input type="email" id="loginEmail" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="loginPassword">PASSWORD</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" required>
+          <p class="hint"><a href="#" class="link-underline" id="forgotLink" style="font-size:10px;">FORGOT PASSWORD?</a></p>
+        </div>
+        <button type="submit" class="btn btn-block">SIGN IN</button>
+        <p class="form-msg" id="loginMsg" role="status"></p>
+        <p class="hint muted" style="margin-top:18px;">DEMO — USER: demo@eartha.co / demo1234 · ADMIN: admin@eartha.co / admin123</p>
+      </form>
+
+      <!-- REGISTER -->
+      <form id="registerForm" hidden novalidate>
+        <div class="field">
+          <label for="regName">FULL NAME</label>
+          <input type="text" id="regName" autocomplete="name" required>
+          <p class="hint">YOUR DISPLAY NAME ON THE PLATFORM</p>
+        </div>
+        <div class="field">
+          <label for="regEmail">EMAIL ADDRESS</label>
+          <input type="email" id="regEmail" autocomplete="email" required>
+          <p class="hint">USED FOR LOGIN AND NOTIFICATIONS</p>
+        </div>
+        <div class="field">
+          <label for="regPassword">PASSWORD</label>
+          <input type="password" id="regPassword" autocomplete="new-password" required>
+          <p class="hint">MINIMUM 8 CHARACTERS</p>
+        </div>
+        <div class="field">
+          <label for="regPassword2">CONFIRM PASSWORD</label>
+          <input type="password" id="regPassword2" autocomplete="new-password" required>
+        </div>
+        <div class="field checkbox-row">
+          <input type="checkbox" id="regTerms" required>
+          <label for="regTerms" style="font-weight:400;text-transform:none;letter-spacing:var(--track);font-size:12px;margin:0;">
+            I agree to the <a href="#" class="link-underline" style="font-size:10px;">TERMS &amp; PRIVACY POLICY</a>
+          </label>
+        </div>
+        <button type="submit" class="btn btn-block">CREATE ACCOUNT</button>
+        <p class="form-msg" id="registerMsg" role="status"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script>Eartha.renderHeader(Eartha.currentUser(), 'login');</script>
+  <script src="{% static 'web/js/login.js' %}"></script>
+</body>
+</html>

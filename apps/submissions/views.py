@@ -9,6 +9,7 @@ class ItemUploadView(generics.ListCreateAPIView):
     """User-facing: submit a new item, list own submissions."""
     serializer_class = ItemSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
 
     def get_queryset(self):
         return Item.objects.filter(user=self.request.user)

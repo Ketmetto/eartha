@@ -2,7 +2,7 @@
 All balance-affecting operations go through here — never write to
 PointsLedgerEntry directly from a view or another app.
 """
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
 from .models import PointsLedgerEntry, Benefit, Redemption

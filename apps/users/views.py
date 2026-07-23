@@ -1,11 +1,7 @@
-from decouple import config
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from dj_rest_auth.registration.views import SocialLoginView
-from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from allauth.socialaccount.providers.apple.views import AppleOAuth2Adapter
-from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 from .serializers import (
     RegisterSerializer,
@@ -114,18 +110,21 @@ class ChangePasswordView(APIView):
         return Response({"detail": "Password updated."}, status=status.HTTP_200_OK)
 
 
-class GoogleLoginView(SocialLoginView):
+class FirebaseSocialLoginView(APIView):
     """
-    POST {"access_token": "..."} (token obtained client-side via Google's
-    SDK) -> returns the same JWT pair shape as the regular login endpoint.
+    POST {"id_token": "...", "display_name": "..."} (Firebase ID token from
+    Google or Apple sign-in, obtained client-side via the Firebase SDK) ->
+    returns the same JWT pair shape as the regular login endpoint.
     """
-    adapter_class = GoogleOAuth2Adapter
-    client_class = OAuth2Client
-    callback_url = config("GOOGLE_CALLBACK_URL", default="")
+    permission_classes = [permissions.AllowAny]
 
+    def post(self, request):
+        decoded_token, error = services.verify_firebase_token(request.data.get("id_token", ""))
+        if error:
+            return Response({"detail": error}, status=status.HTTP_401_UNAUTHORIZED)
 
-class AppleLoginView(SocialLoginView):
-    """POST {"access_token": "..."} (Apple identity token) -> JWT pair."""
-    adapter_class = AppleOAuth2Adapter
-    client_class = OAuth2Client
-    callback_url = config("APPLE_CALLBACK_URL", default="")
+        user = services.get_or_create_user_from_firebase(
+            decoded_token, request.data.get("display_name", "")
+        )
+        refresh = RefreshToken.for_user(user)
+        return Response({"refresh": str(refresh), "access": str(refresh.access_token)})

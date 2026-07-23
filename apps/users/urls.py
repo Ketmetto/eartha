@@ -8,8 +8,7 @@ from .views import (
     AddressView,
     NotificationPreferenceView,
     ChangePasswordView,
-    GoogleLoginView,
-    AppleLoginView,
+    FirebaseSocialLoginView,
 )
 
 urlpatterns = [
@@ -22,6 +21,5 @@ urlpatterns = [
     path("me/address/", AddressView.as_view(), name="me-address"),
     path("me/notifications/", NotificationPreferenceView.as_view(), name="me-notifications"),
     path("me/change-password/", ChangePasswordView.as_view(), name="me-change-password"),
-    path("social/google/", GoogleLoginView.as_view(), name="google-login"),
-    path("social/apple/", AppleLoginView.as_view(), name="apple-login"),
+    path("social/firebase/", FirebaseSocialLoginView.as_view(), name="firebase-login"),
 ]

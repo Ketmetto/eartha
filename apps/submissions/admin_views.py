@@ -14,6 +14,7 @@ class SubmissionReviewQueueView(generics.ListAPIView):
     """Admin: pending submissions queue."""
     serializer_class = ItemAdminSerializer
     permission_classes = [IsAdmin]
+    pagination_class = None
     queryset = Item.objects.filter(status=Item.Status.PENDING)
 
 

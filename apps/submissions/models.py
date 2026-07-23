@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 from base.models import BaseModel
-from base.validators import validate_image_size
+from base.validators import validate_image_size, validate_image_content_type
 
 
 class Item(BaseModel):
@@ -35,7 +35,10 @@ class Item(BaseModel):
 
 class ItemPhoto(BaseModel):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="photos")
-    image = models.ImageField(upload_to="submissions/", validators=[validate_image_size])
+    image = models.ImageField(
+        upload_to="submissions/",
+        validators=[validate_image_size, validate_image_content_type],
+    )
 
 
 class DriverAssignment(BaseModel):

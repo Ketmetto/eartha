@@ -1,0 +1,180 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Us — EARTHA</title>
+  <meta name="description" content="Why Eartha exists — circular fashion for Lebanon and beyond. Upload, we collect, redeem rewards.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main>
+
+    <!-- ============ ABOUT HERO ============ -->
+    <section class="about-hero">
+      <div class="about-hero-grid">
+        <div class="about-hero-text">
+          <p class="eyebrow">CIRCULAR FASHION &nbsp;|&nbsp; EST. 2026</p>
+          <h1 class="heading-sm">NOTHING IN YOUR CLOSET SHOULD END AS WASTE.</h1>
+        </div>
+        <figure class="img-card">
+          <img src="{% static 'web/images/image-13.jpg' %}" alt="Denim jacket covered in vintage pin badges, upcycled" loading="lazy">
+          <figcaption class="img-label">PARADIGM</figcaption>
+        </figure>
+        <figure class="img-card">
+          <img src="{% static 'web/images/image-16.png' %}" alt="Two figures in beige and rust linen, arms linked" loading="lazy">
+          <figcaption class="img-label">ECOLOGICAL WORLD VIEW</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ MISSION ============ -->
+    <section class="about-mission">
+      <div class="about-mission-grid">
+        <figure class="img-card">
+          <img src="{% static 'web/images/image-11.jpg' %}" alt="Hand resting on draped olive linen fabric outdoors" loading="lazy">
+          <figcaption class="img-label">RESTORATION</figcaption>
+        </figure>
+        <figure class="img-card">
+          <img src="{% static 'web/images/image-17.png' %}" alt="Close-up of soft cream woven fabric in sunlight" loading="lazy">
+          <figcaption class="img-label">REGENERATIVE THINKING</figcaption>
+        </figure>
+        <div class="about-mission-text">
+          <p class="eyebrow">WHY EARTHA EXISTS</p>
+          <p class="body-justified">
+            Most clothes are thrown away with years of life still in them. Eartha exists to catch
+            them before that happens. We collect the pieces you no longer wear, sort what can be
+            worn again, and turn the rest into raw material for something new — insulation, panels,
+            reknit yarn. You get points for every piece, and points become real discounts at brands
+            you actually shop. Less landfill, more value, one closet at a time.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section class="about-steps">
+      <p class="eyebrow">HOW IT WORKS</p>
+      <h2 class="heading-sm">FIVE STEPS TO A SECOND LIFE.</h2>
+      <div class="steps-grid">
+        <div>
+          <p class="card-num">01</p>
+          <p class="card-title">UPLOAD</p>
+          <p class="card-sub">Upload an unused item in good condition — add photos, select its category and condition, then submit it for review.</p>
+        </div>
+        <div>
+          <p class="card-num">02</p>
+          <p class="card-title">EARN CREDITS</p>
+          <p class="card-sub">EARTHA verifies the item and assigns credits based on category and condition. Approved credits land in your EARTHA Wallet.</p>
+        </div>
+        <div>
+          <p class="card-num">03</p>
+          <p class="card-title">REDEEM REWARDS</p>
+          <p class="card-sub">Browse the EARTHA Marketplace and redeem credits with partner brands, cafés, wellness studios, and fashion stores.</p>
+        </div>
+        <div>
+          <p class="card-num">04</p>
+          <p class="card-title">DROP OFF ITEM</p>
+          <p class="card-sub">Drop off the approved item at an EARTHA collection point, or hand it to a nearby partner location for easy pickup.</p>
+        </div>
+        <div>
+          <p class="card-num">05</p>
+          <p class="card-title">CREATE IMPACT</p>
+          <p class="card-sub">Your item then re-enters EARTHA's circular economy — redirected for resale, donation, upcycling, or recycling.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ IMPACT ============ -->
+    <section class="stats-band">
+      <div>
+        <p class="stat-num" data-count="1240">0</p>
+        <p class="stat-label">ITEMS COLLECTED</p>
+      </div>
+      <div>
+        <p class="stat-num" data-count="3800">0</p>
+        <p class="stat-label">KG CO₂ SAVED</p>
+      </div>
+      <div>
+        <p class="stat-num" data-count="6">0</p>
+        <p class="stat-label">PARTNER BRANDS</p>
+      </div>
+    </section>
+
+    <!-- ============ PARTNERS ============ -->
+    <section class="about-partners">
+      <p class="eyebrow">BRANDS THAT TAKE YOUR POINTS</p>
+      <div class="partner-logos" id="partnerLogos"></div>
+    </section>
+
+    <!-- ============ CTA ============ -->
+    <section class="about-cta">
+      <p class="about-cta-tag">EVERY DONATION GETS A NUMBER.<br><strong>EARTHA COLLECTION / EST. 2026</strong></p>
+      <div>
+        <p class="about-cta-copy">YOUR CLOSET HAS A SECOND CHAPTER.<br>WE WRITE IT.</p>
+        <a href="{% url 'web:login' %}#register" class="link-underline">JOIN NOW</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script>Eartha.renderHeader(Eartha.currentUser(), 'about');</script>
+  <script>
+    // partner logos pulled live from the benefits directory
+    document.getElementById('partnerLogos').innerHTML = Eartha.benefits()
+      .filter((b) => b.active)
+      .map((b) => `<span>${Eartha.esc(b.brand)}</span>`)
+      .join('');
+
+    // count-up impact numbers on scroll
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const counters = document.querySelectorAll('[data-count]');
+    const animate = (el) => {
+      const target = Number(el.dataset.count);
+      if (reduced) { el.textContent = target.toLocaleString(); return; }
+      const start = performance.now();
+      const dur = 1200;
+      const tick = (t) => {
+        const p = Math.min(1, (t - start) / dur);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString();
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) { animate(e.target); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.4 });
+    counters.forEach((c) => io.observe(c));
+  </script>
+</body>
+</html>

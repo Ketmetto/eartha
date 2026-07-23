@@ -11,6 +11,10 @@ SECRET_KEY = config("DJANGO_SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
 
+# Firebase's signInWithPopup relies on window.opener to relay the auth
+# result back; Django's default COOP ("same-origin") severs that link.
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -39,6 +43,7 @@ INSTALLED_APPS = [
     "apps.submissions",
     "apps.points",
     "apps.engagement",
+    "apps.web",
 ]
 
 MIDDLEWARE = [

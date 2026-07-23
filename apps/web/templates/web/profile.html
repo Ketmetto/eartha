@@ -1,0 +1,120 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile — EARTHA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow muted" id="helloLine"></p>
+        <h1 class="page-title" style="margin-top:6px;">MY PROFILE</h1>
+      </div>
+    </div>
+
+    <!-- balance -->
+    <div class="card" style="margin-bottom:clamp(32px,5vw,48px);">
+      <p class="eyebrow muted">POINTS BALANCE</p>
+      <p style="font-size:clamp(28px,5vw,44px);font-weight:700;margin-top:4px;" id="ptsBig">0</p>
+      <div class="progress"><div class="progress-bar" id="ptsBar" style="width:0%"></div></div>
+      <p class="hint" id="ptsHint"></p>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" data-panel="subs" role="tab">SUBMISSION HISTORY</button>
+      <button class="tab" data-panel="reds" role="tab">REDEMPTION HISTORY</button>
+      <button class="tab" data-panel="settings" role="tab">ACCOUNT SETTINGS</button>
+    </div>
+
+    <!-- submissions -->
+    <div class="tab-panel is-active" id="panel-subs">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>BATCH</th><th>DATE</th><th>ITEM</th><th>STATUS</th><th>POINTS</th></tr>
+          </thead>
+          <tbody id="subsBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="subsEmpty" hidden>NO SUBMISSIONS YET — <a href="{% url 'web:upload' %}" class="link-underline" style="font-size:10px;">UPLOAD YOUR FIRST ITEM</a></div>
+    </div>
+
+    <!-- redemptions -->
+    <div class="tab-panel" id="panel-reds">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>DATE</th><th>BRAND</th><th>DISCOUNT</th><th>CODE</th><th>POINTS USED</th></tr>
+          </thead>
+          <tbody id="redsBody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="redsEmpty" hidden>NO REDEMPTIONS YET — <a href="{% url 'web:benefits' %}" class="link-underline" style="font-size:10px;">BROWSE BENEFITS</a></div>
+    </div>
+
+    <!-- settings -->
+    <div class="tab-panel" id="panel-settings">
+      <form id="settingsForm" style="max-width:480px;" novalidate>
+        <div class="field">
+          <label for="setName">FULL NAME</label>
+          <input type="text" id="setName" autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="setEmail">EMAIL ADDRESS</label>
+          <input type="email" id="setEmail" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="setAddress">PICKUP ADDRESS</label>
+          <input type="text" id="setAddress" autocomplete="street-address" placeholder="Street, building, city">
+          <p class="hint">USED BY OUR DRIVER WHEN COLLECTING YOUR ITEMS</p>
+        </div>
+        <div class="field">
+          <label for="setPassword">NEW PASSWORD <span class="muted" style="font-weight:400;">(LEAVE BLANK TO KEEP CURRENT)</span></label>
+          <input type="password" id="setPassword" autocomplete="new-password">
+        </div>
+        <div class="field checkbox-row">
+          <input type="checkbox" id="setNotify" checked>
+          <label for="setNotify" style="font-weight:400;text-transform:none;letter-spacing:var(--track);font-size:12px;margin:0;">
+            Email me when my item status changes
+          </label>
+        </div>
+        <button type="submit" class="btn">SAVE CHANGES</button>
+        <p class="form-msg" id="settingsMsg" role="status"></p>
+      </form>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script src="{% static 'web/js/profile.js' %}"></script>
+</body>
+</html>

@@ -1,9 +1,8 @@
-import uuid
-
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from .models import User, Address, NotificationPreference
+from . import services
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -47,7 +46,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
 
         first_name, _, last_name = full_name.partition(" ")
-        username = self._generate_username(validated_data["email"])
+        username = services.generate_unique_username(validated_data["email"])
 
         user = User(
             username=username,
@@ -58,14 +57,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
-
-    @staticmethod
-    def _generate_username(email: str) -> str:
-        base = email.split("@")[0]
-        username = base
-        while User.objects.filter(username=username).exists():
-            username = f"{base}-{uuid.uuid4().hex[:6]}"
-        return username
 
 
 class AddressSerializer(serializers.ModelSerializer):

@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact — EARTHA</title>
+  <meta name="description" content="Reach out to Eartha — users, or brands that want to join the rewards platform.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main>
+
+    <!-- ============ CONTACT HERO ============ -->
+    <section class="hero contact-hero-bg">
+      <div class="hero-copy">
+        <p class="hero-eyebrow" id="contactEyebrow">CONTACT</p>
+        <h1 class="hero-title">A QUESTION, AN IDEA, A PILE OF CLOTHES — WE'RE LISTENING.</h1>
+        <p class="hero-sub">Reach out directly, or drop a message below — we read everything and reply within 48 hours.</p>
+        <div class="hero-actions">
+          <a href="mailto:hello@eartha.co" class="link-underline">Email Us</a>
+          <a href="#contactForm" class="link-underline">Send A Message</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT FORM ============ -->
+    <section class="contact-form-section">
+      <div class="contact-form-grid">
+
+        <form id="contactForm" novalidate>
+          <div class="field">
+            <label for="cName">NAME</label>
+            <input type="text" id="cName" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="cEmail">EMAIL ADDRESS</label>
+            <input type="email" id="cEmail" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="cSubject">SUBJECT</label>
+            <input type="text" id="cSubject">
+          </div>
+          <div class="field">
+            <label for="cBody">MESSAGE</label>
+            <textarea id="cBody" required></textarea>
+          </div>
+          <button type="submit" class="btn">SEND MESSAGE</button>
+          <p class="form-msg" id="contactMsg" role="status"></p>
+        </form>
+
+        <aside class="contact-aside">
+          <div class="card">
+            <p class="eyebrow">DIRECT</p>
+            <p class="contact-link-row"><a href="mailto:hello@eartha.co" class="link-underline">HELLO@EARTHA.CO</a></p>
+            <p class="eyebrow">FOLLOW</p>
+            <p class="contact-link-row">
+              <a href="#" class="link-underline">INSTAGRAM</a>
+              <a href="#" class="link-underline">LINKEDIN</a>
+            </p>
+          </div>
+
+          <div class="card card-dark">
+            <p class="eyebrow">FOR BRANDS</p>
+            <p class="card-sub">
+              Want your shop in our rewards directory? Mention "PARTNER" in the subject and
+              we'll come back with the numbers.
+            </p>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script>Eartha.renderHeader(Eartha.currentUser(), 'contact');</script>
+  <script>
+    // admins see the inbox where the form would be — messages live where they're sent
+    const adminUser = Eartha.currentUser();
+    if (adminUser && adminUser.isAdmin) {
+      const form = document.getElementById('contactForm');
+      const inbox = document.createElement('div');
+      inbox.id = 'inboxList';
+      form.replaceWith(inbox);
+      document.getElementById('contactEyebrow').textContent = 'INBOX — CONTACT FORM MESSAGES LAND HERE.';
+
+      const renderInbox = () => {
+        const list = Eartha.messages();
+        inbox.innerHTML = list.length
+          ? list.map((m) => `
+            <div class="card" style="${m.read ? 'opacity:0.6;' : ''}">
+              <p class="batch-tag">${Eartha.fmtDate(m.date)} · ${Eartha.esc(m.email)}</p>
+              <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
+                ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
+              </p>
+              <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
+              ${m.read ? '' : `<button class="link-underline" style="font-size:10px;margin-top:12px;" data-read="${m.id}">MARK AS READ</button>`}
+            </div>`).join('')
+          : '<div class="empty">INBOX IS EMPTY — MESSAGES FROM THIS FORM LAND HERE.</div>';
+      };
+      inbox.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-read]');
+        if (!btn) return;
+        Eartha.markMessageRead(btn.dataset.read);
+        renderInbox();
+      });
+      renderInbox();
+    }
+
+    const contactFormEl = document.getElementById('contactForm');
+    if (contactFormEl) contactFormEl.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('contactMsg');
+      const name = document.getElementById('cName').value.trim();
+      const email = document.getElementById('cEmail').value.trim();
+      const body = document.getElementById('cBody').value.trim();
+
+      if (!name || !body || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        msg.textContent = 'FILL IN YOUR NAME, A VALID EMAIL AND A MESSAGE.';
+        msg.className = 'form-msg is-error';
+        return;
+      }
+
+      Eartha.addMessage({
+        name,
+        email,
+        subject: document.getElementById('cSubject').value.trim(),
+        body,
+      });
+
+      e.target.reset();
+      msg.textContent = 'SENT — WE READ EVERYTHING AND REPLY WITHIN 48H.';
+      msg.className = 'form-msg is-ok';
+    });
+  </script>
+</body>
+</html>

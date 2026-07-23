@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — EARTHA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow muted" id="helloLine"></p>
+        <h1 class="page-title" style="margin-top:6px;">DASHBOARD</h1>
+      </div>
+    </div>
+
+    <div class="steps-grid" id="attentionGrid"></div>
+
+    <section class="section-gap stats-band full-bleed">
+      <div>
+        <p class="stat-num" data-count="0" id="statCompleted">0</p>
+        <p class="stat-label">ITEMS COMPLETED</p>
+      </div>
+      <div>
+        <p class="stat-num" data-count="0" id="statPoints">0</p>
+        <p class="stat-label">POINTS AWARDED</p>
+      </div>
+      <div>
+        <p class="stat-num" data-count="0" id="statDonors">0</p>
+        <p class="stat-label">ACTIVE DONORS</p>
+      </div>
+      <div>
+        <p class="stat-num" data-count="0" id="statBenefits">0</p>
+        <p class="stat-label">LIVE BENEFITS</p>
+      </div>
+    </section>
+
+    <section class="section-gap">
+      <p class="eyebrow" style="font-weight:700;margin-bottom:20px;">RECENT ACTIVITY</p>
+      <div id="recentList"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script src="{% static 'web/js/dashboard.js' %}"></script>
+</body>
+</html>

@@ -32,20 +32,29 @@ class NotificationPreference(BaseModel):
 # --- allauth EmailAddress sync ---
 # Keeps EmailAddress in sync with User.email so the admin table shows
 # all users regardless of whether they signed up via custom registration
-# or social login. Email verification status is tracked here too.
+# or social login. Email verification status is tracked here too — social
+# logins (see apps/users/services.py) flip it to True after creation.
+#
+# Only touches `verified` on creation or when the email actually changes —
+# it must NOT reset on every save, or an unrelated profile edit (e.g. a
+# MeView PATCH) would silently un-verify an already-verified address.
 
 @receiver(post_save, sender=User)
 def sync_email_address(sender, instance, created, **kwargs):
     if not instance.email:
         return
     from allauth.account.models import EmailAddress
-    EmailAddress.objects.update_or_create(
+    if created:
+        EmailAddress.objects.update_or_create(
+            user=instance,
+            defaults={"email": instance.email, "primary": True, "verified": False},
+        )
+        return
+    email_address, _ = EmailAddress.objects.get_or_create(
         user=instance,
-        defaults={
-            "email": instance.email,
-            "primary": True,
-            # Custom-registered users start unverified; social users
-            # will have this flipped to True by allauth's adapter.
-            "verified": False,
-        },
+        defaults={"email": instance.email, "primary": True, "verified": False},
     )
+    if email_address.email != instance.email:
+        email_address.email = instance.email
+        email_address.verified = False
+        email_address.save()

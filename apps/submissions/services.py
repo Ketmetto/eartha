@@ -2,10 +2,14 @@
 Transition logic lives here, not in views/serializers, so it's testable
 and reusable from the admin views, the API, and management commands.
 """
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
 from django.db import transaction
+from base.validators import validate_image_size, validate_image_content_type
 from .models import Item, ItemPhoto, DriverAssignment
 from .state_machine import can_transition
+from apps.points.services import award_points_for_item
+from notifications.tasks import notify_submission_status_changed
 
 
 def transition_item_status(item: Item, target_status: str, *, reason: str = "") -> Item:
@@ -25,13 +29,8 @@ def transition_item_status(item: Item, target_status: str, *, reason: str = "") 
     item.save(update_fields=["status", "rejection_reason", "updated_at"])
 
     if target_status == Item.Status.ACCEPTED:
-        # Points award is handled by apps.points.services, called from
-        # here so submissions doesn't import points models directly at
-        # module load time (avoids circular imports).
-        from apps.points.services import award_points_for_item
         award_points_for_item(item)
 
-    from notifications.tasks import notify_submission_status_changed
     notify_submission_status_changed.delay(str(item.id), target_status)
 
     return item
@@ -55,7 +54,13 @@ def create_item_with_photos(*, user, category: str, condition: str, description:
         )
 
         for photo_file in photos:
-            # validate_image_size runs automatically via the model field validator
+            # Model field validators don't run on .objects.create(), so
+            # validate explicitly here before persisting.
+            try:
+                validate_image_size(photo_file)
+                validate_image_content_type(photo_file)
+            except DjangoValidationError as exc:
+                raise ValidationError({"photos": exc.messages})
             ItemPhoto.objects.create(item=item, image=photo_file)
 
     return item
@@ -66,6 +71,11 @@ def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str)
     Create a DriverAssignment for an ACCEPTED item and transition it to DISPATCHED.
     Raises DRF ValidationError if the item is not in ACCEPTED status.
     """
+    if DriverAssignment.objects.filter(item=item).exists():
+        raise ValidationError(
+            {"item": "Driver already assigned to this item."}
+        )
+
     if item.status != Item.Status.ACCEPTED:
         raise ValidationError(
             {"item": f"Cannot assign driver to item with status '{item.status}'. Must be 'accepted'."}
@@ -73,18 +83,11 @@ def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str)
 
     with transaction.atomic():
         # Create the driver assignment
-        assignment, created = DriverAssignment.objects.get_or_create(
+        assignment = DriverAssignment.objects.create(
             item=item,
-            defaults={
-                "driver_name": driver_name,
-                "pickup_address_snapshot": pickup_address_snapshot,
-            },
+            driver_name=driver_name,
+            pickup_address_snapshot=pickup_address_snapshot,
         )
-
-        if not created:
-            raise ValidationError(
-                {"item": "Driver already assigned to this item."}
-            )
 
         # Transition the item through the state machine
         transition_item_status(item, Item.Status.DISPATCHED)

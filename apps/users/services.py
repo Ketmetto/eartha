@@ -1,4 +1,7 @@
 """Business logic for the users app, kept out of views."""
+import logging
+import uuid
+
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
@@ -11,6 +14,15 @@ from allauth.account.models import EmailAddress
 from notifications.tasks import send_transactional_email
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+def generate_unique_username(email: str) -> str:
+    base = email.split("@")[0]
+    username = base
+    while User.objects.filter(username=username).exists():
+        username = f"{base}-{uuid.uuid4().hex[:6]}"
+    return username
 
 
 class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
@@ -48,7 +60,8 @@ def send_verification_email(user, request=None):
         subject="Verify your email address",
         template_name="emails/verify_email",
         context={
-            "user": user,
+            "first_name": user.first_name,
+            "email": user.email,
             "verification_url": absolute_url,
         },
     )
@@ -84,3 +97,52 @@ def change_password(user, new_password):
     validate_password(new_password, user)
     user.set_password(new_password)
     user.save()
+
+
+def verify_firebase_token(id_token):
+    """Validate a Firebase ID token (Google/Apple sign-in). Returns (decoded_token, error_message)."""
+    import firebase_admin
+    from firebase_admin import auth as firebase_auth
+
+    if not id_token:
+        return None, "Missing ID token."
+
+    try:
+        firebase_admin.get_app()
+    except ValueError:
+        return None, "Social login is not configured."
+
+    try:
+        decoded_token = firebase_auth.verify_id_token(id_token)
+    except firebase_admin.exceptions.FirebaseError:
+        logger.exception("Firebase ID token verification failed")
+        return None, "Invalid or expired sign-in token."
+
+    if not decoded_token.get("email_verified"):
+        return None, "Your email address is not verified with this provider."
+
+    return decoded_token, None
+
+
+def get_or_create_user_from_firebase(decoded_token, display_name=""):
+    """Find or create the local User for a verified Firebase identity."""
+    email = decoded_token["email"]
+
+    user = User.objects.filter(email__iexact=email).first()
+    if user:
+        return user
+
+    name = (decoded_token.get("name") or display_name or "").strip()
+    first_name, _, last_name = name.partition(" ")
+
+    user = User(
+        username=generate_unique_username(email),
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+    )
+    user.set_unusable_password()
+    user.save()
+
+    EmailAddress.objects.filter(user=user, email=user.email).update(verified=True)
+    return user

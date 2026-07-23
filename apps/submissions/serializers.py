@@ -42,7 +42,10 @@ class ItemCreateWithPhotosSerializer(serializers.Serializer):
     condition = serializers.ChoiceField(choices=Item.Condition.choices)
     description = serializers.CharField(required=False, allow_blank=True)
     photos = serializers.ListField(
-        child=serializers.ImageField(),
+        # Plain FileField, not ImageField: ImageField does a strict PIL
+        # decode which is redundant with base.validators' size/content-type
+        # checks applied in the service layer when the item is created.
+        child=serializers.FileField(),
         min_length=1,
         max_length=10,
         help_text="At least one photo is required. Max 10 photos."

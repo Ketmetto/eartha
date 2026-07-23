@@ -17,6 +17,7 @@ dependencies = [
     "django-storages[s3]>=1.14",
     "django-cors-headers>=4.4",
     "python-decouple>=3.8",
+    "firebase-admin>=6.5",
 ]
 
 [project.optional-dependencies]
