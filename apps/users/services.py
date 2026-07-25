@@ -42,7 +42,7 @@ def get_verification_url(user, request=None):
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = email_verification_token.make_token(user)
     # Frontend should handle this route and call the backend verify endpoint
-    return f"/verify-email?uid={uid}&token={token}"
+    return f"/verify-email/?uid={uid}&token={token}"
 
 
 def send_verification_email(user, request=None):
@@ -58,7 +58,7 @@ def send_verification_email(user, request=None):
     send_transactional_email.delay(
         to_email=user.email,
         subject="Verify your email address",
-        template_name="emails/verify_email",
+        template_name="verify_email",
         context={
             "first_name": user.first_name,
             "email": user.email,

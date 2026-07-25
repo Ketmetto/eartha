@@ -286,6 +286,16 @@ const Eartha = (() => {
     return { user: await establishSession(tokens) };
   }
 
+  // uid/token come from the query string of the emailed verification link.
+  async function verifyEmail(uid, token) {
+    try {
+      const res = await authRequest(`/verify-email/?uid=${encodeURIComponent(uid)}&token=${encodeURIComponent(token)}`);
+      return { detail: res.detail };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   function logout() {
     localStorage.removeItem(KEYS.session);
     localStorage.removeItem(KEYS.profile);
@@ -591,7 +601,7 @@ const Eartha = (() => {
 
   return {
     POINTS_CRITERIA,
-    currentUser, register, login, socialLogin, logout, updateUser, requireAuth, requireAdmin,
+    currentUser, register, login, socialLogin, verifyEmail, logout, updateUser, requireAuth, requireAdmin,
     users,
     submissions, addSubmission, updateSubmission,
     acceptSubmission, rejectSubmission, dispatchSubmission, collectSubmission, completeSubmission,

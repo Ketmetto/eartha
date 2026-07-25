@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User
 from .serializers import (
     RegisterSerializer,
@@ -9,8 +10,13 @@ from .serializers import (
     AddressSerializer,
     NotificationPreferenceSerializer,
     ChangePasswordSerializer,
+    EmailVerifiedTokenObtainPairSerializer,
 )
 from . import services
+
+
+class EmailVerifiedTokenObtainPairView(TokenObtainPairView):
+    serializer_class = EmailVerifiedTokenObtainPairSerializer
 
 
 class RegisterView(generics.CreateAPIView):

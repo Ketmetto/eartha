@@ -1,7 +1,11 @@
+import logging
+
 from celery import shared_task
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -19,24 +23,25 @@ def send_transactional_email(to_email: str, subject: str, message: str = "", tem
         try:
             html_message = render_to_string(f"{template_name}.html", context)
         except Exception:
-            pass  # HTML template optional
+            logger.warning("No HTML template for %r, sending text-only", template_name)
 
         # Try to render text version
         try:
             text_message = render_to_string(f"{template_name}.txt", context)
         except Exception:
+            logger.exception("Failed to render text template %r, falling back to plain message", template_name)
             text_message = message or ""  # fallback to plain message
 
         send_mail(
             subject=subject,
             message=text_message,
-            from_email=settings.EMAIL_HOST_USER,
+            from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[to_email],
             html_message=html_message,
         )
     else:
         # Legacy plain-text path
-        send_mail(subject, message, settings.EMAIL_HOST_USER, [to_email])
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [to_email])
 
 
 @shared_task

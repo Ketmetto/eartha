@@ -9,6 +9,7 @@ from .views import (
     ProfileView,
     QueueView,
     UploadView,
+    VerifyEmailPageView,
 )
 
 app_name = "web"
@@ -23,4 +24,5 @@ urlpatterns = [
     path("profile/", ProfileView.as_view(), name="profile"),
     path("queue/", QueueView.as_view(), name="queue"),
     path("upload/", UploadView.as_view(), name="upload"),
+    path("verify-email/", VerifyEmailPageView.as_view(), name="verify-email"),
 ]

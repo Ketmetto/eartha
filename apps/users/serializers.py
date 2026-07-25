@@ -1,6 +1,8 @@
+from allauth.account.models import EmailAddress
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, Address, NotificationPreference
 from . import services
 
@@ -57,6 +59,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+
+
+class EmailVerifiedTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Same as the stock JWT login, but refuses to issue tokens until the
+    user's email is verified. Social logins never hit this path — they
+    verify via the provider instead (see services.verify_firebase_token)."""
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        if not EmailAddress.objects.filter(user=self.user, verified=True).exists():
+            raise serializers.ValidationError(
+                {"detail": "Please verify your email address before logging in."},
+                code="email_not_verified",
+            )
+        return data
 
 
 class AddressSerializer(serializers.ModelSerializer):

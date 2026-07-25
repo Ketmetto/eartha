@@ -36,6 +36,10 @@ class LoginView(TemplateView):
         return context
 
 
+class VerifyEmailPageView(TemplateView):
+    template_name = "web/verify-email.html"
+
+
 class ProfileView(TemplateView):
     template_name = "web/profile.html"
 
