@@ -17,11 +17,22 @@ Demo accounts (after seeding): `demo@eartha.co` / `demo1234`, `admin@eartha.co` 
 
 ## Without Docker
 
+`.env.example`'s `POSTGRES_HOST=db` and `REDIS_URL=redis://redis:6379/0`
+are Docker Compose service names — they don't resolve outside the
+Compose network. Running natively, point both at wherever your own
+Postgres/Redis actually listen (typically `localhost`):
+
 ```bash
+cp .env.example .env
+# then edit .env: POSTGRES_HOST=localhost, REDIS_URL=redis://localhost:6379/0
 pip install -e ".[dev]"
 python manage.py migrate
 python manage.py runserver
 ```
+
+You'll need Postgres and Redis running locally yourself (e.g. via your
+OS package manager or `docker compose up db redis` if you want to keep
+using Docker for just the data stores).
 
 ## To create a superuser
 ```bash

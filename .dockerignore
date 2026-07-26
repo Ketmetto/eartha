@@ -3,6 +3,7 @@ __pycache__/
 **/__pycache__/
 *.pyc
 .pytest_cache/
+.ruff_cache/
 .env
 .env.*
 !.env.example
@@ -13,3 +14,5 @@ staticfiles/
 docker-compose*.yml
 Dockerfile
 .dockerignore
+.venv/
+node_modules/

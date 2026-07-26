@@ -8,3 +8,11 @@ DEBUG = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+
+# Same static-serving story as prod.py — gunicorn doesn't serve /static/
+# on its own, WhiteNoiseMiddleware (in base.py) does, backed by this
+# compressed + hashed-filename storage.
+STORAGES = {
+    **STORAGES,
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}

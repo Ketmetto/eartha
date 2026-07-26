@@ -18,6 +18,7 @@ dependencies = [
     "django-cors-headers>=4.4",
     "python-decouple>=3.8",
     "firebase-admin>=6.5",
+    "whitenoise>=6.7",
 ]
 
 [project.optional-dependencies]
