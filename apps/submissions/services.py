@@ -66,7 +66,7 @@ def create_item_with_photos(*, user, category: str, condition: str, description:
     return item
 
 
-def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str) -> DriverAssignment:
+def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str = "") -> DriverAssignment:
     """
     Create a DriverAssignment for an ACCEPTED item and transition it to DISPATCHED.
     Raises DRF ValidationError if the item is not in ACCEPTED status.
@@ -80,6 +80,15 @@ def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str)
         raise ValidationError(
             {"item": f"Cannot assign driver to item with status '{item.status}'. Must be 'accepted'."}
         )
+
+    if not pickup_address_snapshot:
+        address = getattr(item.user, "address", None)
+        if not address:
+            raise ValidationError(
+                {"pickup_address_snapshot": "User has no saved pickup address."}
+            )
+        parts = [address.line1, address.line2, address.city, address.country, address.postal_code]
+        pickup_address_snapshot = ", ".join(p for p in parts if p)
 
     with transaction.atomic():
         # Create the driver assignment

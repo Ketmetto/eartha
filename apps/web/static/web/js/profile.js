@@ -8,16 +8,15 @@ if (user && !user.isAdmin) {
   document.getElementById('helloLine').textContent = `HELLO, ${user.name.toUpperCase()}`;
 
   // ---------- balance ----------
-  function renderBalance() {
-    user = Eartha.currentUser();
-    const pts = user.points || 0;
+  async function renderBalance() {
+    let pts = 0;
+    try { pts = await Eartha.fetchBalance(); } catch { /* leave at 0 */ }
     document.getElementById('ptsBig').textContent = pts + ' PTS';
 
     // progress toward the cheapest benefit you can't afford yet
-    const targets = Eartha.benefits()
-      .filter((b) => b.active)
-      .map((b) => b.pointsRequired)
-      .sort((a, b) => a - b);
+    let benefits = [];
+    try { benefits = await Eartha.fetchActiveBenefits(); } catch { /* leave empty */ }
+    const targets = benefits.map((b) => b.pointsRequired).sort((a, b) => a - b);
     const next = targets.find((t) => t > pts);
     const bar = document.getElementById('ptsBar');
     const hint = document.getElementById('ptsHint');
@@ -45,72 +44,118 @@ if (user && !user.isAdmin) {
   });
 
   // ---------- submission history ----------
-  const subs = Eartha.submissions().filter((s) => s.userId === user.id).sort((a, b) => b.createdAt - a.createdAt);
-  const subsBody = document.getElementById('subsBody');
-  document.getElementById('subsEmpty').hidden = subs.length > 0;
-  subsBody.innerHTML = subs
-    .map(
-      (s) => `
-      <tr>
-        <td>${s.num}</td>
-        <td>${Eartha.fmtDate(s.createdAt)}</td>
-        <td style="text-transform:uppercase;">${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}</td>
-        <td>${Eartha.badge(s.status)}${s.status === 'rejected' && s.rejectReason ? `<div class="muted" style="font-size:10px;margin-top:4px;">${Eartha.esc(s.rejectReason)}</div>` : ''}</td>
-        <td>${s.status === 'completed' ? '+' + s.points : '—'}</td>
-      </tr>`
-    )
-    .join('');
+  // Points show once accepted, matching real award timing (points are
+  // awarded at acceptance, not completion) — see apps.points.services.
+  const EARNED_STATUSES = ['accepted', 'dispatched', 'collected', 'completed'];
+
+  async function renderSubs() {
+    const subsBody = document.getElementById('subsBody');
+    let subs = [];
+    try {
+      subs = await Eartha.fetchMySubmissions();
+    } catch (err) {
+      Eartha.toast(err.message || 'COULD NOT LOAD YOUR SUBMISSIONS.');
+    }
+    document.getElementById('subsEmpty').hidden = subs.length > 0;
+    subsBody.innerHTML = subs
+      .map(
+        (s) => `
+        <tr>
+          <td>${s.num}</td>
+          <td>${Eartha.fmtDate(s.createdAt)}</td>
+          <td style="text-transform:uppercase;">${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}</td>
+          <td>${Eartha.badge(s.status)}${s.status === 'rejected' && s.rejectReason ? `<div class="muted" style="font-size:10px;margin-top:4px;">${Eartha.esc(s.rejectReason)}</div>` : ''}</td>
+          <td>${EARNED_STATUSES.includes(s.status) ? '+' + (Eartha.POINTS_CRITERIA[s.condition] ?? 0) : '—'}</td>
+        </tr>`
+      )
+      .join('');
+  }
 
   // ---------- redemption history ----------
-  const reds = Eartha.redemptions().filter((r) => r.userId === user.id);
-  const redsBody = document.getElementById('redsBody');
-  document.getElementById('redsEmpty').hidden = reds.length > 0;
-  redsBody.innerHTML = reds
-    .map(
-      (r) => `
-      <tr>
-        <td>${Eartha.fmtDate(r.date)}</td>
-        <td style="text-transform:uppercase;">${Eartha.esc(r.brand)}</td>
-        <td>${r.discount}% OFF</td>
-        <td style="font-weight:700;">${r.code}</td>
-        <td>−${r.points}</td>
-      </tr>`
-    )
-    .join('');
+  async function renderReds() {
+    const redsBody = document.getElementById('redsBody');
+    let reds = [];
+    try {
+      reds = await Eartha.fetchMyRedemptions();
+    } catch (err) {
+      Eartha.toast(err.message || 'COULD NOT LOAD YOUR REDEMPTIONS.');
+    }
+    document.getElementById('redsEmpty').hidden = reds.length > 0;
+    redsBody.innerHTML = reds
+      .map(
+        (r) => `
+        <tr>
+          <td>${Eartha.fmtDate(r.date)}</td>
+          <td style="text-transform:uppercase;">${Eartha.esc(r.brand)}</td>
+          <td>${r.discount}% OFF</td>
+          <td style="font-weight:700;">${Eartha.esc(r.code)}</td>
+          <td>−${r.points}</td>
+        </tr>`
+      )
+      .join('');
+  }
 
   // ---------- settings ----------
-  document.getElementById('setName').value = user.name;
-  document.getElementById('setEmail').value = user.email;
-  document.getElementById('setAddress').value = user.address || '';
-  document.getElementById('setNotify').checked = user.notify !== false;
+  async function loadSettings() {
+    try {
+      const [me, address, prefs] = await Promise.all([
+        Eartha.fetchMe(),
+        Eartha.fetchAddress(),
+        Eartha.fetchNotificationPrefs(),
+      ]);
+      document.getElementById('setName').value = [me.first_name, me.last_name].filter(Boolean).join(' ');
+      document.getElementById('setEmail').value = me.email;
+      document.getElementById('setAddress').value = address.line1 || '';
+      document.getElementById('setNotify').checked = prefs.email_enabled;
+    } catch (err) {
+      Eartha.toast(err.message || 'COULD NOT LOAD YOUR SETTINGS.');
+    }
+  }
 
-  document.getElementById('settingsForm').addEventListener('submit', (e) => {
+  document.getElementById('settingsForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = document.getElementById('settingsMsg');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
     const name = document.getElementById('setName').value.trim();
     const email = document.getElementById('setEmail').value.trim().toLowerCase();
     const address = document.getElementById('setAddress').value.trim();
-    const password = document.getElementById('setPassword').value;
+    const currentPassword = document.getElementById('setCurrentPassword').value;
+    const newPassword = document.getElementById('setPassword').value;
     const notify = document.getElementById('setNotify').checked;
 
     if (!name) { msg.textContent = 'NAME CAN\'T BE EMPTY.'; msg.className = 'form-msg is-error'; return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = 'ENTER A VALID EMAIL ADDRESS.'; msg.className = 'form-msg is-error'; return; }
-    if (Eartha.users().some((u) => u.email === email && u.id !== user.id)) {
-      msg.textContent = 'THIS EMAIL IS USED BY ANOTHER ACCOUNT.'; msg.className = 'form-msg is-error'; return;
-    }
-    if (password && password.length < 8) {
+    if (newPassword && newPassword.length < 8) {
       msg.textContent = 'NEW PASSWORD MUST BE AT LEAST 8 CHARACTERS.'; msg.className = 'form-msg is-error'; return;
     }
+    if (newPassword && !currentPassword) {
+      msg.textContent = 'ENTER YOUR CURRENT PASSWORD TO SET A NEW ONE.'; msg.className = 'form-msg is-error'; return;
+    }
 
-    const patch = { name, email, address, notify };
-    if (password) patch.password = password;
-    user = Eartha.updateUser(user.id, patch);
+    submitBtn.disabled = true;
+    try {
+      user = await Eartha.updateMe({ name, email });
+      await Eartha.updateAddress(address);
+      await Eartha.updateNotificationPrefs({ email_enabled: notify });
+      if (newPassword) {
+        await Eartha.changePassword(currentPassword, newPassword, newPassword);
+      }
 
-    document.getElementById('setPassword').value = '';
-    document.getElementById('helloLine').textContent = `HELLO, ${user.name.toUpperCase()}`;
-    msg.textContent = 'SAVED.';
-    msg.className = 'form-msg is-ok';
+      document.getElementById('setPassword').value = '';
+      document.getElementById('setCurrentPassword').value = '';
+      document.getElementById('helloLine').textContent = `HELLO, ${user.name.toUpperCase()}`;
+      msg.textContent = 'SAVED.';
+      msg.className = 'form-msg is-ok';
+    } catch (err) {
+      msg.textContent = err.message || 'SOMETHING WENT WRONG.';
+      msg.className = 'form-msg is-error';
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 
   renderBalance();
+  renderSubs();
+  renderReds();
+  loadSettings();
 }

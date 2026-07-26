@@ -107,9 +107,21 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SITE_ID = 1
+
+# --- Cache (backs DRF throttling — shared across workers, unlike locmem) ---
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": config("REDIS_URL", default="redis://localhost:6379/0"),
+        "KEY_PREFIX": "cache",
+    }
+}
 
 # --- DRF ---
 REST_FRAMEWORK = {
@@ -122,6 +134,17 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "base.pagination.StandardResultsPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "base.exceptions.custom_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",
+        "user": "1000/hour",
+        "register": "10/hour",
+        "login": "20/hour",
+        "email_action": "5/hour",
+    },
 }
 
 from datetime import timedelta  # noqa: E402

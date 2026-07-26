@@ -68,7 +68,7 @@ class EmailVerifiedTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
-        if not EmailAddress.objects.filter(user=self.user, verified=True).exists():
+        if not (self.user.verified or EmailAddress.objects.filter(user=self.user, verified=True).exists()):
             raise serializers.ValidationError(
                 {"detail": "Please verify your email address before logging in."},
                 code="email_not_verified",
@@ -86,6 +86,22 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationPreference
         fields = ["email_enabled", "sms_enabled"]
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password_confirm = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs.pop("new_password_confirm"):
+            raise serializers.ValidationError({"new_password_confirm": "Passwords do not match."})
+        return attrs
 
 
 class ChangePasswordSerializer(serializers.Serializer):

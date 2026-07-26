@@ -32,3 +32,4 @@ class Redemption(BaseModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="redemptions")
     benefit = models.ForeignKey(Benefit, on_delete=models.PROTECT)
     points_spent = models.PositiveIntegerField()
+    code = models.CharField(max_length=40, unique=True, editable=False)

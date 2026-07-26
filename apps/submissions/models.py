@@ -29,7 +29,7 @@ class Item(BaseModel):
     category = models.CharField(max_length=20, choices=Category.choices)
     condition = models.CharField(max_length=20, choices=Condition.choices)
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     rejection_reason = models.TextField(blank=True)
 
 

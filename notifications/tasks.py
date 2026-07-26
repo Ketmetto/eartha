@@ -47,11 +47,69 @@ def send_transactional_email(to_email: str, subject: str, message: str = "", tem
 @shared_task
 def notify_points_awarded(user_id, points: int):
     """Called by apps.points.services after a successful award."""
-    # fetch user, render template, call send_transactional_email.delay(...)
-    pass
+    from django.contrib.auth import get_user_model
+    from django.db.models import Sum
+    from apps.points.models import PointsLedgerEntry
+
+    from apps.users.services import get_or_create_notification_prefs
+
+    User = get_user_model()
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return
+
+    if not get_or_create_notification_prefs(user).email_enabled:
+        return
+
+    balance = PointsLedgerEntry.objects.filter(user=user).aggregate(total=Sum("points"))["total"] or 0
+    entry = (
+        PointsLedgerEntry.objects.filter(user=user, entry_type=PointsLedgerEntry.EntryType.AWARD)
+        .order_by("-created_at")
+        .first()
+    )
+
+    send_transactional_email(
+        to_email=user.email,
+        subject="You just earned points",
+        template_name="points_awarded",
+        context={
+            "first_name": user.first_name,
+            "email": user.email,
+            "points": points,
+            "balance": balance,
+            "category": getattr(entry.reference_item, "category", "") if entry else "",
+            "condition": getattr(entry.reference_item, "condition", "") if entry else "",
+        },
+    )
 
 
 @shared_task
 def notify_submission_status_changed(submission_id, new_status: str):
     """Called by apps.submissions.services on accept/reject/dispatch."""
-    pass
+    from apps.submissions.models import Item
+
+    try:
+        item = Item.objects.select_related("user").get(pk=submission_id)
+    except Item.DoesNotExist:
+        return
+
+    from apps.users.services import get_or_create_notification_prefs
+
+    user = item.user
+    if not get_or_create_notification_prefs(user).email_enabled:
+        return
+
+    send_transactional_email(
+        to_email=user.email,
+        subject="Your submission status changed",
+        template_name="submission_status_changed",
+        context={
+            "first_name": user.first_name,
+            "email": user.email,
+            "category": item.category,
+            "created_at": item.created_at,
+            "status_label": item.get_status_display(),
+            "rejection_reason": item.rejection_reason,
+        },
+    )

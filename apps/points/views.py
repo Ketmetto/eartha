@@ -26,7 +26,14 @@ class LedgerHistoryView(generics.ListAPIView):
 class BenefitListView(generics.ListAPIView):
     serializer_class = BenefitSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Benefit.objects.filter(is_active=True).order_by("display_priority")
+    pagination_class = None
+
+    def get_queryset(self):
+        queryset = Benefit.objects.filter(is_active=True).order_by("display_priority")
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category=category)
+        return queryset
 
 
 class RedeemBenefitView(generics.CreateAPIView):
@@ -35,4 +42,14 @@ class RedeemBenefitView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         benefit = serializer.validated_data["benefit"]
-        redeem_benefit(user=self.request.user, benefit=benefit)
+        serializer.instance = redeem_benefit(user=self.request.user, benefit=benefit)
+
+
+class MyRedemptionsView(generics.ListAPIView):
+    """The authenticated user's own redemption history."""
+    serializer_class = RedemptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        return Redemption.objects.filter(user=self.request.user).select_related("benefit")

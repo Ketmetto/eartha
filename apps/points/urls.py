@@ -1,9 +1,14 @@
 from django.urls import path
-from .views import BalanceView, LedgerHistoryView, BenefitListView, RedeemBenefitView
+from .views import BalanceView, LedgerHistoryView, BenefitListView, RedeemBenefitView, MyRedemptionsView
+from .admin_views import BenefitAdminListCreateView, BenefitAdminDetailView, BenefitReorderView
 
 urlpatterns = [
     path("balance/", BalanceView.as_view(), name="points-balance"),
     path("history/", LedgerHistoryView.as_view(), name="points-history"),
     path("benefits/", BenefitListView.as_view(), name="benefits-list"),
     path("redeem/", RedeemBenefitView.as_view(), name="benefit-redeem"),
+    path("redemptions/", MyRedemptionsView.as_view(), name="my-redemptions"),
+    path("admin/benefits/", BenefitAdminListCreateView.as_view(), name="benefits-admin-list-create"),
+    path("admin/benefits/reorder/", BenefitReorderView.as_view(), name="benefits-admin-reorder"),
+    path("admin/benefits/<uuid:pk>/", BenefitAdminDetailView.as_view(), name="benefits-admin-detail"),
 ]

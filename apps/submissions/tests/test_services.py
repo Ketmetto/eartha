@@ -6,7 +6,7 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from apps.submissions.models import Item, ItemPhoto, DriverAssignment
+from apps.submissions.models import Item, DriverAssignment
 from apps.submissions.services import (
     transition_item_status,
     create_item_with_photos,
@@ -14,27 +14,7 @@ from apps.submissions.services import (
 )
 
 
-@pytest.fixture
-def pending_item(user):
-    return Item.objects.create(
-        user=user,
-        category=Item.Category.CLOTHING,
-        condition=Item.Condition.GOOD,
-        description="Test item",
-        status=Item.Status.PENDING,
-    )
-
-
-@pytest.fixture
-def accepted_item(user):
-    return Item.objects.create(
-        user=user,
-        category=Item.Category.SHOES,
-        condition=Item.Condition.LIKE_NEW,
-        description="Accepted item",
-        status=Item.Status.ACCEPTED,
-    )
-
+# pending_item / accepted_item come from apps/submissions/tests/conftest.py
 
 # ---------------------------------------------------------------------------
 # transition_item_status
@@ -44,8 +24,10 @@ class TestTransitionItemStatus:
     """Test the state machine transition logic."""
 
     def test_pending_to_accepted(self, pending_item):
-        with patch("apps.submissions.services.award_points_for_item") as mock_award,              patch("apps.submissions.services.notify_submission_status_changed") as mock_notify:
-
+        with (
+            patch("apps.submissions.services.award_points_for_item") as mock_award,
+            patch("apps.submissions.services.notify_submission_status_changed") as mock_notify,
+        ):
             result = transition_item_status(pending_item, Item.Status.ACCEPTED)
 
             assert result.status == Item.Status.ACCEPTED

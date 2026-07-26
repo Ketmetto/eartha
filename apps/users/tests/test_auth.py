@@ -123,9 +123,6 @@ class TestAdminRBAC:
         response = api_client.get("/api/v1/submissions/admin/queue/")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_staff_user_can_access_admin_queue(self, api_client, user):
-        user.is_staff = True
-        user.save()
-        api_client.force_authenticate(user=user)
-        response = api_client.get("/api/v1/submissions/admin/queue/")
+    def test_staff_user_can_access_admin_queue(self, admin_client):
+        response = admin_client.get("/api/v1/submissions/admin/queue/")
         assert response.status_code == status.HTTP_200_OK

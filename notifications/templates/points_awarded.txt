@@ -1,0 +1,5 @@
+Hi {{ first_name|default:email }},
+
+You just earned {{ points }} points for your accepted item ({{ category }}, {{ condition }} condition).
+
+Your new balance is {{ balance }} points. Log in to see what you can redeem them for.

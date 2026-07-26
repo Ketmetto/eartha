@@ -42,4 +42,14 @@ include = ["apps*", "base*", "config*", "notifications*"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.test"  # local/CI test runs use sqlite; dev/staging/prod use Postgres
-python_files = ["tests.py", "test_*.py"]
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+# --ds is a belt-and-suspenders duplicate of DJANGO_SETTINGS_MODULE above:
+# pytest-django prioritizes the DJANGO_SETTINGS_MODULE *env var* over this
+# ini option, and the dev container sets that env var to config.settings.dev
+# for the runserver process — without --ds here, `pytest` would silently run
+# against real Postgres/Redis instead of the fast sqlite/locmem test settings.
+addopts = "--tb=short --strict-markers --ds=config.settings.test"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]

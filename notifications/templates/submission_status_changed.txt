@@ -1,0 +1,7 @@
+Hi {{ first_name|default:email }},
+
+Your submission ({{ category }}, submitted {{ created_at }}) is now: {{ status_label }}.
+{% if rejection_reason %}
+Reason: {{ rejection_reason }}
+{% endif %}
+Log in to view details.

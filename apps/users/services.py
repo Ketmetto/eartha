@@ -3,8 +3,7 @@ import logging
 import uuid
 
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import get_user_model
@@ -81,6 +80,46 @@ def verify_email_token(uidb64, token):
         return True, "Email verified successfully."
     else:
         return False, "Verification link expired or invalid."
+
+
+def get_password_reset_url(user, request=None):
+    """Build the password reset URL with uidb64 + token. Uses Django's
+    stock token generator (hashes on password + last_login), so a token
+    is invalidated as soon as it's used or the password changes."""
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    url = f"/reset-password/?uid={uid}&token={token}"
+    return request.build_absolute_uri(url) if request is not None else url
+
+
+def send_password_reset_email(user, request=None):
+    """Queue a password reset email via Celery."""
+    send_transactional_email.delay(
+        to_email=user.email,
+        subject="Reset your password",
+        template_name="password_reset",
+        context={
+            "first_name": user.first_name,
+            "email": user.email,
+            "reset_url": get_password_reset_url(user, request),
+        },
+    )
+
+
+def reset_password_with_token(uidb64, token, new_password):
+    """Validate token and set the new password. Returns (success, message)."""
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return False, "Invalid reset link."
+
+    if not default_token_generator.check_token(user, token):
+        return False, "Reset link expired or invalid."
+
+    user.set_password(new_password)
+    user.save()
+    return True, "Password reset successfully."
 
 
 def get_or_create_address(user):

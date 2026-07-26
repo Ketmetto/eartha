@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -10,6 +11,8 @@ from .serializers import (
     AddressSerializer,
     NotificationPreferenceSerializer,
     ChangePasswordSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
     EmailVerifiedTokenObtainPairSerializer,
 )
 from . import services
@@ -17,12 +20,16 @@ from . import services
 
 class EmailVerifiedTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailVerifiedTokenObtainPairSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "register"
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -60,6 +67,8 @@ class ResendVerificationView(APIView):
     Resends the verification email. Always returns 200 to prevent email enumeration.
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_action"
 
     def post(self, request):
         email = request.data.get("email", "").strip().lower()
@@ -106,6 +115,52 @@ class NotificationPreferenceView(generics.RetrieveUpdateAPIView):
         return services.get_or_create_notification_prefs(self.request.user)
 
 
+class PasswordResetRequestView(APIView):
+    """
+    POST /api/v1/auth/password-reset/
+    Body: {"email": "user@example.com"}
+    Always returns 200 to prevent email enumeration.
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_action"
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"].strip().lower()
+
+        user = User.objects.filter(email__iexact=email).first()
+        if user and user.has_usable_password():
+            services.send_password_reset_email(user, request)
+
+        return Response(
+            {"detail": "If an account exists with this email, a password reset link has been sent."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    """
+    POST /api/v1/auth/password-reset/confirm/
+    Body: {"uid": "...", "token": "...", "new_password": "...", "new_password_confirm": "..."}
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_action"
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        success, message = services.reset_password_with_token(
+            serializer.validated_data["uid"],
+            serializer.validated_data["token"],
+            serializer.validated_data["new_password"],
+        )
+        status_code = status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST
+        return Response({"detail": message}, status=status_code)
+
+
 class ChangePasswordView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -123,6 +178,8 @@ class FirebaseSocialLoginView(APIView):
     returns the same JWT pair shape as the regular login endpoint.
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
         decoded_token, error = services.verify_firebase_token(request.data.get("id_token", ""))

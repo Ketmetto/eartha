@@ -14,8 +14,26 @@ class BenefitSerializer(serializers.ModelSerializer):
         fields = ["id", "brand_name", "logo", "category", "discount_percent", "points_required", "display_priority"]
 
 
+class BenefitAdminSerializer(serializers.ModelSerializer):
+    """Full read/write field set — used by the admin benefits-management screen."""
+    class Meta:
+        model = Benefit
+        fields = [
+            "id", "brand_name", "logo", "category", "discount_percent",
+            "points_required", "is_active", "display_priority",
+        ]
+
+
+class BenefitReorderSerializer(serializers.Serializer):
+    """Body: {"ids": [uuid, uuid, ...]} — the new front-to-back display order."""
+    ids = serializers.ListField(child=serializers.UUIDField(), min_length=1)
+
+
 class RedemptionSerializer(serializers.ModelSerializer):
+    brand_name = serializers.CharField(source="benefit.brand_name", read_only=True)
+    discount_percent = serializers.IntegerField(source="benefit.discount_percent", read_only=True)
+
     class Meta:
         model = Redemption
-        fields = ["id", "benefit", "points_spent", "created_at"]
-        read_only_fields = ["points_spent", "created_at"]
+        fields = ["id", "benefit", "brand_name", "discount_percent", "code", "points_spent", "created_at"]
+        read_only_fields = ["points_spent", "code", "created_at"]

@@ -9,6 +9,10 @@ class User(AbstractUser):
     """Custom user so we can add fields later without a painful migration."""
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=32, blank=True)
+    verified = models.BooleanField(
+        default=False,
+        help_text="Manually verified accounts skip email verification on login. Used to grant access to test accounts.",
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]

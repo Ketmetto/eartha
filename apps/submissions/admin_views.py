@@ -18,6 +18,16 @@ class SubmissionReviewQueueView(generics.ListAPIView):
     queryset = Item.objects.filter(status=Item.Status.PENDING)
 
 
+class SubmissionAdminListView(generics.ListAPIView):
+    """Admin: every submission regardless of status — powers the queue's
+    full pipeline view (pending/accepted/dispatched/collected/completed/rejected),
+    unlike SubmissionReviewQueueView which is pending-only."""
+    serializer_class = ItemAdminSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = None
+    queryset = Item.objects.all().select_related("user", "user__address").order_by("-updated_at")
+
+
 class SubmissionDecisionView(generics.GenericAPIView):
     """
     Admin: accept or reject an item.
@@ -59,6 +69,8 @@ class DriverDispatchView(generics.GenericAPIView):
 
     POST /admin/<uuid:pk>/dispatch/
       {"driver_name": "...", "pickup_address_snapshot": "..."}
+    pickup_address_snapshot is optional — falls back to the user's saved
+    address (see services.assign_driver) if omitted.
     Creates a DriverAssignment and transitions the item to DISPATCHED.
     """
     serializer_class = DriverDispatchSerializer
@@ -73,10 +85,36 @@ class DriverDispatchView(generics.GenericAPIView):
         assignment = assign_driver(
             item=item,
             driver_name=serializer.validated_data["driver_name"],
-            pickup_address_snapshot=serializer.validated_data["pickup_address_snapshot"],
+            pickup_address_snapshot=serializer.validated_data.get("pickup_address_snapshot", ""),
         )
 
         return Response(
             {"detail": "Driver assigned and item dispatched.", "assignment_id": str(assignment.id)},
             status=status.HTTP_201_CREATED
         )
+
+
+class SubmissionMarkCollectedView(generics.GenericAPIView):
+    """Admin: mark a dispatched item as collected. POST /admin/<uuid:pk>/collect/"""
+    permission_classes = [IsAdmin]
+    queryset = Item.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        item = transition_item_status(self.get_object(), Item.Status.COLLECTED)
+        return Response(ItemAdminSerializer(item).data, status=status.HTTP_200_OK)
+
+
+class SubmissionMarkCompletedView(generics.GenericAPIView):
+    """
+    Admin: mark a collected item as completed, closing out the pipeline.
+    POST /admin/<uuid:pk>/complete/
+    Points were already awarded when the item was accepted (see
+    services.award_points_for_item) — this step doesn't award anything,
+    it just closes the loop.
+    """
+    permission_classes = [IsAdmin]
+    queryset = Item.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        item = transition_item_status(self.get_object(), Item.Status.COMPLETED)
+        return Response(ItemAdminSerializer(item).data, status=status.HTTP_200_OK)

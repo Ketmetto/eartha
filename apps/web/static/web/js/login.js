@@ -4,6 +4,18 @@
 const existingUser = Eartha.currentUser();
 if (existingUser) location.href = existingUser.isAdmin ? '/dashboard/' : '/';
 
+// forced logout (session expired / access revoked) leaves a one-time
+// reason here — show it, then clear so it doesn't reappear on a later visit
+const flash = sessionStorage.getItem('eartha:flash');
+if (flash) {
+  sessionStorage.removeItem('eartha:flash');
+  const loginMsg = document.getElementById('loginMsg');
+  if (loginMsg) {
+    loginMsg.textContent = flash;
+    loginMsg.className = 'form-msg is-error';
+  }
+}
+
 const tabLogin = document.getElementById('tabLogin');
 const tabRegister = document.getElementById('tabRegister');
 const loginForm = document.getElementById('loginForm');

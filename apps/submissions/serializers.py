@@ -19,8 +19,34 @@ class ItemSerializer(serializers.ModelSerializer):
 
 class ItemAdminSerializer(ItemSerializer):
     """Adds fields only admins should see/edit in the review queue."""
+    user_name = serializers.SerializerMethodField()
+    user_email = serializers.SerializerMethodField()
+    pickup_address = serializers.SerializerMethodField()
+    driver_name = serializers.SerializerMethodField()
+
     class Meta(ItemSerializer.Meta):
-        fields = ItemSerializer.Meta.fields + ["user", "rejection_reason"]
+        fields = ItemSerializer.Meta.fields + [
+            "user", "user_name", "user_email", "pickup_address", "driver_name",
+            "rejection_reason", "updated_at",
+        ]
+
+    def get_user_name(self, obj):
+        name = f"{obj.user.first_name} {obj.user.last_name}".strip()
+        return name or obj.user.email
+
+    def get_user_email(self, obj):
+        return obj.user.email
+
+    def get_pickup_address(self, obj):
+        address = getattr(obj.user, "address", None)
+        if not address:
+            return None
+        parts = [address.line1, address.line2, address.city, address.country, address.postal_code]
+        return ", ".join(p for p in parts if p)
+
+    def get_driver_name(self, obj):
+        dispatch = getattr(obj, "dispatch", None)
+        return dispatch.driver_name if dispatch else None
 
 
 class DriverAssignmentSerializer(serializers.ModelSerializer):
@@ -82,5 +108,10 @@ class DriverDispatchSerializer(serializers.Serializer):
     """
     driver_name = serializers.CharField(max_length=120)
     pickup_address_snapshot = serializers.CharField(
-        help_text="Snapshot of the pickup address at time of dispatch."
+        required=False,
+        allow_blank=True,
+        help_text=(
+            "Snapshot of the pickup address at time of dispatch. "
+            "Optional — falls back to the user's saved address if omitted."
+        ),
     )

@@ -1,6 +1,6 @@
 /* EARTHA — queue.js
    One pipeline. Each card renders its single next action inline:
-   pending → accept/reject → driver select → collected → points → done.
+   pending → accept/reject → driver name → collected → close out → done.
 */
 
 const admin = Eartha.requireAdmin();
@@ -8,7 +8,6 @@ if (admin) {
   Eartha.renderHeader(admin, 'queue');
 
   const listEl = document.getElementById('queueList');
-  const userById = (id) => Eartha.users().find((u) => u.id === id) || { name: 'Unknown', address: '' };
 
   // ---------- tabs ----------
   document.querySelectorAll('.tabs .tab').forEach((tab) => {
@@ -31,7 +30,7 @@ if (admin) {
     pending: 'AWAITING REVIEW',
     accepted: 'NEEDS A DRIVER',
     dispatched: 'OUT FOR PICKUP',
-    collected: 'AWARD POINTS',
+    collected: 'READY TO CLOSE OUT',
     completed: 'DONE',
     rejected: 'CLOSED',
   };
@@ -42,7 +41,7 @@ if (admin) {
       : '<div class="thumb-64"></div>';
   }
 
-  function actionArea(s, u) {
+  function actionArea(s) {
     // reject panel (available while pending)
     if (open.reject.has(s.id)) {
       return `
@@ -67,15 +66,12 @@ if (admin) {
           </div>`;
 
       case 'accepted': {
-        const noAddress = !u.address;
-        const drivers = Eartha.drivers()
-          .map((d) => `<option value="${d.id}">${Eartha.esc(d.name)} — ${Eartha.esc(d.phone)}</option>`)
-          .join('');
+        const noAddress = !s.pickupAddress;
         return `
           <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
             <div class="field" style="margin:0;min-width:220px;">
-              <label for="driver-${s.id}">ASSIGN DRIVER</label>
-              <div class="select-wrap"><select id="driver-${s.id}">${drivers}</select></div>
+              <label for="driver-${s.id}">DRIVER NAME</label>
+              <input type="text" id="driver-${s.id}" placeholder="e.g. Karim H.">
             </div>
             <button class="btn btn-sm" data-act="dispatch" data-id="${s.id}" ${noAddress ? 'disabled title="User has no pickup address"' : ''}>DISPATCH</button>
           </div>`;
@@ -84,20 +80,16 @@ if (admin) {
       case 'dispatched':
         return `<button class="btn btn-sm" data-act="collect" data-id="${s.id}">MARK COLLECTED</button>`;
 
-      case 'collected': {
-        const suggested = Eartha.POINTS_CRITERIA[s.condition] ?? 0;
-        return `
-          <div style="display:flex;gap:12px;align-items:flex-end;">
-            <div class="field" style="margin:0;width:110px;">
-              <label for="pts-${s.id}">POINTS</label>
-              <input type="number" id="pts-${s.id}" min="0" value="${suggested}">
-            </div>
-            <button class="btn btn-sm" data-act="complete" data-id="${s.id}">CONFIRM &amp; SEND</button>
-          </div>`;
-      }
+      case 'collected':
+        return `<button class="btn btn-sm" data-act="complete" data-id="${s.id}">CONFIRM &amp; CLOSE OUT</button>`;
 
-      case 'completed':
-        return `<p class="muted" style="font-size:11px;">+${s.points} PTS SENT · ${Eartha.fmtDate(s.updatedAt)}</p>`;
+      case 'completed': {
+        // Points were awarded at acceptance, not here — the table below
+        // matches apps.points.rules.suggested_points exactly, so this is
+        // the real amount, not a guess.
+        const pts = Eartha.POINTS_CRITERIA[s.condition] ?? 0;
+        return `<p class="muted" style="font-size:11px;">+${pts} PTS AWARDED AT ACCEPTANCE · ${Eartha.fmtDate(s.updatedAt)}</p>`;
+      }
 
       case 'rejected':
         return `<p class="muted" style="font-size:11px;">REASON: ${Eartha.esc(s.rejectReason || '—')}</p>`;
@@ -106,10 +98,9 @@ if (admin) {
   }
 
   function card(s) {
-    const u = userById(s.userId);
     const addressLine =
       ['accepted', 'dispatched'].includes(s.status)
-        ? `<p class="muted" style="font-size:11px;margin-top:4px;">PICKUP: ${u.address ? Eartha.esc(u.address) : '<span style="color:var(--bad);">NO ADDRESS ON PROFILE</span>'}</p>`
+        ? `<p class="muted" style="font-size:11px;margin-top:4px;">PICKUP: ${s.pickupAddress ? Eartha.esc(s.pickupAddress) : '<span style="color:var(--bad);">NO ADDRESS ON PROFILE</span>'}</p>`
         : '';
     const driverLine = s.driverName && s.status !== 'accepted'
       ? `<p class="muted" style="font-size:11px;margin-top:4px;">DRIVER: ${Eartha.esc(s.driverName)}</p>`
@@ -119,7 +110,7 @@ if (admin) {
       <div class="card-row">
         ${photoStrip(s)}
         <div style="flex:1;min-width:200px;">
-          <p class="batch-tag">${s.num} · ${Eartha.fmtDate(s.createdAt)} · FROM ${Eartha.esc(u.name.toUpperCase())}</p>
+          <p class="batch-tag">${s.num} · ${Eartha.fmtDate(s.createdAt)} · FROM ${Eartha.esc((s.userName || 'UNKNOWN').toUpperCase())}</p>
           <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:2px;">
             ${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}
           </p>
@@ -132,12 +123,19 @@ if (admin) {
           <p class="muted" style="font-size:10px;letter-spacing:var(--track-wide);margin-top:6px;">${NEXT_LABEL[s.status]}</p>
         </div>
       </div>
-      <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:16px;">${actionArea(s, u)}</div>
+      <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:16px;">${actionArea(s)}</div>
     </div>`;
   }
 
-  function render() {
-    const subs = Eartha.submissions().sort((a, b) => b.createdAt - a.createdAt);
+  async function render() {
+    let subs;
+    try {
+      subs = await Eartha.fetchAdminSubmissions();
+    } catch (err) {
+      listEl.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD THE QUEUE.')}</div>`;
+      return;
+    }
+
     const action = subs.filter((s) => ACTION_STATUSES.includes(s.status));
     const done = subs.filter((s) => DONE_STATUSES.includes(s.status));
 
@@ -165,50 +163,59 @@ if (admin) {
   });
 
   // actions — one delegated listener, whole pipeline
-  listEl.addEventListener('click', (e) => {
+  listEl.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const id = btn.dataset.id;
     const act = btn.dataset.act;
 
-    if (act === 'accept') {
-      const s = Eartha.acceptSubmission(id);
-      Eartha.toast(`${s.num} ACCEPTED — ASSIGN A DRIVER BELOW`);
+    try {
+      if (act === 'accept') {
+        await Eartha.acceptItem(id);
+        Eartha.toast('ACCEPTED — ASSIGN A DRIVER BELOW');
+      } else if (act === 'reject') {
+        open.reject.add(id);
+      } else if (act === 'reject-cancel') {
+        open.reject.delete(id);
+      } else if (act === 'reject-confirm') {
+        const reason = document.getElementById('reason-' + id).value.trim() || 'Did not meet acceptance criteria.';
+        await Eartha.rejectItem(id, reason);
+        open.reject.delete(id);
+        Eartha.toast('REJECTED — USER NOTIFIED');
+      } else if (act === 'dispatch') {
+        const driverName = document.getElementById('driver-' + id).value.trim();
+        if (!driverName) { Eartha.toast('ENTER A DRIVER NAME'); return; }
+        await Eartha.dispatchItem(id, driverName);
+        Eartha.toast(`DISPATCHED TO ${driverName.toUpperCase()}`);
+      } else if (act === 'collect') {
+        await Eartha.collectItem(id);
+        Eartha.toast('MARKED COLLECTED');
+      } else if (act === 'complete') {
+        await Eartha.completeItem(id);
+        Eartha.toast('CLOSED OUT');
+      }
+    } catch (err) {
+      Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
     }
-    if (act === 'reject') { open.reject.add(id); }
-    if (act === 'reject-cancel') { open.reject.delete(id); }
-    if (act === 'reject-confirm') {
-      const reason = document.getElementById('reason-' + id).value.trim() || 'Did not meet acceptance criteria.';
-      const s = Eartha.rejectSubmission(id, reason);
-      open.reject.delete(id);
-      Eartha.toast(`${s.num} REJECTED — USER NOTIFIED`);
-    }
-    if (act === 'dispatch') {
-      const driver = Eartha.drivers().find((d) => d.id === document.getElementById('driver-' + id).value);
-      const s = Eartha.dispatchSubmission(id, driver);
-      Eartha.toast(`${s.num} DISPATCHED TO ${driver.name.toUpperCase()}`);
-    }
-    if (act === 'collect') {
-      const s = Eartha.collectSubmission(id);
-      Eartha.toast(`${s.num} COLLECTED — AWARD POINTS BELOW`);
-    }
-    if (act === 'complete') {
-      const pts = Math.max(0, Number(document.getElementById('pts-' + id).value) || 0);
-      const s = Eartha.completeSubmission(id, pts);
-      Eartha.toast(`+${pts} PTS SENT — ${s.num} COMPLETED`);
-    }
+
     render();
   });
 
   // ============ MANAGE BENEFITS ============
   let editingId = null;
+  let benefitsList = [];
   const bForm = document.getElementById('benefitForm');
   const bMsg = document.getElementById('benefitMsg');
 
-  function renderBenefits() {
-    const list = Eartha.benefits();
+  async function renderBenefits() {
     const body = document.getElementById('benefitsBody');
-    body.innerHTML = list
+    try {
+      benefitsList = await Eartha.fetchBenefitsAdmin();
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="7">${Eartha.esc(err.message || 'COULD NOT LOAD BENEFITS.')}</td></tr>`;
+      return;
+    }
+    body.innerHTML = benefitsList
       .map(
         (b) => `
       <tr class="drag-row" draggable="true" data-id="${b.id}">
@@ -229,7 +236,7 @@ if (admin) {
     wireDrag(body);
   }
 
-  bForm.addEventListener('submit', (e) => {
+  bForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const brand = document.getElementById('bBrand').value.trim();
     const discount = Number(document.getElementById('bDiscount').value);
@@ -242,16 +249,21 @@ if (admin) {
       return;
     }
 
-    if (editingId) {
-      Eartha.updateBenefit(editingId, { brand, discount, pointsRequired, category });
-      bMsg.textContent = 'BENEFIT UPDATED — LIVE ON THE BENEFITS PAGE.';
-    } else {
-      Eartha.addBenefit({ brand, discount, pointsRequired, category });
-      bMsg.textContent = 'BENEFIT ADDED — LIVE ON THE BENEFITS PAGE.';
+    try {
+      if (editingId) {
+        await Eartha.updateBenefitAdmin(editingId, { brand, discount, pointsRequired, category });
+        bMsg.textContent = 'BENEFIT UPDATED — LIVE ON THE BENEFITS PAGE.';
+      } else {
+        await Eartha.createBenefitAdmin({ brand, discount, pointsRequired, category });
+        bMsg.textContent = 'BENEFIT ADDED — LIVE ON THE BENEFITS PAGE.';
+      }
+      bMsg.className = 'form-msg is-ok';
+      resetBenefitForm();
+      await renderBenefits();
+    } catch (err) {
+      bMsg.textContent = err.message || 'SOMETHING WENT WRONG.';
+      bMsg.className = 'form-msg is-error';
     }
-    bMsg.className = 'form-msg is-ok';
-    resetBenefitForm();
-    renderBenefits();
   });
 
   function resetBenefitForm() {
@@ -264,13 +276,13 @@ if (admin) {
 
   document.getElementById('benefitCancel').addEventListener('click', resetBenefitForm);
 
-  document.getElementById('benefitsBody').addEventListener('click', (e) => {
+  document.getElementById('benefitsBody').addEventListener('click', async (e) => {
     const edit = e.target.closest('[data-edit]');
     const toggle = e.target.closest('[data-toggle]');
     const remove = e.target.closest('[data-remove]');
 
     if (edit) {
-      const b = Eartha.benefits().find((x) => x.id === edit.dataset.edit);
+      const b = benefitsList.find((x) => x.id === edit.dataset.edit);
       editingId = b.id;
       document.getElementById('bBrand').value = b.brand;
       document.getElementById('bDiscount').value = b.discount;
@@ -282,14 +294,22 @@ if (admin) {
       bForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     if (toggle) {
-      const b = Eartha.benefits().find((x) => x.id === toggle.dataset.toggle);
-      Eartha.updateBenefit(b.id, { active: !b.active });
-      renderBenefits();
+      try {
+        const b = benefitsList.find((x) => x.id === toggle.dataset.toggle);
+        await Eartha.updateBenefitAdmin(b.id, { active: !b.active });
+        await renderBenefits();
+      } catch (err) {
+        Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
+      }
     }
     if (remove) {
-      Eartha.removeBenefit(remove.dataset.remove);
-      Eartha.toast('BENEFIT REMOVED FROM THE USER-FACING PAGE');
-      renderBenefits();
+      try {
+        await Eartha.removeBenefitAdmin(remove.dataset.remove);
+        Eartha.toast('BENEFIT REMOVED FROM THE USER-FACING PAGE');
+        await renderBenefits();
+      } catch (err) {
+        Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
+      }
     }
   });
 
@@ -301,11 +321,16 @@ if (admin) {
         dragging = row;
         row.classList.add('is-dragging');
       });
-      row.addEventListener('dragend', () => {
+      row.addEventListener('dragend', async () => {
         row.classList.remove('is-dragging');
         dragging = null;
-        Eartha.reorderBenefits([...body.querySelectorAll('.drag-row')].map((r) => r.dataset.id));
-        Eartha.toast('DISPLAY ORDER SAVED');
+        try {
+          await Eartha.reorderBenefitsAdmin([...body.querySelectorAll('.drag-row')].map((r) => r.dataset.id));
+          Eartha.toast('DISPLAY ORDER SAVED');
+        } catch (err) {
+          Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
+          await renderBenefits();
+        }
       });
       row.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -318,9 +343,16 @@ if (admin) {
   }
 
   // ============ INBOX ============
-  function renderInbox() {
-    const list = Eartha.messages();
+  async function renderInbox() {
     const el = document.getElementById('inboxList');
+    let list;
+    try {
+      list = await Eartha.fetchContactMessages();
+    } catch (err) {
+      el.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD MESSAGES.')}</div>`;
+      return;
+    }
+
     if (!list.length) {
       el.innerHTML = '<div class="empty">INBOX IS EMPTY — CONTACT FORM MESSAGES LAND HERE.</div>';
     } else {
@@ -341,11 +373,15 @@ if (admin) {
     document.getElementById('countInbox').textContent = list.filter((m) => !m.read).length;
   }
 
-  document.getElementById('inboxList').addEventListener('click', (e) => {
+  document.getElementById('inboxList').addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-read]');
     if (!btn) return;
-    Eartha.markMessageRead(btn.dataset.read);
-    renderInbox();
+    try {
+      await Eartha.resolveMessage(btn.dataset.read);
+      await renderInbox();
+    } catch (err) {
+      Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
+    }
   });
 
   render();

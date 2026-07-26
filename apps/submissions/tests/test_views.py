@@ -1,32 +1,14 @@
 """
 Tests for apps.submissions.views and apps.submissions.admin_views
 """
-import pytest
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APIClient
 
-from apps.submissions.models import Item, DriverAssignment
+from apps.submissions.models import Item
 
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def auth_client(api_client, user):
-    api_client.force_authenticate(user=user)
-    return api_client
-
-
-@pytest.fixture
-def admin_client(api_client, admin_user):
-    api_client.force_authenticate(user=admin_user)
-    return api_client
-
+# api_client / auth_client / admin_client come from the root conftest.py
 
 # ---------------------------------------------------------------------------
 # ItemUploadView (User-facing)
@@ -146,8 +128,10 @@ class TestSubmissionDecisionView:
     """Test admin decision endpoint driving the state machine."""
 
     def test_admin_can_accept_pending_item(self, admin_client, pending_item):
-        with patch("apps.submissions.services.award_points_for_item"),              patch("apps.submissions.services.notify_submission_status_changed"):
-
+        with (
+            patch("apps.submissions.services.award_points_for_item"),
+            patch("apps.submissions.services.notify_submission_status_changed"),
+        ):
             response = admin_client.post(
                 reverse("submissions-admin-decision", kwargs={"pk": pending_item.id}),
                 data={"action": "accept"},

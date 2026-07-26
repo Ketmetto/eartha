@@ -9,14 +9,16 @@ if (user) {
   const input = document.getElementById('photos');
   const previews = document.getElementById('photoPreviews');
   const MAX_PHOTOS = 5;
-  let photos = []; // dataURLs
+  // { file: File, preview: dataURL } — the original File is what actually
+  // gets uploaded; the compressed dataURL is only for the on-page thumbnail.
+  let photos = [];
 
   const renderPreviews = () => {
     previews.innerHTML = photos
       .map(
-        (src, i) => `
+        (p, i) => `
         <div class="ph">
-          <img src="${src}" alt="Photo ${i + 1}">
+          <img src="${p.preview}" alt="Photo ${i + 1}">
           <button type="button" class="rm" data-i="${i}" aria-label="Remove photo ${i + 1}">×</button>
         </div>`
       )
@@ -38,7 +40,7 @@ if (user) {
         break;
       }
       try {
-        photos.push(await Eartha.compressImage(file));
+        photos.push({ file, preview: await Eartha.compressImage(file) });
       } catch {
         Eartha.toast('COULD NOT READ ONE OF THE IMAGES');
       }
@@ -62,12 +64,15 @@ if (user) {
 
   // ---------- pickup address (asked once, saved to profile) ----------
   const addressField = document.getElementById('addressField');
-  if (!user.address) addressField.hidden = false;
+  Eartha.fetchAddress()
+    .then((address) => { if (!address.line1) addressField.hidden = false; })
+    .catch(() => { addressField.hidden = false; });
 
   // ---------- submit ----------
-  document.getElementById('uploadForm').addEventListener('submit', (e) => {
+  document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = document.getElementById('uploadMsg');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
 
     if (photos.length === 0) {
       msg.textContent = 'ADD AT LEAST ONE PHOTO — IT\'S REQUIRED FOR REVIEW.';
@@ -75,34 +80,46 @@ if (user) {
       return;
     }
 
+    let addressToSave = null;
     if (!addressField.hidden) {
-      const address = document.getElementById('pickupAddress').value.trim();
-      if (!address) {
+      addressToSave = document.getElementById('pickupAddress').value.trim();
+      if (!addressToSave) {
         msg.textContent = 'ADD A PICKUP ADDRESS — OUR DRIVER NEEDS SOMEWHERE TO GO.';
         msg.className = 'form-msg is-error';
         return;
       }
-      user = Eartha.updateUser(user.id, { address });
-      addressField.hidden = true;
     }
 
-    const sub = Eartha.addSubmission({
-      userId: user.id,
-      category: document.getElementById('category').value,
-      condition: document.querySelector('input[name="condition"]:checked').value,
-      photos,
-      description: document.getElementById('description').value.trim(),
-    });
+    submitBtn.disabled = true;
+    msg.textContent = 'UPLOADING...';
+    msg.className = 'form-msg';
 
-    if (!sub) return; // storage error already toasted
+    try {
+      if (addressToSave) {
+        await Eartha.updateAddress(addressToSave);
+        addressField.hidden = true;
+      }
 
-    msg.textContent = `SUBMITTED — ${sub.num} IS NOW AWAITING REVIEW.`;
-    msg.className = 'form-msg is-ok';
-    photos = [];
-    renderPreviews();
-    e.target.reset();
-    renderSubs();
-    Eartha.toast(`${sub.num} SUBMITTED FOR REVIEW`);
+      const sub = await Eartha.createSubmission({
+        category: document.getElementById('category').value,
+        condition: document.querySelector('input[name="condition"]:checked').value,
+        description: document.getElementById('description').value.trim(),
+        files: photos.map((p) => p.file),
+      });
+
+      msg.textContent = `SUBMITTED — ${sub.id.slice(0, 8).toUpperCase()} IS NOW AWAITING REVIEW.`;
+      msg.className = 'form-msg is-ok';
+      photos = [];
+      renderPreviews();
+      e.target.reset();
+      await renderSubs();
+      Eartha.toast('SUBMITTED FOR REVIEW');
+    } catch (err) {
+      msg.textContent = err.message || 'SOMETHING WENT WRONG — TRY AGAIN.';
+      msg.className = 'form-msg is-error';
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 
   // ---------- my submissions feed ----------
@@ -115,9 +132,18 @@ if (user) {
     completed: '',
   };
 
-  function renderSubs() {
-    const list = Eartha.submissions().filter((s) => s.userId === user.id).sort((a, b) => b.createdAt - a.createdAt);
+  async function renderSubs() {
     const el = document.getElementById('subList');
+    let list;
+    try {
+      list = await Eartha.fetchMySubmissions();
+    } catch (err) {
+      el.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD SUBMISSIONS.')}</div>`;
+      return;
+    }
+
+    document.getElementById('nextBatch').textContent =
+      'NEXT BATCH — N. ' + String(list.length + 1).padStart(4, '0');
 
     if (list.length === 0) {
       el.innerHTML = '<div class="empty">NOTHING YET — YOUR FIRST DONATION STARTS ON THE LEFT.</div>';
@@ -129,9 +155,7 @@ if (user) {
         const note =
           s.status === 'rejected'
             ? `REASON: ${Eartha.esc(s.rejectReason || '—')}`
-            : s.status === 'completed'
-            ? `+${s.points} POINTS AWARDED`
-            : STATUS_NOTES[s.status];
+            : STATUS_NOTES[s.status] || '';
         const photo = s.photos[0]
           ? `<img class="thumb-64" src="${s.photos[0]}" alt="">`
           : `<div class="thumb-64"></div>`;
@@ -152,10 +176,6 @@ if (user) {
       })
       .join('');
   }
-
-  // next batch number preview (count so far + 1, display only)
-  document.getElementById('nextBatch').textContent =
-    'NEXT BATCH — N. ' + String(Eartha.submissions().length + 1).padStart(4, '0');
 
   renderSubs();
 }

@@ -2,6 +2,7 @@
 All balance-affecting operations go through here — never write to
 PointsLedgerEntry directly from a view or another app.
 """
+import uuid
 from rest_framework.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
@@ -39,4 +40,10 @@ def redeem_benefit(user, benefit: Benefit) -> Redemption:
         points=-benefit.points_required,
         note=f"Redeemed: {benefit.brand_name}",
     )
-    return Redemption.objects.create(user=user, benefit=benefit, points_spent=benefit.points_required)
+
+    initials = "".join(w[0] for w in benefit.brand_name.split()).upper()[:3] or "ETH"
+    code = f"EARTHA-{initials}{benefit.points_required}-{uuid.uuid4().hex[:5].upper()}"
+
+    return Redemption.objects.create(
+        user=user, benefit=benefit, points_spent=benefit.points_required, code=code
+    )

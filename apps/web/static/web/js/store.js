@@ -10,13 +10,10 @@ const Eartha = (() => {
     users: NS + 'users',
     session: NS + 'session',
     profile: NS + 'profile',
-    submissions: NS + 'submissions',
-    drivers: NS + 'drivers',
     benefits: NS + 'benefits',
     benefitsVersion: NS + 'benefitsVersion',
     redemptions: NS + 'redemptions',
     messages: NS + 'messages',
-    counter: NS + 'counter',
   };
 
   // ---------- storage primitives ----------
@@ -42,16 +39,9 @@ const Eartha = (() => {
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-  // Running batch number — the N. 0001 motif
-  const nextBatchNum = () => {
-    const n = read(KEYS.counter, 0) + 1;
-    write(KEYS.counter, n);
-    return 'N. ' + String(n).padStart(4, '0');
-  };
-
   // ---------- seed ----------
   const POINTS_CRITERIA = {
-    'like new': 100,
+    'like_new': 100,
     'good': 70,
     'worn': 40,
     'damaged': 15,
@@ -111,48 +101,6 @@ const Eartha = (() => {
       },
     ]);
 
-    write(KEYS.drivers, [
-      { id: uid(), name: 'Karim H.', phone: '+961 70 000 001' },
-      { id: uid(), name: 'Layla S.', phone: '+961 71 000 002' },
-      { id: uid(), name: 'Omar T.', phone: '+961 76 000 003' },
-    ]);
-
-    write(KEYS.counter, 2);
-    write(KEYS.submissions, [
-      {
-        id: uid(),
-        num: 'N. 0001',
-        userId: demoId,
-        category: 'clothing',
-        condition: 'good',
-        photos: [],
-        description: 'Beige linen shirt, barely worn.',
-        status: 'completed',
-        rejectReason: '',
-        driverId: null,
-        driverName: 'Karim H.',
-        points: 70,
-        createdAt: Date.now() - 86400000 * 12,
-        updatedAt: Date.now() - 86400000 * 9,
-      },
-      {
-        id: uid(),
-        num: 'N. 0002',
-        userId: demoId,
-        category: 'clothing',
-        condition: 'like new',
-        photos: [],
-        description: 'Grey knit sweater.',
-        status: 'pending',
-        rejectReason: '',
-        driverId: null,
-        driverName: '',
-        points: 0,
-        createdAt: Date.now() - 86400000 * 1,
-        updatedAt: Date.now() - 86400000 * 1,
-      },
-    ]);
-
     write(KEYS.benefits, defaultBenefits());
     write(KEYS.benefitsVersion, BENEFITS_VERSION);
 
@@ -173,8 +121,7 @@ const Eartha = (() => {
 
   // ---------- auth ----------
   // Real accounts, backed by the Django API (JWT). The mock users() array
-  // below still powers pages that aren't wired to the backend yet
-  // (dashboard/queue stats, profile editing) — currentUser() no longer
+  // below only backs benefits.js's redeem flow now — currentUser() never
   // reads from it.
   const users = () => read(KEYS.users, []);
   const saveUsers = (list) => write(KEYS.users, list);
@@ -296,9 +243,13 @@ const Eartha = (() => {
     }
   }
 
-  function logout() {
+  // message: shown on the login page after redirect (e.g. "your access
+  // changed, sign in again") — sessionStorage survives the navigation
+  // without persisting once the tab closes.
+  function logout(message) {
     localStorage.removeItem(KEYS.session);
     localStorage.removeItem(KEYS.profile);
+    if (message) sessionStorage.setItem('eartha:flash', message);
     location.href = '/login/';
   }
 
@@ -322,55 +273,302 @@ const Eartha = (() => {
     return u;
   }
 
-  // ---------- submissions ----------
-  const submissions = () => read(KEYS.submissions, []);
-  const saveSubmissions = (list) => write(KEYS.submissions, list);
+  // ---------- authenticated API calls (real backend, not localStorage) ----------
+  const API_ROOT = '/api/v1';
 
-  function addSubmission({ userId, category, condition, photos, description }) {
-    const sub = {
-      id: uid(),
-      num: nextBatchNum(),
-      userId,
-      category,
-      condition,
-      photos,
-      description,
-      status: 'pending',
-      rejectReason: '',
-      driverId: null,
-      driverName: '',
-      points: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+  async function refreshAccessToken() {
+    const s = session();
+    if (!s || !s.refresh) return null;
+    try {
+      const res = await fetch(AUTH_API + '/refresh/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ refresh: s.refresh }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const next = { ...s, access: data.access };
+      write(KEYS.session, next);
+      return next.access;
+    } catch {
+      return null;
+    }
+  }
+
+  // isFormData: skips JSON.stringify/Content-Type so the browser can set
+  // its own multipart boundary — needed for photo uploads.
+  async function apiFetch(path, { method = 'GET', body, isFormData = false } = {}) {
+    const s = session();
+    if (!s || !s.access) throw new Error('YOU NEED TO SIGN IN AGAIN.');
+
+    const doFetch = (token) => {
+      const headers = { Authorization: `Bearer ${token}` };
+      if (!isFormData) headers['Content-Type'] = 'application/json';
+      if (method !== 'GET') {
+        const csrfToken = getCookie('csrftoken');
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+      }
+      return fetch(API_ROOT + path, {
+        method,
+        headers,
+        credentials: 'same-origin',
+        body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+      });
     };
-    const ok = saveSubmissions([sub, ...submissions()]);
-    return ok ? sub : null;
+
+    let res = await doFetch(s.access);
+    if (res.status === 401) {
+      const newAccess = await refreshAccessToken();
+      if (!newAccess) {
+        logout('SESSION EXPIRED — PLEASE SIGN IN AGAIN.');
+        throw new Error('SESSION EXPIRED — PLEASE SIGN IN AGAIN.');
+      }
+      res = await doFetch(newAccess);
+    }
+
+    // A valid token that's now forbidden means permissions changed after
+    // login (e.g. admin access was revoked) — every 403 in this API comes
+    // from IsAdmin, so this can't misfire on a legitimate per-object 403.
+    // Force a fresh login instead of leaving the user on a stale admin
+    // page where every action would otherwise fail silently-ish.
+    if (res.status === 403) {
+      logout('YOUR ACCESS HAS CHANGED — PLEASE SIGN IN AGAIN.');
+      throw new Error('YOUR ACCESS HAS CHANGED — PLEASE SIGN IN AGAIN.');
+    }
+
+    let data = null;
+    try { data = await res.json(); } catch { /* empty body, e.g. 204 */ }
+    if (!res.ok) {
+      throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+    }
+    return data;
   }
 
-  function updateSubmission(id, patch) {
-    const list = submissions().map((s) =>
-      s.id === id ? { ...s, ...patch, updatedAt: Date.now() } : s
-    );
-    saveSubmissions(list);
-    return list.find((s) => s.id === id);
+  // num: a display-only "N. 0001" label derived from list position, since
+  // the backend Item model doesn't store a sequence number.
+  function mapItem(apiItem, num) {
+    return {
+      id: apiItem.id,
+      num,
+      category: apiItem.category,
+      condition: apiItem.condition,
+      description: apiItem.description,
+      status: apiItem.status,
+      rejectReason: apiItem.rejection_reason || '',
+      photos: (apiItem.photos || []).map((p) => p.image),
+      createdAt: new Date(apiItem.created_at).getTime(),
+      // admin-only fields — present when fetched via the admin endpoints
+      updatedAt: apiItem.updated_at ? new Date(apiItem.updated_at).getTime() : undefined,
+      userId: apiItem.user,
+      userName: apiItem.user_name,
+      userEmail: apiItem.user_email,
+      pickupAddress: apiItem.pickup_address,
+      driverName: apiItem.driver_name,
+    };
   }
 
-  // lifecycle: pending → accepted → dispatched → collected → completed | rejected
-  const acceptSubmission = (id) => updateSubmission(id, { status: 'accepted' });
-  const rejectSubmission = (id, reason) => updateSubmission(id, { status: 'rejected', rejectReason: reason });
-  const dispatchSubmission = (id, driver) =>
-    updateSubmission(id, { status: 'dispatched', driverId: driver.id, driverName: driver.name });
-  const collectSubmission = (id) => updateSubmission(id, { status: 'collected' });
-
-  function completeSubmission(id, points) {
-    const sub = updateSubmission(id, { status: 'completed', points });
-    const user = users().find((u) => u.id === sub.userId);
-    if (user) updateUser(user.id, { points: (user.points || 0) + points });
-    return sub;
+  async function fetchMySubmissions() {
+    const list = await apiFetch('/submissions/');
+    const total = list.length;
+    return list.map((item, i) => mapItem(item, 'N. ' + String(total - i).padStart(4, '0')));
   }
 
-  // ---------- drivers ----------
-  const drivers = () => read(KEYS.drivers, []);
+  async function createSubmission({ category, condition, description, files }) {
+    const form = new FormData();
+    form.append('category', category);
+    form.append('condition', condition);
+    if (description) form.append('description', description);
+    files.forEach((file) => form.append('photos', file));
+    const item = await apiFetch('/submissions/', { method: 'POST', body: form, isFormData: true });
+    return mapItem(item, null);
+  }
+
+  // ---------- admin: submissions pipeline ----------
+  // num here is a per-list position label ("N. 0001"), oldest-first by
+  // total count — purely cosmetic, doesn't attempt to match the number the
+  // uploader saw (each user's own list numbers independently).
+  async function fetchAdminSubmissions() {
+    const list = await apiFetch('/submissions/admin/all/');
+    const total = list.length;
+    return list.map((item, i) => mapItem(item, 'N. ' + String(total - i).padStart(4, '0')));
+  }
+
+  async function acceptItem(id) {
+    const item = await apiFetch(`/submissions/admin/${id}/decision/`, { method: 'POST', body: { action: 'accept' } });
+    return mapItem(item, null);
+  }
+
+  async function rejectItem(id, reason) {
+    const item = await apiFetch(`/submissions/admin/${id}/decision/`, {
+      method: 'POST',
+      body: { action: 'reject', rejection_reason: reason },
+    });
+    return mapItem(item, null);
+  }
+
+  // pickup address is derived server-side from the user's saved address —
+  // admins only supply who's driving.
+  async function dispatchItem(id, driverName) {
+    await apiFetch(`/submissions/admin/${id}/dispatch/`, { method: 'POST', body: { driver_name: driverName } });
+  }
+
+  async function collectItem(id) {
+    const item = await apiFetch(`/submissions/admin/${id}/collect/`, { method: 'POST' });
+    return mapItem(item, null);
+  }
+
+  async function completeItem(id) {
+    const item = await apiFetch(`/submissions/admin/${id}/complete/`, { method: 'POST' });
+    return mapItem(item, null);
+  }
+
+  // ---------- admin: benefits catalog ----------
+  function mapBenefit(apiBenefit) {
+    return {
+      id: apiBenefit.id,
+      brand: apiBenefit.brand_name,
+      discount: apiBenefit.discount_percent,
+      pointsRequired: apiBenefit.points_required,
+      category: apiBenefit.category,
+      active: apiBenefit.is_active,
+      order: apiBenefit.display_priority,
+      image: apiBenefit.logo,
+    };
+  }
+
+  async function fetchBenefitsAdmin() {
+    const list = await apiFetch('/points/admin/benefits/');
+    return list.map(mapBenefit);
+  }
+
+  async function fetchActiveBenefits() {
+    const list = await apiFetch('/points/benefits/');
+    return list.map(mapBenefit);
+  }
+
+  async function createBenefitAdmin({ brand, discount, pointsRequired, category }) {
+    const b = await apiFetch('/points/admin/benefits/', {
+      method: 'POST',
+      body: { brand_name: brand, discount_percent: discount, points_required: pointsRequired, category },
+    });
+    return mapBenefit(b);
+  }
+
+  async function updateBenefitAdmin(id, patch) {
+    const body = {};
+    if (patch.brand !== undefined) body.brand_name = patch.brand;
+    if (patch.discount !== undefined) body.discount_percent = patch.discount;
+    if (patch.pointsRequired !== undefined) body.points_required = patch.pointsRequired;
+    if (patch.category !== undefined) body.category = patch.category;
+    if (patch.active !== undefined) body.is_active = patch.active;
+    const b = await apiFetch(`/points/admin/benefits/${id}/`, { method: 'PATCH', body });
+    return mapBenefit(b);
+  }
+
+  async function removeBenefitAdmin(id) {
+    await apiFetch(`/points/admin/benefits/${id}/`, { method: 'DELETE' });
+  }
+
+  async function reorderBenefitsAdmin(orderedIds) {
+    await apiFetch('/points/admin/benefits/reorder/', { method: 'POST', body: { ids: orderedIds } });
+  }
+
+  // ---------- points: balance / redemptions ----------
+  async function fetchBalance() {
+    const data = await apiFetch('/points/balance/');
+    return data.balance;
+  }
+
+  async function fetchMyRedemptions() {
+    const list = await apiFetch('/points/redemptions/');
+    return list.map((r) => ({
+      id: r.id,
+      brand: r.brand_name,
+      discount: r.discount_percent,
+      code: r.code,
+      points: r.points_spent,
+      date: new Date(r.created_at).getTime(),
+    }));
+  }
+
+  // ---------- admin: contact inbox ----------
+  function mapMessage(m) {
+    return {
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      subject: m.subject,
+      body: m.message,
+      date: new Date(m.created_at).getTime(),
+      read: m.resolved,
+    };
+  }
+
+  async function fetchContactMessages() {
+    const list = await apiFetch('/engagement/admin/messages/');
+    return list.map(mapMessage);
+  }
+
+  async function resolveMessage(id) {
+    await apiFetch(`/engagement/admin/messages/${id}/resolve/`, { method: 'POST' });
+  }
+
+  // ---------- admin: dashboard stats ----------
+  async function fetchDashboardStats() {
+    const data = await apiFetch('/engagement/admin/stats/');
+    const total = data.recent_items.length;
+    return {
+      pendingCount: data.pending_count,
+      inProgressCount: data.in_progress_count,
+      completedCount: data.completed_count,
+      unreadMessagesCount: data.unread_messages_count,
+      totalPointsAwarded: data.total_points_awarded,
+      donorCount: data.donor_count,
+      liveBenefitsCount: data.live_benefits_count,
+      recentItems: data.recent_items.map((item, i) => mapItem(item, 'N. ' + String(total - i).padStart(4, '0'))),
+    };
+  }
+
+  // ---------- account: profile / address / notifications / password ----------
+  async function fetchMe() {
+    return apiFetch('/auth/me/');
+  }
+
+  async function updateMe({ name, email }) {
+    const [first_name, ...rest] = name.trim().split(' ');
+    const body = { email, first_name, last_name: rest.join(' ') };
+    const apiUser = await apiFetch('/auth/me/', { method: 'PATCH', body });
+    const profile = profileFromApiUser(apiUser);
+    write(KEYS.profile, profile);
+    return profile;
+  }
+
+  async function fetchAddress() {
+    return apiFetch('/auth/me/address/');
+  }
+
+  // Single free-text field on the UI side — mapped onto line1; the
+  // structured Address model's other fields (city/country/...) are left
+  // blank since the frontend only collects one line today.
+  async function updateAddress(addressLine) {
+    return apiFetch('/auth/me/address/', { method: 'PATCH', body: { line1: addressLine } });
+  }
+
+  async function fetchNotificationPrefs() {
+    return apiFetch('/auth/me/notifications/');
+  }
+
+  async function updateNotificationPrefs(patch) {
+    return apiFetch('/auth/me/notifications/', { method: 'PATCH', body: patch });
+  }
+
+  async function changePassword(oldPassword, newPassword, newPasswordConfirm) {
+    return apiFetch('/auth/me/change-password/', {
+      method: 'POST',
+      body: { old_password: oldPassword, new_password: newPassword, new_password_confirm: newPasswordConfirm },
+    });
+  }
 
   // ---------- benefits ----------
   const benefits = () => read(KEYS.benefits, []).sort((a, b) => a.order - b.order);
@@ -601,11 +799,14 @@ const Eartha = (() => {
 
   return {
     POINTS_CRITERIA,
-    currentUser, register, login, socialLogin, verifyEmail, logout, updateUser, requireAuth, requireAdmin,
-    users,
-    submissions, addSubmission, updateSubmission,
-    acceptSubmission, rejectSubmission, dispatchSubmission, collectSubmission, completeSubmission,
-    drivers,
+    currentUser, register, login, socialLogin, verifyEmail, logout, requireAuth, requireAdmin,
+    fetchMySubmissions, createSubmission,
+    fetchAdminSubmissions, acceptItem, rejectItem, dispatchItem, collectItem, completeItem,
+    fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
+    fetchBalance, fetchMyRedemptions,
+    fetchContactMessages, resolveMessage,
+    fetchDashboardStats,
+    fetchMe, updateMe, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
     redemptions, redeemBenefit,
     messages, addMessage, markMessageRead,
