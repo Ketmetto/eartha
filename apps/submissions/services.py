@@ -8,7 +8,7 @@ from django.db import transaction
 from base.validators import validate_image_size, validate_image_content_type
 from .models import Item, ItemPhoto, DriverAssignment
 from .state_machine import can_transition
-from apps.points.services import award_points_for_item
+from apps.points.services import award_points_for_item, reverse_points_for_item
 from notifications.tasks import notify_submission_status_changed
 
 
@@ -18,18 +18,26 @@ def transition_item_status(item: Item, target_status: str, *, reason: str = "") 
     Raises DRF ValidationError so DRF's exception handler returns 400,
     not an unhandled 500.
     """
-    if not can_transition(item.status, target_status):
+    previous_status = item.status
+    if not can_transition(previous_status, target_status):
         raise ValidationError(
-            {"status": f"Cannot move item from {item.status} to {target_status}."}
+            {"status": f"Cannot move item from {previous_status} to {target_status}."}
         )
 
-    item.status = target_status
-    if target_status == Item.Status.REJECTED:
-        item.rejection_reason = reason
-    item.save(update_fields=["status", "rejection_reason", "updated_at"])
+    with transaction.atomic():
+        # Reversing a mistaken acceptance: claw back its points before
+        # touching status, so a blocked reversal (points already spent)
+        # leaves the item ACCEPTED rather than half-corrected.
+        if previous_status == Item.Status.ACCEPTED and target_status == Item.Status.REJECTED:
+            reverse_points_for_item(item)
 
-    if target_status == Item.Status.ACCEPTED:
-        award_points_for_item(item)
+        item.status = target_status
+        if target_status == Item.Status.REJECTED:
+            item.rejection_reason = reason
+        item.save(update_fields=["status", "rejection_reason", "updated_at"])
+
+        if target_status == Item.Status.ACCEPTED:
+            award_points_for_item(item)
 
     notify_submission_status_changed.delay(str(item.id), target_status)
 

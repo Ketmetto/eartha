@@ -74,6 +74,7 @@ if (admin) {
               <input type="text" id="driver-${s.id}" placeholder="e.g. Karim H.">
             </div>
             <button class="btn btn-sm" data-act="dispatch" data-id="${s.id}" ${noAddress ? 'disabled title="User has no pickup address"' : ''}>DISPATCH</button>
+            <button class="btn btn-ghost btn-sm" data-act="reject" data-id="${s.id}" title="Correct a mistaken accept — reverses any points already awarded">UNDO — REJECT</button>
           </div>`;
       }
 
@@ -92,7 +93,11 @@ if (admin) {
       }
 
       case 'rejected':
-        return `<p class="muted" style="font-size:11px;">REASON: ${Eartha.esc(s.rejectReason || '—')}</p>`;
+        return `
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <p class="muted" style="font-size:11px;">REASON: ${Eartha.esc(s.rejectReason || '—')}</p>
+            <button class="btn btn-ghost btn-sm" data-act="accept" data-id="${s.id}" title="Correct a mistaken reject">UNDO — ACCEPT</button>
+          </div>`;
     }
     return '';
   }

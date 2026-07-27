@@ -21,7 +21,9 @@ class TestCanTransition:
         # From ACCEPTED
         (Item.Status.ACCEPTED, Item.Status.DISPATCHED, True),
         (Item.Status.ACCEPTED, Item.Status.COMPLETED, False),
-        (Item.Status.ACCEPTED, Item.Status.REJECTED, False),
+        # Correction for a mistaken accept — allowed only this early, not
+        # once a driver's been dispatched.
+        (Item.Status.ACCEPTED, Item.Status.REJECTED, True),
         (Item.Status.ACCEPTED, Item.Status.PENDING, False),
 
         # From DISPATCHED
@@ -35,7 +37,8 @@ class TestCanTransition:
 
         # Terminal states
         (Item.Status.REJECTED, Item.Status.PENDING, False),
-        (Item.Status.REJECTED, Item.Status.ACCEPTED, False),
+        # Correction for a mistaken reject.
+        (Item.Status.REJECTED, Item.Status.ACCEPTED, True),
         (Item.Status.REJECTED, Item.Status.COMPLETED, False),
         (Item.Status.COMPLETED, Item.Status.PENDING, False),
         (Item.Status.COMPLETED, Item.Status.COLLECTED, False),

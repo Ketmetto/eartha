@@ -28,6 +28,36 @@ def award_points_for_item(item):
     notify_points_awarded.delay(item.user_id, points)
 
 
+def reverse_points_for_item(item):
+    """Called by apps.submissions.services when an ACCEPTED item is
+    corrected back to REJECTED — an admin fixing a mistaken decision.
+    Claws back the original award with a matching negative ledger entry.
+    Raises if the user's balance can't absorb it (they've already spent
+    below what this would take back) — leaves the original award and the
+    item's ACCEPTED status untouched, since the caller runs this before
+    saving the new status."""
+    award = (
+        PointsLedgerEntry.objects.filter(reference_item=item, entry_type=PointsLedgerEntry.EntryType.AWARD)
+        .order_by("-created_at")
+        .first()
+    )
+    if not award:
+        return  # nothing was ever awarded (e.g. the award itself failed) — nothing to reverse
+
+    if get_balance(item.user) < award.points:
+        raise ValidationError(
+            "Cannot reverse this acceptance — the user has already spent these points."
+        )
+
+    PointsLedgerEntry.objects.create(
+        user=item.user,
+        entry_type=PointsLedgerEntry.EntryType.ADJUSTMENT,
+        points=-award.points,
+        reference_item=item,
+        note=f"Reversed acceptance: {item.category} ({item.condition})",
+    )
+
+
 @transaction.atomic
 def redeem_benefit(user, benefit: Benefit) -> Redemption:
     balance = get_balance(user)
