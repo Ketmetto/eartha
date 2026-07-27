@@ -447,22 +447,40 @@ const Eartha = (() => {
     return list.map(mapBenefit);
   }
 
-  async function createBenefitAdmin({ brand, discount, pointsRequired, category }) {
-    const b = await apiFetch('/points/admin/benefits/', {
-      method: 'POST',
-      body: { brand_name: brand, discount_percent: discount, points_required: pointsRequired, category },
-    });
+  // Only appended when `image` is a freshly-picked data: URL (from the
+  // compressed-preview flow in benefits.js) — an existing benefit's `image`
+  // is already an absolute server URL, which isn't a file to re-upload.
+  async function dataUrlToBlob(dataUrl) {
+    const res = await fetch(dataUrl);
+    return res.blob();
+  }
+
+  async function benefitFormData({ brand, discount, pointsRequired, category, active, image }) {
+    const form = new FormData();
+    if (brand !== undefined) form.append('brand_name', brand);
+    if (discount !== undefined) form.append('discount_percent', discount);
+    if (pointsRequired !== undefined) form.append('points_required', pointsRequired);
+    if (category !== undefined) form.append('category', category);
+    if (active !== undefined) form.append('is_active', active);
+    if (image && image.startsWith('data:')) {
+      form.append('logo', await dataUrlToBlob(image), 'logo.jpg');
+    }
+    return form;
+  }
+
+  async function createBenefitAdmin({ brand, discount, pointsRequired, category, image }) {
+    // DRF's multipart parser treats an *absent* boolean field as False (it
+    // mirrors HTML checkbox semantics), not "use the model default" the way
+    // JSON parsing does — so is_active must be sent explicitly here, or
+    // every new benefit would silently be created hidden.
+    const form = await benefitFormData({ brand, discount, pointsRequired, category, active: true, image });
+    const b = await apiFetch('/points/admin/benefits/', { method: 'POST', body: form, isFormData: true });
     return mapBenefit(b);
   }
 
   async function updateBenefitAdmin(id, patch) {
-    const body = {};
-    if (patch.brand !== undefined) body.brand_name = patch.brand;
-    if (patch.discount !== undefined) body.discount_percent = patch.discount;
-    if (patch.pointsRequired !== undefined) body.points_required = patch.pointsRequired;
-    if (patch.category !== undefined) body.category = patch.category;
-    if (patch.active !== undefined) body.is_active = patch.active;
-    const b = await apiFetch(`/points/admin/benefits/${id}/`, { method: 'PATCH', body });
+    const form = await benefitFormData(patch);
+    const b = await apiFetch(`/points/admin/benefits/${id}/`, { method: 'PATCH', body: form, isFormData: true });
     return mapBenefit(b);
   }
 
@@ -478,6 +496,13 @@ const Eartha = (() => {
   async function fetchBalance() {
     const data = await apiFetch('/points/balance/');
     return data.balance;
+  }
+
+  // Real redemption — spends points server-side and returns a unique code.
+  // Named distinctly from the legacy local-only redeemBenefit(user, benefit)
+  // below, which about.html's partner-logo strip still reads from.
+  async function redeemBenefitApi(benefitId) {
+    return apiFetch('/points/redeem/', { method: 'POST', body: { benefit: benefitId } });
   }
 
   async function fetchMyRedemptions() {
@@ -751,14 +776,21 @@ const Eartha = (() => {
         <button class="logout-btn" id="logoutBtn">LOGOUT</button>
       </nav>
     `;
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    // Not `addEventListener('click', logout)` — that would pass the click's
+    // PointerEvent as logout's `message` argument, which then gets
+    // stringified into sessionStorage and shown on the login page as the
+    // literal text "[object PointerEvent]".
+    document.getElementById('logoutBtn').addEventListener('click', () => logout());
     initMenuToggle(el);
+    // user.points is a stale cached field — always correct the nav badge
+    // against the real balance right after painting it.
+    if (!user.isAdmin) refreshHeaderPts();
   }
 
-  const refreshHeaderPts = () => {
-    const u = currentUser();
+  const refreshHeaderPts = async () => {
     const el = document.getElementById('headerPts');
-    if (u && el) el.textContent = u.points || 0;
+    if (!el) return;
+    try { el.textContent = await fetchBalance(); } catch { /* leave whatever's showing */ }
   };
 
   // ---------- motion: page fade-in + scroll reveal ----------
@@ -803,7 +835,7 @@ const Eartha = (() => {
     fetchMySubmissions, createSubmission,
     fetchAdminSubmissions, acceptItem, rejectItem, dispatchItem, collectItem, completeItem,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
-    fetchBalance, fetchMyRedemptions,
+    fetchBalance, fetchMyRedemptions, redeemBenefitApi,
     fetchContactMessages, resolveMessage,
     fetchDashboardStats,
     fetchMe, updateMe, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,

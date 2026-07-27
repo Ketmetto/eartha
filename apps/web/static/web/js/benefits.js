@@ -2,6 +2,8 @@
    One page, two modes.
    Users: browse + redeem. Admins: manage the exact grid users see —
    edit in place, drag cards to reorder, add via the last tile.
+   Backed by the real API (points/benefits, points/redeem, points/balance) —
+   not the legacy localStorage mock in store.js.
 */
 
 let user = Eartha.requireAuth();
@@ -18,6 +20,8 @@ if (user) {
   let editingId = null;   // benefit currently in edit mode
   let adding = false;     // add tile expanded
   let pendingBenefit = null;
+  let benefits = [];      // fetched from the API — see loadBenefits()
+  let balance = 0;        // fetched from the API — see refreshBalance()
 
   const initials = (brand) =>
     brand.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -27,11 +31,24 @@ if (user) {
       ? `<img class="benefit-thumb" src="${b.image}" alt="" loading="lazy">`
       : `<div class="benefit-thumb" aria-hidden="true">${initials(b.brand)}</div>`;
 
+  async function loadBenefits() {
+    try {
+      benefits = isAdmin ? await Eartha.fetchBenefitsAdmin() : await Eartha.fetchActiveBenefits();
+    } catch {
+      benefits = [];
+      Eartha.toast('COULD NOT LOAD BENEFITS.');
+    }
+  }
+
+  async function refreshBalance() {
+    if (isAdmin) return;
+    try { balance = await Eartha.fetchBalance(); } catch { /* leave at last-known value */ }
+  }
+
   function refreshPtsLine() {
-    user = Eartha.currentUser();
     ptsLine.textContent = isAdmin
       ? 'MANAGE MODE — CHANGES GO LIVE INSTANTLY'
-      : `YOUR BALANCE — ${user.points || 0} PTS`;
+      : `YOUR BALANCE — ${balance} PTS`;
   }
 
   // ---------- card templates ----------
@@ -79,7 +96,7 @@ if (user) {
   }
 
   function userCard(b) {
-    const affordable = (user.points || 0) >= b.pointsRequired;
+    const affordable = balance >= b.pointsRequired;
     return `
       <article class="benefit-row">
         ${thumbHtml(b)}
@@ -127,8 +144,10 @@ if (user) {
 
   // ---------- render ----------
   function render() {
-    let list = Eartha.benefits().filter((b) => activeCat === 'all' || b.category === activeCat);
-    if (!isAdmin) list = list.filter((b) => b.active); // users only see live ones
+    // fetchActiveBenefits() only ever returns is_active=True rows server-side
+    // (its serializer doesn't even include the field) — admin's fetch
+    // includes everything, so only admin needs the active/inactive split.
+    const list = benefits.filter((b) => activeCat === 'all' || b.category === activeCat);
 
     let html = list.map((b) => (isAdmin ? adminCard(b) : userCard(b))).join('');
     if (isAdmin) html += addTile();
@@ -149,7 +168,7 @@ if (user) {
   });
 
   // ---------- delegated actions ----------
-  grid.addEventListener('click', (e) => {
+  grid.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.dataset.act;
@@ -157,11 +176,11 @@ if (user) {
 
     // ----- user -----
     if (act === 'redeem') {
-      pendingBenefit = Eartha.benefits().find((b) => b.id === id);
+      pendingBenefit = benefits.find((b) => b.id === id);
       if (!pendingBenefit) return;
       document.getElementById('redeemText').textContent =
         `${pendingBenefit.discount}% OFF AT ${pendingBenefit.brand.toUpperCase()} FOR ${pendingBenefit.pointsRequired} PTS. ` +
-        `THIS WILL LEAVE YOU WITH ${(user.points || 0) - pendingBenefit.pointsRequired} PTS.`;
+        `THIS WILL LEAVE YOU WITH ${balance - pendingBenefit.pointsRequired} PTS.`;
       redeemDialog.showModal();
       return;
     }
@@ -171,15 +190,25 @@ if (user) {
     if (act === 'edit') { editingId = id; adding = false; render(); }
     if (act === 'cancel-form') { editingId = null; adding = false; render(); }
     if (act === 'toggle') {
-      const b = Eartha.benefits().find((x) => x.id === id);
-      Eartha.updateBenefit(id, { active: !b.active });
-      Eartha.toast(b.active ? 'HIDDEN FROM THE USER-FACING PAGE' : 'LIVE ON THE USER-FACING PAGE');
-      render();
+      const b = benefits.find((x) => x.id === id);
+      try {
+        await Eartha.updateBenefitAdmin(id, { active: !b.active });
+        Eartha.toast(b.active ? 'HIDDEN FROM THE USER-FACING PAGE' : 'LIVE ON THE USER-FACING PAGE');
+        await loadBenefits();
+        render();
+      } catch (err) {
+        Eartha.toast(err.message);
+      }
     }
     if (act === 'remove') {
-      Eartha.removeBenefit(id);
-      Eartha.toast('BENEFIT REMOVED');
-      render();
+      try {
+        await Eartha.removeBenefitAdmin(id);
+        Eartha.toast('BENEFIT REMOVED');
+        await loadBenefits();
+        render();
+      } catch (err) {
+        Eartha.toast(err.message);
+      }
     }
     if (act === 'save' || act === 'create') {
       const form = btn.closest('[data-form]');
@@ -192,16 +221,21 @@ if (user) {
         Eartha.toast('FILL IN BRAND, DISCOUNT AND POINTS');
         return;
       }
-      if (act === 'save') {
-        Eartha.updateBenefit(id, { brand, discount, pointsRequired, category, image });
-        Eartha.toast('SAVED — LIVE INSTANTLY');
-      } else {
-        Eartha.addBenefit({ brand, discount, pointsRequired, category, image });
-        Eartha.toast('BENEFIT ADDED — LIVE INSTANTLY');
+      try {
+        if (act === 'save') {
+          await Eartha.updateBenefitAdmin(id, { brand, discount, pointsRequired, category, image });
+          Eartha.toast('SAVED — LIVE INSTANTLY');
+        } else {
+          await Eartha.createBenefitAdmin({ brand, discount, pointsRequired, category, image });
+          Eartha.toast('BENEFIT ADDED — LIVE INSTANTLY');
+        }
+        editingId = null;
+        adding = false;
+        await loadBenefits();
+        render();
+      } catch (err) {
+        Eartha.toast(err.message);
       }
-      editingId = null;
-      adding = false;
-      render();
     }
 
     // ----- image upload trigger -----
@@ -237,15 +271,21 @@ if (user) {
 
   // ---------- redeem dialogs (user) ----------
   document.getElementById('redeemCancel').addEventListener('click', () => redeemDialog.close());
-  document.getElementById('redeemConfirm').addEventListener('click', () => {
-    const res = Eartha.redeemBenefit(user, pendingBenefit);
-    redeemDialog.close();
-    if (res.error) { Eartha.toast(res.error); return; }
-    refreshPtsLine();
-    Eartha.refreshHeaderPts();
-    render();
-    document.getElementById('codeText').textContent = res.entry.code;
-    codeDialog.showModal();
+  document.getElementById('redeemConfirm').addEventListener('click', async () => {
+    try {
+      const redemption = await Eartha.redeemBenefitApi(pendingBenefit.id);
+      redeemDialog.close();
+      await refreshBalance();
+      await loadBenefits();
+      refreshPtsLine();
+      Eartha.refreshHeaderPts();
+      render();
+      document.getElementById('codeText').textContent = redemption.code;
+      codeDialog.showModal();
+    } catch (err) {
+      redeemDialog.close();
+      Eartha.toast(err.message);
+    }
   });
   document.getElementById('codeClose').addEventListener('click', () => codeDialog.close());
 
@@ -254,11 +294,16 @@ if (user) {
     let dragging = null;
     grid.querySelectorAll('.drag-row').forEach((card) => {
       card.addEventListener('dragstart', () => { dragging = card; card.classList.add('is-dragging'); });
-      card.addEventListener('dragend', () => {
+      card.addEventListener('dragend', async () => {
         card.classList.remove('is-dragging');
         dragging = null;
-        Eartha.reorderBenefits([...grid.querySelectorAll('[data-id]')].map((c) => c.dataset.id));
-        Eartha.toast('DISPLAY ORDER SAVED');
+        try {
+          await Eartha.reorderBenefitsAdmin([...grid.querySelectorAll('[data-id]')].map((c) => c.dataset.id));
+          Eartha.toast('DISPLAY ORDER SAVED');
+          await loadBenefits();
+        } catch (err) {
+          Eartha.toast(err.message);
+        }
       });
       card.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -270,6 +315,9 @@ if (user) {
     });
   }
 
-  refreshPtsLine();
-  render();
+  (async () => {
+    await Promise.all([loadBenefits(), refreshBalance()]);
+    refreshPtsLine();
+    render();
+  })();
 }
