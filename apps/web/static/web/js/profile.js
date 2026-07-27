@@ -7,6 +7,16 @@ if (user && !user.isAdmin) {
 
   document.getElementById('helloLine').textContent = `HELLO, ${user.name.toUpperCase()}`;
 
+  // ---------- pickup address autocomplete ----------
+  // Set together when a real autocomplete suggestion is picked; cleared on
+  // further manual typing so a stale structured address never gets sent
+  // for text the user has since edited by hand.
+  let addressParts = null;
+  const addressInput = document.getElementById('setAddress');
+  const mapsKey = JSON.parse(document.getElementById('google-maps-key').textContent);
+  EarthaAddressAutocomplete(addressInput, mapsKey, document.getElementById('pickupMap'), (parts) => { addressParts = parts; });
+  addressInput.addEventListener('input', () => { addressParts = null; });
+
   // ---------- balance ----------
   async function renderBalance() {
     let pts = 0;
@@ -118,7 +128,11 @@ if (user && !user.isAdmin) {
     const submitBtn = e.target.querySelector('button[type="submit"]');
     const name = document.getElementById('setName').value.trim();
     const email = document.getElementById('setEmail').value.trim().toLowerCase();
-    const address = document.getElementById('setAddress').value.trim();
+    const typedAddress = addressInput.value.trim();
+    // addressParts (city/country/postal_code) only exists if a real
+    // autocomplete suggestion was picked — otherwise fall back to the
+    // plain typed line, same as before this integration existed.
+    const address = addressParts ? { ...addressParts, line1: addressParts.line1 || typedAddress } : typedAddress;
     const currentPassword = document.getElementById('setCurrentPassword').value;
     const newPassword = document.getElementById('setPassword').value;
     const notify = document.getElementById('setNotify').checked;

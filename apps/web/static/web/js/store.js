@@ -573,11 +573,14 @@ const Eartha = (() => {
     return apiFetch('/auth/me/address/');
   }
 
-  // Single free-text field on the UI side — mapped onto line1; the
-  // structured Address model's other fields (city/country/...) are left
-  // blank since the frontend only collects one line today.
-  async function updateAddress(addressLine) {
-    return apiFetch('/auth/me/address/', { method: 'PATCH', body: { line1: addressLine } });
+  // fields: {line1, city, country, postal_code} when Places Autocomplete
+  // resolved a real suggestion, or a bare string for a manually-typed
+  // address (Maps not configured, or the user didn't pick a suggestion) —
+  // in which case only line1 is set and the rest stay blank, same as before
+  // this integration existed.
+  async function updateAddress(fields) {
+    const body = typeof fields === 'string' ? { line1: fields } : fields;
+    return apiFetch('/auth/me/address/', { method: 'PATCH', body });
   }
 
   async function fetchNotificationPrefs() {

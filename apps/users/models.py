@@ -25,6 +25,12 @@ class Address(BaseModel):
     city = models.CharField(max_length=120)
     country = models.CharField(max_length=120)
     postal_code = models.CharField(max_length=20, blank=True)
+    # Set together from the map pin-drop confirmation step (Places
+    # Autocomplete's geocoded location, refined by dragging the marker) —
+    # blank for addresses saved before that existed. 6 decimal places is
+    # ~11cm precision, the standard for this kind of pin location.
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
 
 class NotificationPreference(BaseModel):

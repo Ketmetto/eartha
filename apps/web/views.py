@@ -43,6 +43,11 @@ class VerifyEmailPageView(TemplateView):
 class ProfileView(TemplateView):
     template_name = "web/profile.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["google_maps_api_key"] = config("GOOGLE_MAPS_API_KEY", default="")
+        return context
+
 
 class QueueView(TemplateView):
     template_name = "web/queue.html"
@@ -50,3 +55,8 @@ class QueueView(TemplateView):
 
 class UploadView(TemplateView):
     template_name = "web/upload.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["google_maps_api_key"] = config("GOOGLE_MAPS_API_KEY", default="")
+        return context

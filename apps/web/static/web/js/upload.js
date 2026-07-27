@@ -64,9 +64,18 @@ if (user) {
 
   // ---------- pickup address (asked once, saved to profile) ----------
   const addressField = document.getElementById('addressField');
+  const pickupInput = document.getElementById('pickupAddress');
   Eartha.fetchAddress()
     .then((address) => { if (!address.line1) addressField.hidden = false; })
     .catch(() => { addressField.hidden = false; });
+
+  // Set together when a real autocomplete suggestion is picked; cleared on
+  // further manual typing so a stale structured address never gets sent
+  // for text the user has since edited by hand.
+  let addressParts = null;
+  const mapsKey = JSON.parse(document.getElementById('google-maps-key').textContent);
+  EarthaAddressAutocomplete(pickupInput, mapsKey, document.getElementById('pickupMap'), (parts) => { addressParts = parts; });
+  pickupInput.addEventListener('input', () => { addressParts = null; });
 
   // ---------- submit ----------
   document.getElementById('uploadForm').addEventListener('submit', async (e) => {
@@ -82,12 +91,16 @@ if (user) {
 
     let addressToSave = null;
     if (!addressField.hidden) {
-      addressToSave = document.getElementById('pickupAddress').value.trim();
-      if (!addressToSave) {
+      const typed = pickupInput.value.trim();
+      if (!typed) {
         msg.textContent = 'ADD A PICKUP ADDRESS — OUR DRIVER NEEDS SOMEWHERE TO GO.';
         msg.className = 'form-msg is-error';
         return;
       }
+      // addressParts (city/country/postal_code) only exists if a real
+      // autocomplete suggestion was picked — otherwise fall back to the
+      // plain typed line, same as before this integration existed.
+      addressToSave = addressParts ? { ...addressParts, line1: addressParts.line1 || typed } : typed;
     }
 
     submitBtn.disabled = true;

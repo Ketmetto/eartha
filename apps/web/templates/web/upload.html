@@ -62,7 +62,8 @@
         <div class="field" id="addressField" hidden>
           <label for="pickupAddress">PICKUP ADDRESS</label>
           <input type="text" id="pickupAddress" autocomplete="street-address" placeholder="Street, building, city">
-          <p class="hint">WE NEED THIS ONCE — OUR DRIVER USES IT TO COLLECT YOUR ITEMS. SAVED TO YOUR PROFILE.</p>
+          <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);" hidden></div>
+          <p class="hint">WE NEED THIS ONCE — OUR DRIVER USES IT TO COLLECT YOUR ITEMS. SAVED TO YOUR PROFILE. DRAG THE PIN IF IT'S NOT EXACTLY ON YOUR ENTRANCE.</p>
         </div>
 
         <div class="field">
@@ -106,7 +107,9 @@
     </nav>
   </footer>
 
+  {{ google_maps_api_key|json_script:"google-maps-key" }}
   <script src="{% static 'web/js/store.js' %}"></script>
+  <script src="{% static 'web/js/address-autocomplete.js' %}"></script>
   <script src="{% static 'web/js/upload.js' %}"></script>
   <style>
     @media (max-width: 900px) { .upload-grid { grid-template-columns: 1fr !important; } }
