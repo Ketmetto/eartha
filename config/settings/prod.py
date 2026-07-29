@@ -37,3 +37,15 @@ STORAGES = {
     **STORAGES,
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+
+# Fall back to local disk when no S3-compatible bucket is configured yet —
+# same fallback dev.py uses. Without it, base.py's S3Boto3Storage tries to
+# build a boto3 client with an empty endpoint/bucket and raises
+# "ValueError: Invalid endpoint" the moment any FileField/ImageField (e.g.
+# a benefit logo) is serialized, taking down the whole request. Set
+# AWS_STORAGE_BUCKET_NAME (and friends) in .env.prod to switch to real S3.
+if not AWS_STORAGE_BUCKET_NAME:
+    STORAGES = {
+        **STORAGES,
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    }
