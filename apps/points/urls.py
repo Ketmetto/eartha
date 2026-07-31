@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import BalanceView, LedgerHistoryView, BenefitListView, RedeemBenefitView, MyRedemptionsView
-from .admin_views import BenefitAdminListCreateView, BenefitAdminDetailView, BenefitReorderView
+from .admin_views import BenefitAdminListCreateView, BenefitAdminDetailView, BenefitReorderView, ItemAwardView
 
 urlpatterns = [
     path("balance/", BalanceView.as_view(), name="points-balance"),
@@ -11,4 +11,5 @@ urlpatterns = [
     path("admin/benefits/", BenefitAdminListCreateView.as_view(), name="benefits-admin-list-create"),
     path("admin/benefits/reorder/", BenefitReorderView.as_view(), name="benefits-admin-reorder"),
     path("admin/benefits/<uuid:pk>/", BenefitAdminDetailView.as_view(), name="benefits-admin-detail"),
+    path("admin/items/<uuid:pk>/award/", ItemAwardView.as_view(), name="items-admin-award"),
 ]

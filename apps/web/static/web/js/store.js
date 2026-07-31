@@ -40,6 +40,9 @@ const Eartha = (() => {
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   // ---------- seed ----------
+  // Suggested default only, per condition — points are awarded at admin
+  // discretion any time from dispatch onward (see queue.js's award
+  // control), the admin can type a different amount. Not a guarantee.
   const POINTS_CRITERIA = {
     'like_new': 100,
     'good': 70,
@@ -365,6 +368,9 @@ const Eartha = (() => {
       userEmail: apiItem.user_email,
       pickupAddress: apiItem.pickup_address,
       driverName: apiItem.driver_name,
+      // null/undefined = not yet awarded; 0 is itself a valid award
+      // (e.g. an item caught as misrepresented on inspection).
+      awardedPoints: apiItem.awarded_points,
     };
   }
 
@@ -421,6 +427,13 @@ const Eartha = (() => {
   async function completeItem(id) {
     const item = await apiFetch(`/submissions/admin/${id}/complete/`, { method: 'POST' });
     return mapItem(item, null);
+  }
+
+  // Award or correct an item's points, at admin discretion — legal any
+  // time from dispatched status onward. Note: points endpoints, not
+  // submissions.
+  async function awardItemPoints(id, points) {
+    return apiFetch(`/points/admin/items/${id}/award/`, { method: 'POST', body: { points } });
   }
 
   // ---------- admin: benefits catalog ----------
@@ -836,7 +849,7 @@ const Eartha = (() => {
     POINTS_CRITERIA,
     currentUser, register, login, socialLogin, verifyEmail, logout, requireAuth, requireAdmin,
     fetchMySubmissions, createSubmission,
-    fetchAdminSubmissions, acceptItem, rejectItem, dispatchItem, collectItem, completeItem,
+    fetchAdminSubmissions, acceptItem, rejectItem, dispatchItem, collectItem, completeItem, awardItemPoints,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
     fetchContactMessages, resolveMessage,

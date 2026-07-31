@@ -108,9 +108,10 @@ class SubmissionMarkCompletedView(generics.GenericAPIView):
     """
     Admin: mark a collected item as completed, closing out the pipeline.
     POST /admin/<uuid:pk>/complete/
-    Points were already awarded when the item was accepted (see
-    services.award_points_for_item) — this step doesn't award anything,
-    it just closes the loop.
+    This transition itself has no points effect — points can be awarded or
+    corrected any time from DISPATCHED status onward (including on a
+    COMPLETED item) via apps.points.admin_views.ItemAwardView, independent
+    of this status change.
     """
     permission_classes = [IsAdmin]
     queryset = Item.objects.all()

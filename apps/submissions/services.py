@@ -8,13 +8,16 @@ from django.db import transaction
 from base.validators import validate_image_size, validate_image_content_type
 from .models import Item, ItemPhoto, DriverAssignment
 from .state_machine import can_transition
-from apps.points.services import award_points_for_item, reverse_points_for_item
 from notifications.tasks import notify_submission_status_changed
 
 
 def transition_item_status(item: Item, target_status: str, *, reason: str = "") -> Item:
     """
-    Drive an item through the state machine.
+    Drive an item through the state machine. Pure status-machine +
+    notification — no points side effects here. Points are awarded
+    separately, at admin discretion, any time from DISPATCHED status
+    onward (see apps.points.services.set_item_award), independent of
+    which transition got the item there.
     Raises DRF ValidationError so DRF's exception handler returns 400,
     not an unhandled 500.
     """
@@ -25,19 +28,10 @@ def transition_item_status(item: Item, target_status: str, *, reason: str = "") 
         )
 
     with transaction.atomic():
-        # Reversing a mistaken acceptance: claw back its points before
-        # touching status, so a blocked reversal (points already spent)
-        # leaves the item ACCEPTED rather than half-corrected.
-        if previous_status == Item.Status.ACCEPTED and target_status == Item.Status.REJECTED:
-            reverse_points_for_item(item)
-
         item.status = target_status
         if target_status == Item.Status.REJECTED:
             item.rejection_reason = reason
         item.save(update_fields=["status", "rejection_reason", "updated_at"])
-
-        if target_status == Item.Status.ACCEPTED:
-            award_points_for_item(item)
 
     notify_submission_status_changed.delay(str(item.id), target_status)
 

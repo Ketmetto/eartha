@@ -7,55 +7,73 @@ from rest_framework.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
 from .models import PointsLedgerEntry, Benefit, Redemption
-from .rules import suggested_points
 
 
 def get_balance(user) -> int:
     return PointsLedgerEntry.objects.filter(user=user).aggregate(total=Sum("points"))["total"] or 0
 
 
-def award_points_for_item(item):
-    """Called by apps.submissions.services when an item is accepted."""
-    points = suggested_points(item.condition)
-    PointsLedgerEntry.objects.create(
-        user=item.user,
-        entry_type=PointsLedgerEntry.EntryType.AWARD,
-        points=points,
+def get_awarded_total(item):
+    """Net points currently awarded for this item (AWARD + any ADJUSTMENT
+    corrections), or None if no award has ever been made — distinct from
+    0, which is itself a valid award (e.g. a misrepresented item caught on
+    physical inspection)."""
+    has_award = PointsLedgerEntry.objects.filter(
+        reference_item=item, entry_type=PointsLedgerEntry.EntryType.AWARD
+    ).exists()
+    if not has_award:
+        return None
+    return PointsLedgerEntry.objects.filter(
         reference_item=item,
-        note=f"Accepted: {item.category} ({item.condition})",
-    )
-    from notifications.tasks import notify_points_awarded
-    notify_points_awarded.delay(item.user_id, points)
+        entry_type__in=[PointsLedgerEntry.EntryType.AWARD, PointsLedgerEntry.EntryType.ADJUSTMENT],
+    ).aggregate(total=Sum("points"))["total"] or 0
 
 
-def reverse_points_for_item(item):
-    """Called by apps.submissions.services when an ACCEPTED item is
-    corrected back to REJECTED — an admin fixing a mistaken decision.
-    Claws back the original award with a matching negative ledger entry.
-    Raises if the user's balance can't absorb it (they've already spent
-    below what this would take back) — leaves the original award and the
-    item's ACCEPTED status untouched, since the caller runs this before
-    saving the new status."""
-    award = (
-        PointsLedgerEntry.objects.filter(reference_item=item, entry_type=PointsLedgerEntry.EntryType.AWARD)
-        .order_by("-created_at")
-        .first()
-    )
-    if not award:
-        return  # nothing was ever awarded (e.g. the award itself failed) — nothing to reverse
+def set_item_award(item, points: int, admin_user) -> PointsLedgerEntry:
+    """
+    Award or correct the points for a submission, at admin discretion, any
+    time from DISPATCHED status onward — never automatically on accept,
+    since acceptance only screens photos, before the item is physically
+    received. First call creates an AWARD entry; a later call creates an
+    ADJUSTMENT for the delta, keeping the ledger append-only. Raises if a
+    downward correction would take the user's balance negative (they've
+    already spent some of what this item contributed).
+    """
+    from apps.submissions.models import Item
 
-    if get_balance(item.user) < award.points:
+    if item.status not in (Item.Status.DISPATCHED, Item.Status.COLLECTED, Item.Status.COMPLETED):
         raise ValidationError(
-            "Cannot reverse this acceptance — the user has already spent these points."
+            f"Cannot award points while item status is '{item.status}'. "
+            "Item must be dispatched, collected, or completed."
         )
 
-    PointsLedgerEntry.objects.create(
+    current_total = get_awarded_total(item)
+    is_first_award = current_total is None
+    delta = points - (current_total or 0)
+
+    if not is_first_award and delta == 0:
+        raise ValidationError("No change — item already has this many points awarded.")
+
+    if delta < 0 and get_balance(item.user) + delta < 0:
+        raise ValidationError("Cannot reduce this award — the user has already spent these points.")
+
+    entry = PointsLedgerEntry.objects.create(
         user=item.user,
-        entry_type=PointsLedgerEntry.EntryType.ADJUSTMENT,
-        points=-award.points,
+        entry_type=PointsLedgerEntry.EntryType.AWARD if is_first_award else PointsLedgerEntry.EntryType.ADJUSTMENT,
+        points=delta,
         reference_item=item,
-        note=f"Reversed acceptance: {item.category} ({item.condition})",
+        awarded_by=admin_user,
+        note=(
+            f"Awarded: {item.category} ({item.condition})" if is_first_award
+            else f"Correction: {item.category} ({item.condition})"
+        ),
     )
+
+    if is_first_award:
+        from notifications.tasks import notify_points_awarded
+        notify_points_awarded.delay(item.user_id, points)
+
+    return entry
 
 
 @transaction.atomic

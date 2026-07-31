@@ -12,16 +12,8 @@ from apps.submissions.services import (
     create_item_with_photos,
     assign_driver,
 )
-from apps.points.models import Benefit, PointsLedgerEntry
-from apps.points.services import get_balance, redeem_benefit
-
-
-@pytest.fixture
-def benefit():
-    return Benefit.objects.create(
-        brand_name="Test Brand", category="fashion", discount_percent=10, points_required=100, is_active=True,
-    )
-
+from apps.points.models import PointsLedgerEntry
+from apps.points.services import get_balance
 
 # pending_item / accepted_item come from apps/submissions/tests/conftest.py
 
@@ -33,17 +25,17 @@ class TestTransitionItemStatus:
     """Test the state machine transition logic."""
 
     def test_pending_to_accepted(self, pending_item):
-        with (
-            patch("apps.submissions.services.award_points_for_item") as mock_award,
-            patch("apps.submissions.services.notify_submission_status_changed") as mock_notify,
-        ):
+        with patch("apps.submissions.services.notify_submission_status_changed") as mock_notify:
             result = transition_item_status(pending_item, Item.Status.ACCEPTED)
 
             assert result.status == Item.Status.ACCEPTED
-            mock_award.assert_called_once_with(pending_item)
             mock_notify.delay.assert_called_once_with(
                 str(pending_item.id), Item.Status.ACCEPTED
             )
+            # Acceptance only screens photos — no points side effect. Points
+            # are awarded separately, at admin discretion, from DISPATCHED
+            # onward (see apps.points.services.set_item_award).
+            assert not PointsLedgerEntry.objects.filter(reference_item=pending_item).exists()
 
     def test_pending_to_rejected_with_reason(self, pending_item):
         with patch("apps.submissions.services.notify_submission_status_changed") as mock_notify:
@@ -92,7 +84,7 @@ class TestTransitionItemStatus:
         with pytest.raises(DRFValidationError):
             transition_item_status(rejected, Item.Status.COMPLETED)
 
-    def test_rejected_to_accepted_is_a_correction_that_awards_points(self, user):
+    def test_rejected_to_accepted_is_a_correction_with_no_points_effect(self, user):
         rejected = Item.objects.create(
             user=user,
             category=Item.Category.BAGS,
@@ -103,40 +95,21 @@ class TestTransitionItemStatus:
             result = transition_item_status(rejected, Item.Status.ACCEPTED)
 
         assert result.status == Item.Status.ACCEPTED
-        assert PointsLedgerEntry.objects.filter(
-            reference_item=rejected, entry_type=PointsLedgerEntry.EntryType.AWARD
-        ).exists()
+        assert not PointsLedgerEntry.objects.filter(reference_item=rejected).exists()
 
-    def test_accepted_to_rejected_reverses_the_award(self, user):
+    def test_accepted_to_rejected_has_no_points_effect(self, user):
         with patch("apps.submissions.services.notify_submission_status_changed"):
             item = transition_item_status(
                 Item.objects.create(user=user, category=Item.Category.CLOTHING, condition=Item.Condition.LIKE_NEW),
                 Item.Status.ACCEPTED,
             )
-            assert get_balance(user) == 100  # LIKE_NEW award, per points/rules.py
+            assert get_balance(user) == 0  # acceptance never awards points anymore
 
             result = transition_item_status(item, Item.Status.REJECTED)
 
         assert result.status == Item.Status.REJECTED
         assert get_balance(user) == 0
-        assert PointsLedgerEntry.objects.filter(
-            reference_item=item, entry_type=PointsLedgerEntry.EntryType.ADJUSTMENT, points=-100
-        ).exists()
-
-    def test_accepted_to_rejected_blocked_once_points_are_spent(self, user, benefit):
-        with patch("apps.submissions.services.notify_submission_status_changed"):
-            item = transition_item_status(
-                Item.objects.create(user=user, category=Item.Category.CLOTHING, condition=Item.Condition.LIKE_NEW),
-                Item.Status.ACCEPTED,
-            )
-            redeem_benefit(user, benefit)  # spends all 100 points on a benefit that costs exactly 100
-
-            with pytest.raises(DRFValidationError):
-                transition_item_status(item, Item.Status.REJECTED)
-
-        item.refresh_from_db()
-        assert item.status == Item.Status.ACCEPTED  # unchanged — the whole correction rolled back
-        assert get_balance(user) == 0  # original award untouched, not double-reversed
+        assert not PointsLedgerEntry.objects.filter(reference_item=item).exists()
 
     def test_no_transition_from_completed(self, user):
         completed = Item.objects.create(

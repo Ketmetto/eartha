@@ -128,10 +128,7 @@ class TestSubmissionDecisionView:
     """Test admin decision endpoint driving the state machine."""
 
     def test_admin_can_accept_pending_item(self, admin_client, pending_item):
-        with (
-            patch("apps.submissions.services.award_points_for_item"),
-            patch("apps.submissions.services.notify_submission_status_changed"),
-        ):
+        with patch("apps.submissions.services.notify_submission_status_changed"):
             response = admin_client.post(
                 reverse("submissions-admin-decision", kwargs={"pk": pending_item.id}),
                 data={"action": "accept"},

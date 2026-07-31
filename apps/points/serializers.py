@@ -29,6 +29,12 @@ class BenefitReorderSerializer(serializers.Serializer):
     ids = serializers.ListField(child=serializers.UUIDField(), min_length=1)
 
 
+class ItemAwardSerializer(serializers.Serializer):
+    """Body for ItemAwardView — the exact points to set for this item
+    (pre-filled client-side from suggested_points, but freely editable)."""
+    points = serializers.IntegerField(min_value=0)
+
+
 class RedemptionSerializer(serializers.ModelSerializer):
     brand_name = serializers.CharField(source="benefit.brand_name", read_only=True)
     discount_percent = serializers.IntegerField(source="benefit.discount_percent", read_only=True)

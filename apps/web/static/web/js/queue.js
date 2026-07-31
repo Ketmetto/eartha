@@ -41,6 +41,25 @@ if (admin) {
       : '<div class="thumb-64"></div>';
   }
 
+  // Award/correct points — shown once an item is dispatched onward, at
+  // admin discretion (never automatic on accept, since acceptance only
+  // screens photos, before the item is physically received). Pre-filled
+  // from the condition's suggested default, but freely editable; 0 is a
+  // valid award for a misrepresented item caught on physical inspection.
+  function awardControl(s) {
+    const suggested = Eartha.POINTS_CRITERIA[s.condition] ?? 0;
+    const already = s.awardedPoints != null;
+    const label = already ? `CORRECT AWARD (CURRENTLY ${s.awardedPoints} PTS)` : 'AWARD POINTS';
+    return `
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-top:12px;">
+        <div class="field" style="margin:0;width:100px;">
+          <label for="award-${s.id}">${label}</label>
+          <input type="number" min="0" id="award-${s.id}" value="${already ? s.awardedPoints : suggested}">
+        </div>
+        <button class="btn btn-ghost btn-sm" data-act="award" data-id="${s.id}">SAVE</button>
+      </div>`;
+  }
+
   function actionArea(s) {
     // reject panel (available while pending)
     if (open.reject.has(s.id)) {
@@ -74,22 +93,21 @@ if (admin) {
               <input type="text" id="driver-${s.id}" placeholder="e.g. Karim H.">
             </div>
             <button class="btn btn-sm" data-act="dispatch" data-id="${s.id}" ${noAddress ? 'disabled title="User has no pickup address"' : ''}>DISPATCH</button>
-            <button class="btn btn-ghost btn-sm" data-act="reject" data-id="${s.id}" title="Correct a mistaken accept — reverses any points already awarded">UNDO — REJECT</button>
+            <button class="btn btn-ghost btn-sm" data-act="reject" data-id="${s.id}" title="Correct a mistaken accept">UNDO — REJECT</button>
           </div>`;
       }
 
       case 'dispatched':
-        return `<button class="btn btn-sm" data-act="collect" data-id="${s.id}">MARK COLLECTED</button>`;
+        return `<button class="btn btn-sm" data-act="collect" data-id="${s.id}">MARK COLLECTED</button>${awardControl(s)}`;
 
       case 'collected':
-        return `<button class="btn btn-sm" data-act="complete" data-id="${s.id}">CONFIRM &amp; CLOSE OUT</button>`;
+        return `<button class="btn btn-sm" data-act="complete" data-id="${s.id}">CONFIRM &amp; CLOSE OUT</button>${awardControl(s)}`;
 
       case 'completed': {
-        // Points were awarded at acceptance, not here — the table below
-        // matches apps.points.rules.suggested_points exactly, so this is
-        // the real amount, not a guess.
-        const pts = Eartha.POINTS_CRITERIA[s.condition] ?? 0;
-        return `<p class="muted" style="font-size:11px;">+${pts} PTS AWARDED AT ACCEPTANCE · ${Eartha.fmtDate(s.updatedAt)}</p>`;
+        const readout = s.awardedPoints != null
+          ? `<p class="muted" style="font-size:11px;">+${s.awardedPoints} PTS · ${Eartha.fmtDate(s.updatedAt)}</p>`
+          : '';
+        return `${readout}${awardControl(s)}`;
       }
 
       case 'rejected':
@@ -198,6 +216,11 @@ if (admin) {
       } else if (act === 'complete') {
         await Eartha.completeItem(id);
         Eartha.toast('CLOSED OUT');
+      } else if (act === 'award') {
+        const points = Number(document.getElementById('award-' + id).value);
+        if (Number.isNaN(points) || points < 0) { Eartha.toast('ENTER A VALID POINTS AMOUNT'); return; }
+        await Eartha.awardItemPoints(id, points);
+        Eartha.toast('POINTS AWARDED');
       }
     } catch (err) {
       Eartha.toast(err.message || 'SOMETHING WENT WRONG.');

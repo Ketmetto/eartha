@@ -56,3 +56,39 @@ def dispatched_item(user):
         pickup_address_snapshot="123 Test St",
     )
     return item
+
+
+@pytest.fixture
+def collected_item(user):
+    item = Item.objects.create(
+        user=user,
+        category=Item.Category.BAGS,
+        condition=Item.Condition.WORN,
+        description="A collected item",
+        status=Item.Status.COLLECTED,
+    )
+    DriverAssignment.objects.create(
+        item=item,
+        driver_name="Test Driver",
+        status=DriverAssignment.DispatchStatus.COLLECTED,
+        pickup_address_snapshot="123 Test St",
+    )
+    return item
+
+
+@pytest.fixture
+def completed_item(user):
+    item = Item.objects.create(
+        user=user,
+        category=Item.Category.BAGS,
+        condition=Item.Condition.WORN,
+        description="A completed item",
+        status=Item.Status.COMPLETED,
+    )
+    DriverAssignment.objects.create(
+        item=item,
+        driver_name="Test Driver",
+        status=DriverAssignment.DispatchStatus.COMPLETED,
+        pickup_address_snapshot="123 Test St",
+    )
+    return item

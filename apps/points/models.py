@@ -15,6 +15,12 @@ class PointsLedgerEntry(BaseModel):
     entry_type = models.CharField(max_length=20, choices=EntryType.choices)
     points = models.IntegerField()  # positive for award, negative for redeem
     reference_item = models.ForeignKey("submissions.Item", null=True, blank=True, on_delete=models.SET_NULL)
+    # Audit only — who made the discretionary award/correction. Not used in
+    # balance math, so SET_NULL is fine if the admin account is later removed.
+    awarded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="+",
+    )
     note = models.CharField(max_length=255, blank=True)
 
 

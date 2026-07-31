@@ -2,8 +2,10 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from base.permissions import IsAdmin
+from apps.submissions.models import Item
 from .models import Benefit
-from .serializers import BenefitAdminSerializer, BenefitReorderSerializer
+from .serializers import BenefitAdminSerializer, BenefitReorderSerializer, ItemAwardSerializer
+from .services import set_item_award, get_awarded_total
 
 
 class BenefitAdminListCreateView(generics.ListCreateAPIView):
@@ -48,3 +50,23 @@ class BenefitReorderView(APIView):
             [b for b in benefits.values()], ["display_priority"]
         )
         return Response({"detail": "Display order updated."}, status=status.HTTP_200_OK)
+
+
+class ItemAwardView(generics.GenericAPIView):
+    """
+    Admin: award or correct the points for a submission, at discretion,
+    any time from DISPATCHED status onward — never automatic on accept.
+    POST /admin/items/<uuid:pk>/award/  {"points": 70}
+    """
+    serializer_class = ItemAwardSerializer
+    permission_classes = [IsAdmin]
+    queryset = Item.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        item = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        set_item_award(item, serializer.validated_data["points"], request.user)
+
+        return Response({"awarded_points": get_awarded_total(item)}, status=status.HTTP_200_OK)

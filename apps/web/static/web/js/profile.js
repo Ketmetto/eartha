@@ -54,10 +54,10 @@ if (user && !user.isAdmin) {
   });
 
   // ---------- submission history ----------
-  // Points show once accepted, matching real award timing (points are
-  // awarded at acceptance, not completion) — see apps.points.services.
-  const EARNED_STATUSES = ['accepted', 'dispatched', 'collected', 'completed'];
-
+  // Points are awarded by an admin at their discretion, any time from
+  // dispatch onward — not derivable from status/condition alone (an admin
+  // may award more, less, or 0). awardedPoints comes straight from the
+  // ledger via the API; null means not yet awarded, see apps.points.services.
   async function renderSubs() {
     const subsBody = document.getElementById('subsBody');
     let subs = [];
@@ -75,7 +75,7 @@ if (user && !user.isAdmin) {
           <td>${Eartha.fmtDate(s.createdAt)}</td>
           <td style="text-transform:uppercase;">${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}</td>
           <td>${Eartha.badge(s.status)}${s.status === 'rejected' && s.rejectReason ? `<div class="muted" style="font-size:10px;margin-top:4px;">${Eartha.esc(s.rejectReason)}</div>` : ''}</td>
-          <td>${EARNED_STATUSES.includes(s.status) ? '+' + (Eartha.POINTS_CRITERIA[s.condition] ?? 0) : '—'}</td>
+          <td>${s.awardedPoints != null ? '+' + s.awardedPoints : '—'}</td>
         </tr>`
       )
       .join('');
