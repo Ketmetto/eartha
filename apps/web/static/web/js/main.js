@@ -21,10 +21,13 @@ function setActive(index) {
     c.style.opacity = i === active ? '1' : '0.45';
   });
 
-  cards[active].scrollIntoView({
+  // Scroll only the carousel's own track horizontally — scrollIntoView()
+  // was also dragging the whole page's vertical scroll position back to
+  // this section on every autoplay tick whenever the user had scrolled
+  // away from it.
+  track.scrollTo({
+    left: cards[active].offsetLeft,
     behavior: 'smooth',
-    block: 'nearest',
-    inline: 'start',
   });
 }
 
