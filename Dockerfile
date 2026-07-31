@@ -3,6 +3,14 @@ FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Gunicorn's control-socket defaults to $XDG_RUNTIME_DIR/gunicorn.ctl, falling
+# back to $HOME/.gunicorn/ if unset. The `app` user below is created with
+# `-M` (no home dir), so that fallback path doesn't exist and gunicorn logs
+# "Control server error: Permission denied: '/home/app'" on every boot.
+# Pointing XDG_RUNTIME_DIR at /tmp (world-writable in this base image) gives
+# it a real, writable target instead.
+ENV XDG_RUNTIME_DIR=/tmp
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,9 +33,16 @@ RUN chmod +x scripts/entrypoint.sh
 # 1000 (check with `id -u`/`id -g`); in Compose that's the `build.args` for
 # each service. Only matters for the bind-mount case (dev) — the prod
 # compose file has no volume, so the chown below is what actually sticks.
+
+# ARG APP_UID=1000
+# ARG APP_GID=1000
+# RUN groupadd -g "${APP_GID}" app && useradd -u "${APP_UID}" -g app -M app \
+#     && chown -R app:app /app
+# USER app
 ARG APP_UID=1000
 ARG APP_GID=1000
-RUN groupadd -g "${APP_GID}" app && useradd -u "${APP_UID}" -g app -M app \
+RUN mkdir -p /app/staticfiles /app/media \
+    && groupadd -g "${APP_GID}" app && useradd -u "${APP_UID}" -g app -M app \
     && chown -R app:app /app
 USER app
 

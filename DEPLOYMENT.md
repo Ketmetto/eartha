@@ -5,6 +5,10 @@ actually go live on a Hostinger VPS. No CI/CD is set up yet — deploys are
 manual (`git pull` + `docker compose up -d --build`). That's fine for launch;
 revisit CI/CD later if deploys become frequent enough to be error-prone.
 
+This guide assumes whoever is deploying is **not** the original developer —
+every step below has been tested end-to-end and the gotchas section exists
+because we hit each of these for real.
+
 ---
 
 ## What was missing before, and what changed
@@ -15,29 +19,48 @@ revisit CI/CD later if deploys become frequent enough to be error-prone.
 | Gunicorn exposed directly on `:8000` | Changed `ports` → `expose`; only Nginx is reachable from the internet now |
 | No persistent media storage | Added `media_data` volume, mounted into `web` and `celery` |
 | No persistent static file serving | Added `static_data` volume, `collectstatic` writes here, Nginx serves it directly |
+| Named volumes defaulted to root ownership | `Dockerfile` now pre-creates `/app/staticfiles` and `/app/media` before `chown`, so fresh volumes inherit correct permissions |
 | No backup plan for Postgres | Documented below (cron + `pg_dump`) |
+| CSRF blocked HTTPS admin logins | Added `CSRF_TRUSTED_ORIGINS` and `SECURE_PROXY_SSL_HEADER` in prod settings |
 
-The app code, `Dockerfile`, and entrypoint script were already solid —
-migrations, `collectstatic`, non-root user, and the Postgres-readiness wait
-loop all needed no changes.
+The app code and entrypoint script were already solid — migrations,
+`collectstatic`, the non-root user, and the Postgres-readiness wait loop all
+needed no changes.
 
 ---
 
 ## Files in this bundle
 
-- `docker-compose.prod.yml` — replaces your current one
+- `docker-compose.prod.yml` — replaces the existing one
 - `nginx/nginx.conf` — reverse proxy + TLS termination + static/media serving
 
-Copy both into your project root (keeping the `nginx/` subfolder), then edit
-`nginx/nginx.conf` and replace every `YOURDOMAIN.com` with your real domain.
+Copy both into the project root (keeping the `nginx/` subfolder), then edit
+`nginx/nginx.conf` and replace every `YOURDOMAIN.com` with the real domain.
+
+Also confirm `config/settings/prod.py` has these two blocks (they should
+already be committed, but verify before first deploy):
+
+```python
+CSRF_TRUSTED_ORIGINS = [
+    "https://YOURDOMAIN.com",
+    "https://www.YOURDOMAIN.com",
+]
+
+# Nginx terminates TLS and proxies to Gunicorn over plain HTTP internally —
+# this tells Django to trust Nginx's X-Forwarded-Proto header instead of
+# treating every request as insecure.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+```
+
+Replace `YOURDOMAIN.com` there too, to match `nginx.conf` and `ALLOWED_HOSTS`.
 
 ---
 
 ## One-time server setup (Hostinger VPS)
 
-1. **Point DNS at the server.** In Hostinger's DNS panel (or wherever your
+1. **Point DNS at the server.** In Hostinger's DNS panel (or wherever the
    domain is registered), create an `A` record for `YOURDOMAIN.com` and
-   `www.YOURDOMAIN.com` pointing at your VPS's public IP. Wait for
+   `www.YOURDOMAIN.com` pointing at the VPS's public IP. Wait for
    propagation (`dig YOURDOMAIN.com` should return the right IP) before
    continuing — Certbot will fail otherwise.
 
@@ -56,13 +79,13 @@ Copy both into your project root (keeping the `nginx/` subfolder), then edit
    sudo firewall-cmd --reload
    ```
 
-4. **Clone the repo and add production `.env`.** Never commit this file.
-   Required values to set for real (not dev defaults):
+4. **Clone the repo and create production `.env`.** Never commit this file.
+   Copy `.env.example` to `.env` and set real values for:
    - `DEBUG=False`
    - `ALLOWED_HOSTS=YOURDOMAIN.com,www.YOURDOMAIN.com`
    - `SECRET_KEY=` — generate a fresh one, don't reuse the dev key
    - `POSTGRES_PASSWORD=` — a real password, not `change-me`
-   - Any email/SMTP, Celery/Redis, and storage settings your app needs
+   - Any email/SMTP, Celery/Redis, and storage settings the app needs
 
 ---
 
@@ -77,7 +100,7 @@ certificate that doesn't exist yet. Two-step bootstrap:
 port-80 block exists. Then:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d nginx web db redis celery
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 **Step 2 — request the certificate:**
@@ -89,7 +112,7 @@ docker compose -f docker-compose.prod.yml run --rm certbot certonly \
 ```
 
 **Step 3 — restore the full `nginx.conf`** (with the 443 block back in),
-then reload:
+then restart nginx so it picks up the new config:
 ```bash
 docker compose -f docker-compose.prod.yml restart nginx
 ```
@@ -99,11 +122,52 @@ automatically every 12 hours (checking, renewing only when due).
 
 ---
 
+## ⚠️ Gotcha: restart `nginx` after rebuilding `web` or `celery`
+
+Nginx resolves `web`'s address once and caches it for the life of the
+process. If you rebuild or restart `web` (a new deploy, for example),
+Docker assigns it a new internal IP — but Nginx keeps trying the *old* one
+until it's restarted, producing a `502 Bad Gateway` with a
+`connect() failed (111: Connection refused)` error in its logs pointing at
+a stale IP.
+
+**Whenever you redeploy, restart nginx too:**
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml restart nginx
+```
+Or just restart everything at once to avoid thinking about it:
+```bash
+docker compose -f docker-compose.prod.yml restart
+```
+
+This bit us twice during testing — once between `celery` and `redis`, once
+between `nginx` and `web` — same root cause both times.
+
+---
+
+## ⚠️ Gotcha: don't delete/recreate the static or media volumes casually
+
+The `static_data` and `media_data` named volumes only get correct
+permissions because the `Dockerfile` pre-creates those directories with the
+right owner *before* the volume is first created and populated. If you ever
+run `docker volume rm eartha_static_data eartha_media_data` and recreate
+them, that's fine — the fix is baked into the image now, permissions will
+be correct again on the next `up`. But don't "clean up" that
+`RUN mkdir -p /app/staticfiles /app/media` line in the Dockerfile thinking
+it's redundant — without it, fresh volumes get created as `root`-owned and
+the non-root `app` user inside the container gets a
+`PermissionError: [Errno 13] Permission denied` trying to write static
+files or uploads.
+
+---
+
 ## Normal deploy from then on
 
 ```bash
 git pull
 docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml restart nginx
 ```
 
 Migrations and `collectstatic` run automatically via the entrypoint script
@@ -126,15 +190,24 @@ Keep at least 7 days of rotation, and periodically copy backups off the VPS
 only lives on the same disk as the database doesn't protect against disk
 failure.
 
+If you ever need to recover from an old volume after a mistaken
+`docker volume rm`, note that Docker won't actually delete a volume that's
+still referenced by a running or stopped container under a *different*
+compose project name — check `docker volume ls` for orphaned volumes named
+after an old project before assuming data is gone.
+
 ---
 
 ## Post-deploy checklist
 
 - [ ] `https://YOURDOMAIN.com` loads with a valid padlock, no mixed content
 - [ ] `http://YOURDOMAIN.com` redirects to `https://`
-- [ ] Static files (CSS/JS/admin styling) load correctly
+- [ ] Static files (CSS/JS/admin styling) load correctly — if the page looks
+      unstyled, check the static volume permissions gotcha above
 - [ ] Uploaded images (e.g. benefit logos) load correctly from `/media/`
-- [ ] Django admin login works, `DEBUG=False` confirmed (visit a broken URL —
-      you should see a plain error page, not a stack trace)
+- [ ] Django admin login works without a CSRF error (confirms
+      `CSRF_TRUSTED_ORIGINS` matches the real domain)
+- [ ] `DEBUG=False` confirmed (visit a broken URL — should show a plain
+      error page, not a stack trace)
 - [ ] Celery worker logs show it connected to Redis and Postgres
 - [ ] Cron backup job runs successfully once, and the `.sql.gz` file is valid
