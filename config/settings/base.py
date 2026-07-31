@@ -4,6 +4,8 @@ import * from here and override what's different.
 """
 from pathlib import Path
 from decouple import config, Csv
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -16,6 +18,9 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin-allow-popups"
 
 INSTALLED_APPS = [
+    # unfold must load before django.contrib.admin — it overrides admin's
+    # templates/static, and Django resolves both by app-loading order.
+    "unfold",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -114,6 +119,80 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SITE_ID = 1
+
+# --- Admin theme (django-unfold) ---
+# Color ramp derived from the brand's --ok green (#4A5D3A, see app.css) so
+# the admin doesn't look like an unrelated third-party skin.
+UNFOLD = {
+    "SITE_TITLE": "Eartha Admin",
+    "SITE_HEADER": "Eartha",
+    "SITE_SYMBOL": "eco",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "COLORS": {
+        "primary": {
+            "50": "247 250 245",
+            "100": "237 242 232",
+            "200": "216 228 206",
+            "300": "187 207 170",
+            "400": "151 177 129",
+            "500": "117 148 92",
+            "600": "95 119 74",
+            "700": "77 97 61",
+            "800": "62 79 49",
+            "900": "50 63 39",
+            "950": "32 41 25",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": _("Overview"),
+                "items": [
+                    {"title": _("Dashboard"), "icon": "dashboard", "link": reverse_lazy("admin:index")},
+                ],
+            },
+            {
+                "title": _("Users"),
+                "items": [
+                    {"title": _("Users"), "icon": "group", "link": reverse_lazy("admin:users_user_changelist")},
+                    {"title": _("Addresses"), "icon": "location_on", "link": reverse_lazy("admin:users_address_changelist")},
+                    {"title": _("Notification prefs"), "icon": "notifications", "link": reverse_lazy("admin:users_notificationpreference_changelist")},
+                ],
+            },
+            {
+                "title": _("Submissions"),
+                "items": [
+                    {"title": _("Items"), "icon": "inventory_2", "link": reverse_lazy("admin:submissions_item_changelist")},
+                    {"title": _("Driver assignments"), "icon": "local_shipping", "link": reverse_lazy("admin:submissions_driverassignment_changelist")},
+                ],
+            },
+            {
+                "title": _("Points & benefits"),
+                "items": [
+                    {"title": _("Points ledger"), "icon": "toll", "link": reverse_lazy("admin:points_pointsledgerentry_changelist")},
+                    {"title": _("Benefits"), "icon": "redeem", "link": reverse_lazy("admin:points_benefit_changelist")},
+                    {"title": _("Redemptions"), "icon": "shopping_bag", "link": reverse_lazy("admin:points_redemption_changelist")},
+                ],
+            },
+            {
+                "title": _("Engagement"),
+                "items": [
+                    {"title": _("Contact messages"), "icon": "mail", "link": reverse_lazy("admin:engagement_contactmessage_changelist")},
+                    {"title": _("Impact stats"), "icon": "insights", "link": reverse_lazy("admin:engagement_impactstat_changelist")},
+                ],
+            },
+            {
+                "title": _("Access control"),
+                "items": [
+                    {"title": _("Groups"), "icon": "shield", "link": reverse_lazy("admin:auth_group_changelist")},
+                ],
+            },
+        ],
+    },
+}
 
 # --- Cache (backs DRF throttling — shared across workers, unlike locmem) ---
 CACHES = {
