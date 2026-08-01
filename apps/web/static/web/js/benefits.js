@@ -169,6 +169,16 @@ if (user) {
 
   // ---------- delegated actions ----------
   grid.addEventListener('click', async (e) => {
+    // Checked before the [data-act] guard below — the drop zone itself
+    // carries no data-act, so it would otherwise hit the early return and
+    // never open the file picker on a mouse click (only Enter/Space via
+    // the keydown listener would have worked).
+    const imgDrop = e.target.closest('.benefit-image-drop');
+    if (imgDrop) {
+      imgDrop.parentElement.querySelector('.f-image-input').click();
+      return;
+    }
+
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.dataset.act;
@@ -236,12 +246,6 @@ if (user) {
       } catch (err) {
         Eartha.toast(err.message);
       }
-    }
-
-    // ----- image upload trigger -----
-    const imgDrop = e.target.closest('.benefit-image-drop');
-    if (imgDrop) {
-      imgDrop.parentElement.querySelector('.f-image-input').click();
     }
   });
 
