@@ -1,59 +1,42 @@
 /* ============================================================
    EARTHA — main.js
-   What-we-accept carousel · Newsletter
+   What-we-accept marquee · Newsletter
    ============================================================ */
 
-// ---------- What we accept: carousel ----------
-const track = document.getElementById('acceptTrack');
-const cards = Array.from(track.querySelectorAll('.accept-card'));
-const prevBtn = document.getElementById('prevBtn');
-const nextBtn = document.getElementById('nextBtn');
+// ---------- What we accept: infinite marquee ----------
+// A native CSS animation (see .accept-marquee.is-marquee in app.css) does
+// the actual scrolling — smoother and more reliable than driving it by
+// hand every frame from JS. This just measures one group's real rendered
+// width once, clones enough copies to comfortably cover the viewport
+// twice over, and hands that exact pixel value to the CSS animation as
+// the translate distance. Because every copy is identical and adjacent,
+// translating by exactly one group's width always lands the next copy
+// precisely where the previous one started — regardless of how many
+// copies exist. (translateX(-50%) on a doubled track was the original
+// approach; it requires two independently-laid-out flex groups to land
+// on the exact same subpixel width, which clamp()-based card widths don't
+// reliably do — that drift was the blank gap at the seam.)
+const marquee = document.getElementById('acceptMarquee');
+const track = marquee && marquee.querySelector('.accept-track');
+const group = marquee && marquee.querySelector('.accept-group');
 
-let active = 0;
-const AUTOPLAY_MS = 4000;
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let autoplayTimer = null;
+if (track && group) {
+  const groupWidth = group.getBoundingClientRect().width;
 
-function setActive(index) {
-  active = (index + cards.length) % cards.length;
+  const copiesNeeded = Math.max(2, Math.ceil((marquee.clientWidth * 2) / groupWidth) + 1);
+  for (let i = 1; i < copiesNeeded; i++) {
+    const clone = group.cloneNode(true);
+    clone.setAttribute('aria-hidden', 'true'); // screen readers read the cards once
+    track.appendChild(clone);
+  }
 
-  cards.forEach((c, i) => {
-    c.style.opacity = i === active ? '1' : '0.45';
-  });
-
-  // Scroll only the carousel's own track horizontally — scrollIntoView()
-  // was also dragging the whole page's vertical scroll position back to
-  // this section on every autoplay tick whenever the user had scrolled
-  // away from it.
-  track.scrollTo({
-    left: cards[active].offsetLeft,
-    behavior: 'smooth',
-  });
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const SPEED_PX_PER_S = 43; // matches the original design's pace
+    track.style.setProperty('--marquee-distance', `${groupWidth}px`);
+    track.style.animationDuration = `${groupWidth / SPEED_PX_PER_S}s`;
+    marquee.classList.add('is-marquee');
+  }
 }
-
-function startAutoplay() {
-  if (reducedMotion) return;
-  stopAutoplay();
-  autoplayTimer = setInterval(() => setActive(active + 1), AUTOPLAY_MS);
-}
-
-function stopAutoplay() {
-  if (autoplayTimer) clearInterval(autoplayTimer);
-}
-
-function goTo(index) {
-  setActive(index);
-  startAutoplay(); // manual interaction resets the timer instead of stacking
-}
-
-prevBtn.addEventListener('click', () => goTo(active - 1));
-nextBtn.addEventListener('click', () => goTo(active + 1));
-track.addEventListener('mouseenter', stopAutoplay);
-track.addEventListener('mouseleave', startAutoplay);
-
-// start with all cards fully visible until the carousel interacts
-cards.forEach((c) => (c.style.opacity = '1'));
-startAutoplay();
 
 // ---------- Newsletter ----------
 const form = document.getElementById('newsletterForm');

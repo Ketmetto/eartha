@@ -853,7 +853,7 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   min-height: clamp(760px, max(calc(100vh - 54px), 34vw), 960px);
   background:
     linear-gradient(to bottom, rgba(23, 20, 15, 0.14), rgba(23, 20, 15, 0) 30%),
-    url("../images/hero-image.png") center 80% / cover no-repeat;
+    url("../images/hero-image.jpg") center 80% / cover no-repeat;
   display: flex;
   justify-content: center;
 }
@@ -930,45 +930,57 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 }
 
 .accept-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
   margin-bottom: 36px;
 }
 
-.accept-controls {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-  letter-spacing: var(--track-wide);
-}
-
-.ctrl {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: var(--track-wide);
-  transition: opacity 0.25s ease;
-}
-
-.ctrl:hover { opacity: 0.5; }
-
-.accept-body {
-  display: block;
-}
-
-.accept-track {
-  display: flex;
-  gap: clamp(16px, 2vw, 28px);
+/* Infinite right-to-left marquee. main.js clones the card group enough
+   times to cover the viewport twice over, then drives --marquee-distance
+   and animation-duration from one real measured group width. The CSS
+   keyframe just translates by that exact pixel value — since every clone
+   is identical and adjacent, translating by one group's real width always
+   lands the next copy exactly where the previous one started, regardless
+   of how many copies exist. (An earlier version translated by -50% of the
+   track, which requires two independently-laid-out flex groups to compute
+   the exact same subpixel width — clamp()-based card widths don't reliably
+   do that, and the drift showed up as a blank gap at the seam.)
+   Without JS, it stays a plain horizontal scroller. */
+.accept-marquee {
+  --accept-gap: clamp(16px, 2vw, 28px);
+  margin: 0 calc(var(--pad-x) * -1);
+  padding: 0 var(--pad-x);
   overflow-x: auto;
-  scroll-snap-type: x mandatory;
   scrollbar-width: none;
 }
 
-.accept-track::-webkit-scrollbar { display: none; }
+.accept-marquee::-webkit-scrollbar { display: none; }
+
+.accept-marquee.is-marquee { overflow: hidden; }
+
+.accept-track,
+.accept-group {
+  display: flex;
+  width: max-content;
+}
+
+.accept-marquee.is-marquee .accept-track {
+  /* duration is set inline by main.js (groupWidth / speed), since the
+     distance itself varies with clamp()-based card widths per viewport */
+  animation-name: accept-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes accept-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-1 * var(--marquee-distance, 0px))); }
+}
+
+/* pause on hover so a card can actually be looked at */
+.accept-marquee.is-marquee:hover .accept-track { animation-play-state: paused; }
 
 .accept-card {
-  flex: 0 0 calc((100% - 2 * clamp(16px, 2vw, 28px)) / 3);
-  scroll-snap-align: start;
+  flex: 0 0 clamp(240px, 30vw, 420px);
+  margin-right: var(--accept-gap);
 }
 
 .accept-img {
@@ -986,8 +998,6 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 }
 
 .accept-card:hover .accept-img img { transform: scale(1.03); }
-
-.accept-card { transition: opacity 0.3s ease; }
 
 .card-num {
   font-size: 12px;
@@ -1118,8 +1128,9 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   position: relative;
   min-height: 92vh;
   background:
-    linear-gradient(to bottom, rgba(23, 20, 15, 0.3), rgba(23, 20, 15, 0) 22%, rgba(23, 20, 15, 0) 70%, rgba(23, 20, 15, 0.35)),
-    url("../images/image-8.png") center / cover no-repeat;
+    /* the lower scrim has to clear the whole copy stack, not just the CTAs */
+    linear-gradient(to bottom, rgba(23, 20, 15, 0.3), rgba(23, 20, 15, 0) 22%, rgba(23, 20, 15, 0) 32%, rgba(23, 20, 15, 0.72)),
+    url("../images/image-8.jpg") center / cover no-repeat;
   color: var(--cream-text);
   display: flex;
   flex-direction: column;
@@ -1142,12 +1153,24 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   line-height: 2;
 }
 
+.join-headline {
+  font-size: clamp(15px, 1.4vw, 18px);
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  line-height: 1.8;
+  margin-bottom: 18px;
+}
+
 .join-copy {
   font-size: 12px;
   letter-spacing: var(--track-wide);
   line-height: 2;
   margin-bottom: 26px;
+  max-width: 60ch;
 }
+
+/* the two copy lines sit as one stack; only the last one clears the CTAs */
+.join-copy:not(:last-of-type) { margin-bottom: 14px; }
 
 .join-links {
   display: flex;
@@ -1376,21 +1399,9 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 
   .about-mission-grid .img-card { order: -1; }
 
-  /* horizontal swipe carousel on mobile */
-  .accept-track {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    gap: 16px;
-    margin: 0 calc(var(--pad-x) * -1);
-    padding: 0 var(--pad-x);
-    scrollbar-width: none;
-  }
-  .accept-track::-webkit-scrollbar { display: none; }
-  .accept-card {
-    flex: 0 0 82%;
-    scroll-snap-align: start;
-  }
+  /* narrower cards so more than one is on screen as the marquee runs */
+  .accept-marquee { --accept-gap: 16px; }
+  .accept-card { flex-basis: min(78vw, 320px); }
 
   .batch-band { grid-template-columns: 1fr; gap: 28px; }
 

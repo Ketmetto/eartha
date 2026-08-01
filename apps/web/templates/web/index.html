@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{% static 'web/images/favicon.svg' %}" type="image/svg+xml">
   <title>EARTHA — Circular Fashion | Est. 2026</title>
   <meta name="description" content="Your closet has a second chapter. We write it. Donate clothes, earn points, redeem rewards with partner brands.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,14 +39,14 @@
           <p class="eyebrow">SECOND SHAPE</p>
           <h2 class="heading-sm">Fashion doesn't end after one owner.</h2>
           <p class="body-justified">Every piece you share through Eartha becomes part of a fashion system that values longevity over waste.</p>
-          <a href="{% url 'web:about' %}" class="link-underline">HOW DONATING WORKS</a>
+          <a href="{% url 'web:about' %}" class="link-underline">HOW IT WORKS</a>
         </div>
         <figure class="img-card">
-          <img src="{% static 'web/images/image-1.png' %}" alt="Two figures in beige and rust linen, arms linked" loading="lazy">
+          <img src="{% static 'web/images/image-1.jpg' %}" alt="Two figures in beige and rust linen, arms linked" loading="lazy">
           <figcaption class="img-label">CIRCULAR ACTION</figcaption>
         </figure>
         <figure class="img-card">
-          <img src="{% static 'web/images/image-2.png' %}" alt="Close-up of soft cream woven fabric in sunlight" loading="lazy">
+          <img src="{% static 'web/images/image-2.jpg' %}" alt="Close-up of soft cream woven fabric in sunlight" loading="lazy">
           <figcaption class="img-label">SYSTEM INNOVATION</figcaption>
         </figure>
       </div>
@@ -55,55 +56,54 @@
     <section class="accept" id="accept">
       <div class="accept-header">
         <p class="eyebrow">WHAT WE ACCEPT</p>
-        <div class="accept-controls">
-          <button class="ctrl" id="prevBtn" aria-label="Previous category">PREV</button>
-          <span class="ctrl-sep">/</span>
-          <button class="ctrl" id="nextBtn" aria-label="Next category">NEXT</button>
-        </div>
       </div>
 
-      <div class="accept-body">
-        <div class="accept-track" id="acceptTrack">
-          <article class="accept-card" data-index="0">
-            <div class="accept-img">
-              <img src="{% static 'web/images/image-3.png' %}" alt="Cream jacket hanging from a bare tree in a green valley" loading="lazy">
-            </div>
-            <p class="card-num">01</p>
-            <h3 class="card-title">OUTERWEAR</h3>
-            <p class="card-sub">BECOMES: INSULATION, NEW LININGS</p>
-          </article>
-          <article class="accept-card" data-index="1">
-            <div class="accept-img">
-              <img src="{% static 'web/images/image-4.png' %}" alt="Back pocket detail of light-wash denim jeans" loading="lazy">
-            </div>
-            <p class="card-num">02</p>
-            <h3 class="card-title">DENIM &amp; COTTON</h3>
-            <p class="card-sub">BECOMES: WOVEN PANELS, TOTES</p>
-          </article>
-          <article class="accept-card" data-index="2">
-            <div class="accept-img">
-              <img src="{% static 'web/images/image-5.png' %}" alt="Woman in an oversized grey knit sweater standing among sheep" loading="lazy">
-            </div>
-            <p class="card-num">03</p>
-            <h3 class="card-title">KNITWEAR</h3>
-            <p class="card-sub">BECOMES: REKNIT YARN, BLANKETS</p>
-          </article>
-          <article class="accept-card" data-index="3">
-            <div class="accept-img">
-              <img src="{% static 'web/images/image-10.jpg' %}" alt="Denim shirtdress worn walking through a garden of pink roses" loading="lazy">
-            </div>
-            <p class="card-num">04</p>
-            <h3 class="card-title">DRESSES</h3>
-            <p class="card-sub">BECOMES: PATCHWORK, NEW SILHOUETTES</p>
-          </article>
-          <article class="accept-card" data-index="4">
-            <div class="accept-img">
-              <img src="{% static 'web/images/image-15.jpg' %}" alt="Cropped top and gingham skirt with a green leather tote bag" loading="lazy">
-            </div>
-            <p class="card-num">05</p>
-            <h3 class="card-title">ACCESSORIES</h3>
-            <p class="card-sub">BECOMES: REFURBISHED LEATHER GOODS</p>
-          </article>
+      <div class="accept-marquee" id="acceptMarquee">
+        <div class="accept-track">
+          <div class="accept-group">
+            <article class="accept-card">
+              <div class="accept-img">
+                <img src="{% static 'web/images/image-3.jpg' %}" alt="Cream jacket hanging from a bare tree in a green valley">
+              </div>
+              <h3 class="card-title">OUTERWEAR</h3>
+              <p class="card-sub">BECOMES: INSULATION, NEW LININGS</p>
+            </article>
+            <article class="accept-card">
+              <div class="accept-img">
+                <img src="{% static 'web/images/image-4.jpg' %}" alt="Back pocket detail of light-wash denim jeans">
+              </div>
+              <h3 class="card-title">DENIM &amp; COTTON</h3>
+              <p class="card-sub">BECOMES: WOVEN PANELS, TOTES</p>
+            </article>
+            <article class="accept-card">
+              <div class="accept-img">
+                <img src="{% static 'web/images/image-5.jpg' %}" alt="Woman in an oversized grey knit sweater standing among sheep">
+              </div>
+              <h3 class="card-title">KNITWEAR</h3>
+              <p class="card-sub">BECOMES: REKNIT YARN, BLANKETS</p>
+            </article>
+            <article class="accept-card">
+              <div class="accept-img">
+                <img src="{% static 'web/images/image-10.jpg' %}" alt="Denim shirtdress worn walking through a garden of pink roses">
+              </div>
+              <h3 class="card-title">DRESSES</h3>
+              <p class="card-sub">BECOMES: PATCHWORK, NEW SILHOUETTES</p>
+            </article>
+            <article class="accept-card">
+              <div class="accept-img">
+                <img src="{% static 'web/images/image-15.jpg' %}" alt="Cropped top and gingham skirt with a green leather tote bag">
+              </div>
+              <h3 class="card-title">ACCESSORIES</h3>
+              <p class="card-sub">BECOMES: REFURBISHED LEATHER GOODS</p>
+            </article>
+            <article class="accept-card">
+              <div class="accept-img">
+                <img src="{% static 'web/images/shoes-bags.jpg' %}" alt="Shoes and bags accepted for donation">
+              </div>
+              <h3 class="card-title">SHOES &amp; BAGS</h3>
+              <p class="card-sub">BECOMES: RESOLED PAIRS, RECUT LEATHER</p>
+            </article>
+          </div>
         </div>
       </div>
     </section>
@@ -112,18 +112,18 @@
     <section class="rewards" id="rewards">
       <div class="rewards-grid">
         <figure class="img-card">
-          <img src="{% static 'web/images/image-6.png' %}" alt="Billowing peach sleeve resting on a white ledge" loading="lazy">
+          <img src="{% static 'web/images/image-6.jpg' %}" alt="Billowing peach sleeve resting on a white ledge" loading="lazy">
           <figcaption class="img-label">BEHAVIOR CHANGE</figcaption>
         </figure>
         <figure class="img-card">
-          <img src="{% static 'web/images/image-7.png' %}" alt="Person pulling a cream ribbed sweater over their head" loading="lazy">
+          <img src="{% static 'web/images/image-7.jpg' %}" alt="Person pulling a cream ribbed sweater over their head" loading="lazy">
           <figcaption class="img-label">CONSCIOUS CONSUMPTION</figcaption>
         </figure>
         <div class="rewards-text">
-          <p class="eyebrow">HOW IT WORKS</p>
-          <h2 class="heading-sm">Pass it on. Keep it in motion.</h2>
-          <p class="body-justified">Share the pieces you no longer wear — every piece stays in motion, creating value for people, brands, and the planet.</p>
-          <a href="{% url 'web:login' %}" class="link-underline js-donate">DONATE CLOTHES</a>
+          <p class="eyebrow">THE IMPACT REWARDS</p>
+          <h2 class="heading-sm">Every circular action has value.</h2>
+          <p class="body-justified">Your sustainable choices become Eartha Points, unlocking exclusive offers from brands, workshops, cafés, events, and experiences across our growing community.</p>
+          <a href="{% url 'web:benefits' %}" class="link-underline">DISCOVER PARTNERS</a>
         </div>
       </div>
     </section>
@@ -153,9 +153,11 @@
         <p class="join-follow">FOLLOW OUR JOURNEY<br><strong>@EARTHA / N. 0001</strong></p>
       </div>
       <div class="join-bottom">
+        <h2 class="join-headline">Pass it on. Keep it in motion.</h2>
+        <p class="join-copy">Share the pieces you no longer wear, every piece stays in motion — creating value for people, brands, and the planet.</p>
         <p class="join-copy">What once belonged to you could become someone else's favorite find.<br>That's the beauty of fashion.</p>
         <div class="join-links">
-          <a href="{% url 'web:about' %}" class="link-underline">HOW DONATING WORKS</a>
+          <a href="{% url 'web:about' %}" class="link-underline">HOW IT WORKS</a>
           <a href="{% url 'web:login' %}" class="link-underline js-donate">DONATE CLOTHES</a>
         </div>
       </div>
