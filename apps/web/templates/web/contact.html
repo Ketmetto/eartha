@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{% static 'web/images/favicon.svg' %}" type="image/svg+xml">
   <title>Contact — EARTHA</title>
   <meta name="description" content="Reach out to Eartha — users, or brands that want to join the rewards platform.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,8 +22,8 @@
     <section class="hero contact-hero-bg">
       <div class="hero-copy">
         <p class="hero-eyebrow" id="contactEyebrow">CONTACT</p>
-        <h1 class="hero-title">A QUESTION, AN IDEA, A PILE OF CLOTHES — WE'RE LISTENING.</h1>
-        <p class="hero-sub">Reach out directly, or drop a message below — we read everything and reply within 48 hours.</p>
+        <h1 class="hero-title">EVERY GREAT IDEA STARTS WITH A CONVERSATION.</h1>
+        <p class="hero-sub">Whether you have a question, a partnership, or an idea for a more circular future, we'd love to hear from you.</p>
         <div class="hero-actions">
           <a href="mailto:hello@eartha.co" class="link-underline">Email Us</a>
           <a href="#contactForm" class="link-underline">Send A Message</a>
@@ -112,8 +113,14 @@
       form.replaceWith(inbox);
       document.getElementById('contactEyebrow').textContent = 'INBOX — CONTACT FORM MESSAGES LAND HERE.';
 
-      const renderInbox = () => {
-        const list = Eartha.messages();
+      const renderInbox = async () => {
+        let list;
+        try {
+          list = await Eartha.fetchContactMessages();
+        } catch (err) {
+          inbox.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD THE INBOX.')}</div>`;
+          return;
+        }
         inbox.innerHTML = list.length
           ? list.map((m) => `
             <div class="card" style="${m.read ? 'opacity:0.6;' : ''}">
@@ -126,17 +133,21 @@
             </div>`).join('')
           : '<div class="empty">INBOX IS EMPTY — MESSAGES FROM THIS FORM LAND HERE.</div>';
       };
-      inbox.addEventListener('click', (e) => {
+      inbox.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-read]');
         if (!btn) return;
-        Eartha.markMessageRead(btn.dataset.read);
-        renderInbox();
+        try {
+          await Eartha.resolveMessage(btn.dataset.read);
+          renderInbox();
+        } catch (err) {
+          Eartha.toast(err.message || 'COULD NOT MARK AS READ.');
+        }
       });
       renderInbox();
     }
 
     const contactFormEl = document.getElementById('contactForm');
-    if (contactFormEl) contactFormEl.addEventListener('submit', (e) => {
+    if (contactFormEl) contactFormEl.addEventListener('submit', async (e) => {
       e.preventDefault();
       const msg = document.getElementById('contactMsg');
       const name = document.getElementById('cName').value.trim();
@@ -149,16 +160,20 @@
         return;
       }
 
-      Eartha.addMessage({
-        name,
-        email,
-        subject: document.getElementById('cSubject').value.trim(),
-        body,
-      });
-
-      e.target.reset();
-      msg.textContent = 'SENT — WE READ EVERYTHING AND REPLY WITHIN 48H.';
-      msg.className = 'form-msg is-ok';
+      try {
+        await Eartha.submitContactMessage({
+          name,
+          email,
+          subject: document.getElementById('cSubject').value.trim(),
+          body,
+        });
+        e.target.reset();
+        msg.textContent = 'SENT — WE READ EVERYTHING AND REPLY WITHIN 48H.';
+        msg.className = 'form-msg is-ok';
+      } catch (err) {
+        msg.textContent = err.message || 'SOMETHING WENT WRONG — TRY AGAIN.';
+        msg.className = 'form-msg is-error';
+      }
     });
   </script>
 </body>

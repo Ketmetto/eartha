@@ -13,7 +13,6 @@ const Eartha = (() => {
     benefits: NS + 'benefits',
     benefitsVersion: NS + 'benefitsVersion',
     redemptions: NS + 'redemptions',
-    messages: NS + 'messages',
   };
 
   // ---------- storage primitives ----------
@@ -54,14 +53,14 @@ const Eartha = (() => {
   // changes so returning visitors' stale localStorage picks up the update
   const BENEFITS_VERSION = 2;
   const defaultBenefits = () => [
-    { id: uid(), brand: 'ByEartha', discount: 20, pointsRequired: 180, category: 'fashion', active: true, order: 0, image: '/static/web/images/image-1.png' },
-    { id: uid(), brand: 'BRIO Bags', discount: 15, pointsRequired: 140, category: 'fashion', active: true, order: 1, image: '/static/web/images/image-4.png' },
-    { id: uid(), brand: 'Alexandra Hakim', discount: 25, pointsRequired: 260, category: 'fashion', active: true, order: 2, image: '/static/web/images/image-7.png' },
+    { id: uid(), brand: 'ByEartha', discount: 20, pointsRequired: 180, category: 'fashion', active: true, order: 0, image: '/static/web/images/image-1.jpg' },
+    { id: uid(), brand: 'BRIO Bags', discount: 15, pointsRequired: 140, category: 'fashion', active: true, order: 1, image: '/static/web/images/image-4.jpg' },
+    { id: uid(), brand: 'Alexandra Hakim', discount: 25, pointsRequired: 260, category: 'fashion', active: true, order: 2, image: '/static/web/images/image-7.jpg' },
     { id: uid(), brand: 'Warshe Sociale', discount: 15, pointsRequired: 120, category: 'food', active: true, order: 3, image: '/static/web/images/image-11.jpg' },
     { id: uid(), brand: "Neam's", discount: 20, pointsRequired: 160, category: 'beauty', active: true, order: 4, image: '/static/web/images/image-13.jpg' },
-    { id: uid(), brand: 'Vivid Dreams', discount: 10, pointsRequired: 90, category: 'beauty', active: true, order: 5, image: '/static/web/images/image-3.png' },
+    { id: uid(), brand: 'Vivid Dreams', discount: 10, pointsRequired: 90, category: 'beauty', active: true, order: 5, image: '/static/web/images/image-3.jpg' },
     { id: uid(), brand: 'Walkaway', discount: 30, pointsRequired: 300, category: 'lifestyle', active: true, order: 6, image: '/static/web/images/image-9.jpg' },
-    { id: uid(), brand: "Nada's Candles", discount: 15, pointsRequired: 130, category: 'lifestyle', active: true, order: 7, image: '/static/web/images/image-5.png' },
+    { id: uid(), brand: "Nada's Candles", discount: 15, pointsRequired: 130, category: 'lifestyle', active: true, order: 7, image: '/static/web/images/image-5.jpg' },
   ];
 
   // refreshes just the benefits catalog for visitors with existing
@@ -118,8 +117,6 @@ const Eartha = (() => {
         date: Date.now() - 86400000 * 5,
       },
     ]);
-
-    write(KEYS.messages, []);
   }
 
   // ---------- auth ----------
@@ -549,6 +546,26 @@ const Eartha = (() => {
     }));
   }
 
+  // ---------- contact form (public — no auth) ----------
+  async function submitContactMessage({ name, email, subject, body }) {
+    const headers = { 'Content-Type': 'application/json' };
+    const csrfToken = getCookie('csrftoken');
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
+    const res = await fetch(`${API_ROOT}/engagement/contact/`, {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({ name, email, subject, message: body }),
+    });
+    let data = null;
+    try { data = await res.json(); } catch { /* empty body */ }
+    if (!res.ok) {
+      throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+    }
+    return data;
+  }
+
   // ---------- admin: contact inbox ----------
   function mapMessage(m) {
     return {
@@ -689,17 +706,6 @@ const Eartha = (() => {
     updateUser(user.id, { points: user.points - benefit.pointsRequired });
     return { entry };
   }
-
-  // ---------- contact messages ----------
-  const messages = () => read(KEYS.messages, []);
-  function addMessage({ name, email, subject, body }) {
-    write(KEYS.messages, [
-      { id: uid(), name, email, subject, body, date: Date.now(), read: false },
-      ...messages(),
-    ]);
-  }
-  const markMessageRead = (id) =>
-    write(KEYS.messages, messages().map((m) => (m.id === id ? { ...m, read: true } : m)));
 
   // ---------- image compression (keeps localStorage sane) ----------
   function compressImage(file, maxDim = 480, quality = 0.7) {
@@ -871,12 +877,11 @@ const Eartha = (() => {
     fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, collectItem, completeItem, awardItemPoints,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
-    fetchContactMessages, resolveMessage,
+    submitContactMessage, fetchContactMessages, resolveMessage,
     fetchDashboardStats,
     fetchMe, updateMe, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
     redemptions, redeemBenefit,
-    messages, addMessage, markMessageRead,
     compressImage, toast, fmtDate, esc, badge, renderHeader, refreshHeaderPts,
   };
 })();
