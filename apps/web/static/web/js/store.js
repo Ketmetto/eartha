@@ -393,11 +393,30 @@ const Eartha = (() => {
   // ---------- admin: submissions pipeline ----------
   // num here is a per-list position label ("N. 0001"), oldest-first by
   // total count — purely cosmetic, doesn't attempt to match the number the
-  // uploader saw (each user's own list numbers independently).
+  // uploader saw (each user's own list numbers independently). Action and
+  // done items number within their own list, not one shared sequence —
+  // a side effect of the done list being paginated (see below) while the
+  // action list isn't.
   async function fetchAdminSubmissions() {
-    const list = await apiFetch('/submissions/admin/all/');
+    const list = await apiFetch('/submissions/admin/action/');
     const total = list.length;
     return list.map((item, i) => mapItem(item, 'N. ' + String(total - i).padStart(4, '0')));
+  }
+
+  // Completed/rejected history, paginated — this list only grows, so
+  // queue.js loads it a page at a time (infinite scroll) instead of all at
+  // once. `alreadyLoaded` is how many done items the caller has already
+  // fetched across earlier pages, needed to keep the "N. 0001" numbering
+  // counting down correctly across page boundaries.
+  async function fetchAdminSubmissionsDone(page, alreadyLoaded) {
+    const data = await apiFetch(`/submissions/admin/done/?page=${page}`);
+    return {
+      items: data.results.map((item, i) =>
+        mapItem(item, 'N. ' + String(data.count - alreadyLoaded - i).padStart(4, '0'))
+      ),
+      hasMore: !!data.next,
+      count: data.count,
+    };
   }
 
   async function acceptItem(id) {
@@ -849,7 +868,7 @@ const Eartha = (() => {
     POINTS_CRITERIA,
     currentUser, register, login, socialLogin, verifyEmail, logout, requireAuth, requireAdmin,
     fetchMySubmissions, createSubmission,
-    fetchAdminSubmissions, acceptItem, rejectItem, dispatchItem, collectItem, completeItem, awardItemPoints,
+    fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, collectItem, completeItem, awardItemPoints,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
     fetchContactMessages, resolveMessage,

@@ -121,6 +121,78 @@ class TestSubmissionReviewQueueView:
 
 
 # ---------------------------------------------------------------------------
+# SubmissionAdminListView / SubmissionAdminDoneListView (Admin)
+# ---------------------------------------------------------------------------
+
+class TestSubmissionAdminListView:
+    """Admin action queue — pending through collected, unpaginated (see
+    TestSubmissionAdminDoneListView for the completed/rejected history this
+    was split from, once that list started growing unbounded)."""
+
+    def test_returns_only_action_statuses_newest_first(
+        self, admin_client, pending_item, accepted_item, dispatched_item, collected_item, completed_item, user
+    ):
+        rejected_item = Item.objects.create(
+            user=user, category=Item.Category.CLOTHING, condition=Item.Condition.GOOD,
+            status=Item.Status.REJECTED,
+        )
+
+        response = admin_client.get(reverse("submissions-admin-action"))
+
+        assert response.status_code == status.HTTP_200_OK
+        ids = {row["id"] for row in response.data}
+        assert ids == {
+            str(pending_item.id), str(accepted_item.id), str(dispatched_item.id), str(collected_item.id),
+        }
+        assert str(completed_item.id) not in ids
+        assert str(rejected_item.id) not in ids
+
+    def test_non_admin_cannot_access(self, auth_client):
+        response = auth_client.get(reverse("submissions-admin-action"))
+        assert response.status_code in (status.HTTP_403_FORBIDDEN, status.HTTP_401_UNAUTHORIZED)
+
+
+class TestSubmissionAdminDoneListView:
+    """Admin completed/rejected history — paginated since, unlike the action
+    queue above, this list only ever grows."""
+
+    def test_returns_only_done_statuses(self, admin_client, completed_item, pending_item, user):
+        rejected_item = Item.objects.create(
+            user=user, category=Item.Category.CLOTHING, condition=Item.Condition.GOOD,
+            status=Item.Status.REJECTED,
+        )
+
+        response = admin_client.get(reverse("submissions-admin-done"))
+
+        assert response.status_code == status.HTTP_200_OK
+        ids = {row["id"] for row in response.data["results"]}
+        assert ids == {str(completed_item.id), str(rejected_item.id)}
+        assert str(pending_item.id) not in ids
+
+    def test_paginates_at_20_per_page(self, admin_client, user):
+        for _ in range(25):
+            Item.objects.create(
+                user=user, category=Item.Category.CLOTHING, condition=Item.Condition.GOOD,
+                status=Item.Status.COMPLETED,
+            )
+
+        first_page = admin_client.get(reverse("submissions-admin-done"))
+        assert first_page.status_code == status.HTTP_200_OK
+        assert first_page.data["count"] == 25
+        assert len(first_page.data["results"]) == 20
+        assert first_page.data["next"] is not None
+
+        second_page = admin_client.get(reverse("submissions-admin-done"), {"page": 2})
+        assert second_page.status_code == status.HTTP_200_OK
+        assert len(second_page.data["results"]) == 5
+        assert second_page.data["next"] is None
+
+    def test_non_admin_cannot_access(self, auth_client):
+        response = auth_client.get(reverse("submissions-admin-done"))
+        assert response.status_code in (status.HTTP_403_FORBIDDEN, status.HTTP_401_UNAUTHORIZED)
+
+
+# ---------------------------------------------------------------------------
 # SubmissionDecisionView (Admin)
 # ---------------------------------------------------------------------------
 

@@ -23,8 +23,45 @@ if (admin) {
   // per-card UI state that survives re-renders
   const open = { reject: new Set() };
 
-  const ACTION_STATUSES = ['pending', 'accepted', 'dispatched', 'collected'];
-  const DONE_STATUSES = ['completed', 'rejected'];
+  // ---------- data ----------
+  // Action items (pending -> collected) come back in one unpaginated call —
+  // that list is naturally bounded by how fast the queue gets worked.
+  // Done items (completed/rejected) only ever grow, so they're paginated
+  // and loaded a page at a time as the user scrolls (see loadMoreDone).
+  let actionItems = [];
+  let doneItems = [];
+  let doneNextPage = 1;
+  let doneTotal = 0;
+  let doneHasMore = true;
+  let doneLoading = false;
+
+  async function loadMoreDone() {
+    if (doneLoading || !doneHasMore) return;
+    doneLoading = true;
+    try {
+      const { items, hasMore, count } = await Eartha.fetchAdminSubmissionsDone(doneNextPage, doneItems.length);
+      doneItems = doneItems.concat(items);
+      doneHasMore = hasMore;
+      doneTotal = count;
+      doneNextPage += 1;
+    } finally {
+      doneLoading = false;
+    }
+  }
+
+  // Scrolling near the bottom of the list triggers the next page — this
+  // sentinel element (rendered as the last row whenever more pages exist)
+  // is what the IntersectionObserver below watches for.
+  function wireDoneSentinel() {
+    const sentinel = document.getElementById('doneSentinel');
+    if (!sentinel) return;
+    const io = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      io.disconnect();
+      loadMoreDone().then(renderList);
+    }, { rootMargin: '600px' });
+    io.observe(sentinel);
+  }
 
   const NEXT_LABEL = {
     pending: 'AWAITING REVIEW',
@@ -150,28 +187,50 @@ if (admin) {
     </div>`;
   }
 
+  // Re-renders from whatever's already loaded in actionItems/doneItems —
+  // does not re-fetch. Safe to call as often as needed (e.g. on every
+  // filter switch) since it's pure DOM work.
+  function renderList() {
+    document.getElementById('fCountAction').textContent = actionItems.length ? `(${actionItems.length})` : '';
+    document.getElementById('fCountDone').textContent = doneTotal ? `(${doneTotal})` : '';
+    document.getElementById('queueSummary').textContent =
+      `${actionItems.length} NEED${actionItems.length === 1 ? 'S' : ''} ACTION · ${actionItems.length + doneTotal} TOTAL`;
+
+    const view = filter === 'action' ? actionItems : filter === 'done' ? doneItems : actionItems.concat(doneItems);
+    // Only the done/all views ever have more pages to fetch — the action
+    // list is loaded in full up front.
+    const showSentinel = filter !== 'action' && doneHasMore;
+
+    listEl.innerHTML = view.length
+      ? view.map(card).join('') + (showSentinel ? '<div id="doneSentinel" class="empty">LOADING MORE…</div>' : '')
+      : `<div class="empty">${filter === 'action' ? 'QUEUE IS CLEAR — NOTHING NEEDS YOU RIGHT NOW.' : 'NOTHING HERE YET.'}</div>`;
+
+    if (showSentinel) wireDoneSentinel();
+  }
+
+  // Fetches the action list in full plus the first page of done, then
+  // renders. Called on initial load and after every action — an action can
+  // move an item between the two lists, so both need a fresh first page;
+  // any additional done pages the user had scrolled to are dropped and
+  // would need re-loading, a reasonable tradeoff since actions normally
+  // happen from the action tab, not deep in a scrolled done list.
   async function render() {
-    let subs;
     try {
-      subs = await Eartha.fetchAdminSubmissions();
+      actionItems = await Eartha.fetchAdminSubmissions();
     } catch (err) {
       listEl.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD THE QUEUE.')}</div>`;
       return;
     }
 
-    const action = subs.filter((s) => ACTION_STATUSES.includes(s.status));
-    const done = subs.filter((s) => DONE_STATUSES.includes(s.status));
+    doneItems = [];
+    doneNextPage = 1;
+    doneHasMore = true;
+    doneTotal = 0;
+    try {
+      await loadMoreDone();
+    } catch { /* done tab/badge just won't populate; action tab still works */ }
 
-    document.getElementById('fCountAction').textContent = action.length ? `(${action.length})` : '';
-    document.getElementById('fCountDone').textContent = done.length ? `(${done.length})` : '';
-    document.getElementById('queueSummary').textContent =
-      `${action.length} NEED${action.length === 1 ? 'S' : ''} ACTION · ${subs.length} TOTAL`;
-
-    const view = filter === 'action' ? action : filter === 'done' ? done : subs;
-
-    listEl.innerHTML = view.length
-      ? view.map(card).join('')
-      : `<div class="empty">${filter === 'action' ? 'QUEUE IS CLEAR — NOTHING NEEDS YOU RIGHT NOW.' : 'NOTHING HERE YET.'}</div>`;
+    renderList();
   }
 
   // filters
@@ -182,7 +241,7 @@ if (admin) {
     document.querySelectorAll('#queueFilters .filter-btn').forEach((b) =>
       b.classList.toggle('is-active', b === btn)
     );
-    render();
+    renderList();
   });
 
   // actions — one delegated listener, whole pipeline

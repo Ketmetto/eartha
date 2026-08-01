@@ -1,5 +1,6 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
+from base.pagination import StandardResultsPagination
 from base.permissions import IsAdmin
 from .models import Item
 from .serializers import (
@@ -8,6 +9,9 @@ from .serializers import (
     DriverDispatchSerializer,
 )
 from .services import transition_item_status, assign_driver
+
+ACTION_STATUSES = [Item.Status.PENDING, Item.Status.ACCEPTED, Item.Status.DISPATCHED, Item.Status.COLLECTED]
+DONE_STATUSES = [Item.Status.COMPLETED, Item.Status.REJECTED]
 
 
 class SubmissionReviewQueueView(generics.ListAPIView):
@@ -19,13 +23,30 @@ class SubmissionReviewQueueView(generics.ListAPIView):
 
 
 class SubmissionAdminListView(generics.ListAPIView):
-    """Admin: every submission regardless of status — powers the queue's
-    full pipeline view (pending/accepted/dispatched/collected/completed/rejected),
-    unlike SubmissionReviewQueueView which is pending-only."""
+    """Admin: the working backlog — everything from pending through collected,
+    i.e. still needs an admin to do something with it. Unpaginated on purpose:
+    unlike the completed/rejected history below, this stays naturally bounded
+    by how fast the queue gets worked, so there's no unbounded-growth risk."""
     serializer_class = ItemAdminSerializer
     permission_classes = [IsAdmin]
     pagination_class = None
-    queryset = Item.objects.all().select_related("user", "user__address").order_by("-updated_at")
+    queryset = Item.objects.filter(
+        status__in=ACTION_STATUSES
+    ).select_related("user", "user__address").order_by("-updated_at")
+
+
+class SubmissionAdminDoneListView(generics.ListAPIView):
+    """Admin: completed/rejected submission history. Paginated — unlike the
+    action queue above, this list only ever grows, so returning it in full
+    (previously done via SubmissionAdminListView before it was split) would
+    eventually mean shipping the entire submission history to the browser
+    on every queue page load."""
+    serializer_class = ItemAdminSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = StandardResultsPagination
+    queryset = Item.objects.filter(
+        status__in=DONE_STATUSES
+    ).select_related("user", "user__address").order_by("-updated_at")
 
 
 class SubmissionDecisionView(generics.GenericAPIView):
