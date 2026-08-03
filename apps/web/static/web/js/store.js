@@ -363,6 +363,7 @@ const Eartha = (() => {
       userId: apiItem.user,
       userName: apiItem.user_name,
       userEmail: apiItem.user_email,
+      userPhone: apiItem.user_phone,
       pickupAddress: apiItem.pickup_address,
       driverName: apiItem.driver_name,
       // null/undefined = not yet awarded; 0 is itself a valid award
@@ -433,6 +434,36 @@ const Eartha = (() => {
   // admins only supply who's driving.
   async function dispatchItem(id, driverName) {
     await apiFetch(`/submissions/admin/${id}/dispatch/`, { method: 'POST', body: { driver_name: driverName } });
+  }
+
+  // ---------- admin: driver roster ----------
+  function mapDriver(apiDriver) {
+    return { id: apiDriver.id, name: apiDriver.name, phone: apiDriver.phone_number };
+  }
+
+  async function fetchDriversAdmin() {
+    const list = await apiFetch('/submissions/admin/drivers/');
+    return list.map(mapDriver);
+  }
+
+  async function createDriverAdmin({ name, phone }) {
+    const d = await apiFetch('/submissions/admin/drivers/', {
+      method: 'POST',
+      body: { name, phone_number: phone },
+    });
+    return mapDriver(d);
+  }
+
+  async function updateDriverAdmin(id, { name, phone }) {
+    const d = await apiFetch(`/submissions/admin/drivers/${id}/`, {
+      method: 'PATCH',
+      body: { name, phone_number: phone },
+    });
+    return mapDriver(d);
+  }
+
+  async function removeDriverAdmin(id) {
+    await apiFetch(`/submissions/admin/drivers/${id}/`, { method: 'DELETE' });
   }
 
   async function collectItem(id) {
@@ -609,10 +640,20 @@ const Eartha = (() => {
     return apiFetch('/auth/me/');
   }
 
-  async function updateMe({ name, email }) {
+  async function updateMe({ name, email, phone }) {
     const [first_name, ...rest] = name.trim().split(' ');
     const body = { email, first_name, last_name: rest.join(' ') };
+    if (phone !== undefined) body.phone = phone;
     const apiUser = await apiFetch('/auth/me/', { method: 'PATCH', body });
+    const profile = profileFromApiUser(apiUser);
+    write(KEYS.profile, profile);
+    return profile;
+  }
+
+  // Ask-once phone number from the upload flow (mirrors updateAddress) —
+  // a dedicated call so it doesn't need name/email along for the ride.
+  async function updatePhone(phone) {
+    const apiUser = await apiFetch('/auth/me/', { method: 'PATCH', body: { phone } });
     const profile = profileFromApiUser(apiUser);
     write(KEYS.profile, profile);
     return profile;
@@ -875,11 +916,12 @@ const Eartha = (() => {
     currentUser, register, login, socialLogin, verifyEmail, logout, requireAuth, requireAdmin,
     fetchMySubmissions, createSubmission,
     fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, collectItem, completeItem, awardItemPoints,
+    fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
     submitContactMessage, fetchContactMessages, resolveMessage,
     fetchDashboardStats,
-    fetchMe, updateMe, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
+    fetchMe, updateMe, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
     redemptions, redeemBenefit,
     compressImage, toast, fmtDate, esc, badge, renderHeader, refreshHeaderPts,

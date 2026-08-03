@@ -3,7 +3,7 @@ from django.contrib import admin, messages
 from django.utils.html import format_html
 from rest_framework.exceptions import ValidationError
 from unfold.admin import ModelAdmin, TabularInline
-from .models import Item, ItemPhoto, DriverAssignment
+from .models import Item, ItemPhoto, Driver, DriverAssignment
 from .services import transition_item_status
 from .state_machine import can_transition
 
@@ -86,6 +86,12 @@ class ItemAdmin(ModelAdmin):
                 fresh.save(update_fields=other_changed + ["updated_at"])
             return
         super().save_model(request, obj, form, change)
+
+
+@admin.register(Driver)
+class DriverAdmin(ModelAdmin):
+    list_display = ("name", "phone_number")
+    search_fields = ("name", "phone_number")
 
 
 @admin.register(DriverAssignment)

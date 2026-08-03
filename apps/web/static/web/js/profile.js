@@ -115,6 +115,7 @@ if (user && !user.isAdmin) {
       ]);
       document.getElementById('setName').value = [me.first_name, me.last_name].filter(Boolean).join(' ');
       document.getElementById('setEmail').value = me.email;
+      document.getElementById('setPhone').value = me.phone || '';
       document.getElementById('setAddress').value = address.line1 || '';
       document.getElementById('setNotify').checked = prefs.email_enabled;
     } catch (err) {
@@ -128,6 +129,7 @@ if (user && !user.isAdmin) {
     const submitBtn = e.target.querySelector('button[type="submit"]');
     const name = document.getElementById('setName').value.trim();
     const email = document.getElementById('setEmail').value.trim().toLowerCase();
+    const phone = document.getElementById('setPhone').value.trim();
     const typedAddress = addressInput.value.trim();
     // addressParts (city/country/postal_code) only exists if a real
     // autocomplete suggestion was picked — otherwise fall back to the
@@ -148,7 +150,7 @@ if (user && !user.isAdmin) {
 
     submitBtn.disabled = true;
     try {
-      user = await Eartha.updateMe({ name, email });
+      user = await Eartha.updateMe({ name, email, phone });
       await Eartha.updateAddress(address);
       await Eartha.updateNotificationPrefs({ email_enabled: notify });
       if (newPassword) {

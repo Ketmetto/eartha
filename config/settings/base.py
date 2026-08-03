@@ -166,6 +166,7 @@ UNFOLD = {
                 "title": _("Submissions"),
                 "items": [
                     {"title": _("Items"), "icon": "inventory_2", "link": reverse_lazy("admin:submissions_item_changelist")},
+                    {"title": _("Drivers"), "icon": "badge", "link": reverse_lazy("admin:submissions_driver_changelist")},
                     {"title": _("Driver assignments"), "icon": "local_shipping", "link": reverse_lazy("admin:submissions_driverassignment_changelist")},
                 ],
             },

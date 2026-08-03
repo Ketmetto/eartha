@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 
-from apps.submissions.models import Item
+from apps.submissions.models import Item, Driver
 
 # api_client / auth_client / admin_client come from the root conftest.py
 
@@ -280,6 +280,49 @@ class TestSubmissionDecisionView:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Cannot move item" in str(response.data)
+
+
+# ---------------------------------------------------------------------------
+# DriverAdminListCreateView / DriverAdminDetailView (Admin)
+# ---------------------------------------------------------------------------
+
+class TestDriverAdminViews:
+    """Test the driver roster the pipeline's dispatch dropdown reads from."""
+
+    def test_admin_can_list_and_create(self, admin_client):
+        Driver.objects.create(name="Existing Driver", phone_number="9613000000")
+
+        response = admin_client.get(reverse("submissions-admin-drivers"))
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+
+        response = admin_client.post(
+            reverse("submissions-admin-drivers"),
+            data={"name": "Karim H.", "phone_number": "9613123456"},
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["name"] == "Karim H."
+        assert Driver.objects.count() == 2
+
+    def test_admin_can_update_and_delete(self, admin_client):
+        driver = Driver.objects.create(name="Karim H.", phone_number="9613123456")
+
+        response = admin_client.patch(
+            reverse("submissions-admin-driver-detail", kwargs={"pk": driver.id}),
+            data={"name": "Karim Haddad"},
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["name"] == "Karim Haddad"
+
+        response = admin_client.delete(
+            reverse("submissions-admin-driver-detail", kwargs={"pk": driver.id})
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not Driver.objects.filter(id=driver.id).exists()
+
+    def test_non_admin_cannot_access(self, auth_client):
+        response = auth_client.get(reverse("submissions-admin-drivers"))
+        assert response.status_code in (status.HTTP_403_FORBIDDEN, status.HTTP_401_UNAUTHORIZED)
 
 
 # ---------------------------------------------------------------------------

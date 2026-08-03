@@ -77,6 +77,13 @@ if (user) {
   EarthaAddressAutocomplete(pickupInput, mapsKey, document.getElementById('pickupMap'), (parts) => { addressParts = parts; });
   pickupInput.addEventListener('input', () => { addressParts = null; });
 
+  // ---------- phone number (asked once, saved to profile) ----------
+  const phoneField = document.getElementById('phoneField');
+  const phoneInput = document.getElementById('uploaderPhone');
+  Eartha.fetchMe()
+    .then((me) => { if (!me.phone) phoneField.hidden = false; })
+    .catch(() => { phoneField.hidden = false; });
+
   // ---------- submit ----------
   document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -103,6 +110,17 @@ if (user) {
       addressToSave = addressParts ? { ...addressParts, line1: addressParts.line1 || typed } : typed;
     }
 
+    let phoneToSave = null;
+    if (!phoneField.hidden) {
+      const typedPhone = phoneInput.value.trim();
+      if (!typedPhone) {
+        msg.textContent = 'ADD A PHONE NUMBER — OUR DRIVER NEEDS TO BE ABLE TO REACH YOU.';
+        msg.className = 'form-msg is-error';
+        return;
+      }
+      phoneToSave = typedPhone;
+    }
+
     submitBtn.disabled = true;
     msg.textContent = 'UPLOADING...';
     msg.className = 'form-msg';
@@ -111,6 +129,10 @@ if (user) {
       if (addressToSave) {
         await Eartha.updateAddress(addressToSave);
         addressField.hidden = true;
+      }
+      if (phoneToSave) {
+        await Eartha.updatePhone(phoneToSave);
+        phoneField.hidden = true;
       }
 
       const sub = await Eartha.createSubmission({

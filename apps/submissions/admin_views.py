@@ -2,11 +2,12 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from base.pagination import StandardResultsPagination
 from base.permissions import IsAdmin
-from .models import Item
+from .models import Item, Driver
 from .serializers import (
     ItemAdminSerializer,
     SubmissionDecisionSerializer,
     DriverDispatchSerializer,
+    DriverSerializer,
 )
 from .services import transition_item_status, assign_driver
 
@@ -82,6 +83,21 @@ class SubmissionDecisionView(generics.GenericAPIView):
             ItemAdminSerializer(item).data,
             status=status.HTTP_200_OK
         )
+
+
+class DriverAdminListCreateView(generics.ListCreateAPIView):
+    """Admin: the driver roster the dispatch dropdown is populated from."""
+    serializer_class = DriverSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = None
+    queryset = Driver.objects.all()
+
+
+class DriverAdminDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """Admin: edit or remove a driver from the roster."""
+    serializer_class = DriverSerializer
+    permission_classes = [IsAdmin]
+    queryset = Driver.objects.all()
 
 
 class DriverDispatchView(generics.GenericAPIView):

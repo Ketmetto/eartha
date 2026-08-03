@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Item, ItemPhoto, DriverAssignment
+from .models import Item, ItemPhoto, Driver, DriverAssignment
 
 
 class ItemPhotoSerializer(serializers.ModelSerializer):
@@ -29,12 +29,13 @@ class ItemAdminSerializer(ItemSerializer):
     """Adds fields only admins should see/edit in the review queue."""
     user_name = serializers.SerializerMethodField()
     user_email = serializers.SerializerMethodField()
+    user_phone = serializers.SerializerMethodField()
     pickup_address = serializers.SerializerMethodField()
     driver_name = serializers.SerializerMethodField()
 
     class Meta(ItemSerializer.Meta):
         fields = ItemSerializer.Meta.fields + [
-            "user", "user_name", "user_email", "pickup_address", "driver_name",
+            "user", "user_name", "user_email", "user_phone", "pickup_address", "driver_name",
             "rejection_reason", "updated_at",
         ]
 
@@ -44,6 +45,9 @@ class ItemAdminSerializer(ItemSerializer):
 
     def get_user_email(self, obj):
         return obj.user.email
+
+    def get_user_phone(self, obj):
+        return obj.user.phone or None
 
     def get_pickup_address(self, obj):
         address = getattr(obj.user, "address", None)
@@ -55,6 +59,14 @@ class ItemAdminSerializer(ItemSerializer):
     def get_driver_name(self, obj):
         dispatch = getattr(obj, "dispatch", None)
         return dispatch.driver_name if dispatch else None
+
+
+class DriverSerializer(serializers.ModelSerializer):
+    """Admin driver roster — the dropdown on the pipeline's dispatch step
+    is populated from this, not free text."""
+    class Meta:
+        model = Driver
+        fields = ["id", "name", "phone_number"]
 
 
 class DriverAssignmentSerializer(serializers.ModelSerializer):

@@ -41,6 +41,18 @@ class ItemPhoto(BaseModel):
     )
 
 
+class Driver(BaseModel):
+    """The roster admins pick from when dispatching — separate from
+    DriverAssignment.driver_name, which stays a free-text snapshot of
+    whoever was picked at dispatch time (same reasoning as
+    pickup_address_snapshot: a later rename/removal here shouldn't rewrite
+    history on past dispatches)."""
+    name = models.CharField(max_length=120)
+    # Digits only, ideally with country code (e.g. 9613123456) — used as-is
+    # to build wa.me links client-side, which don't tolerate spaces/dashes.
+    phone_number = models.CharField(max_length=32)
+
+
 class DriverAssignment(BaseModel):
     class DispatchStatus(models.TextChoices):
         ASSIGNED = "assigned", "Assigned"

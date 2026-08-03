@@ -123,13 +123,21 @@ if (admin) {
 
       case 'accepted': {
         const noAddress = !s.pickupAddress;
+        const noDrivers = driversList.length === 0;
+        const disabledReason = noAddress ? 'User has no pickup address' : noDrivers ? 'Add a driver first, in the DRIVERS tab' : '';
         return `
           <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
             <div class="field" style="margin:0;min-width:220px;">
-              <label for="driver-${s.id}">DRIVER NAME</label>
-              <input type="text" id="driver-${s.id}" placeholder="e.g. Karim H.">
+              <label for="driver-${s.id}">DRIVER</label>
+              <div class="select-wrap">
+                <select id="driver-${s.id}" ${noDrivers ? 'disabled' : ''}>
+                  ${noDrivers
+                    ? '<option value="">NO DRIVERS YET</option>'
+                    : driversList.map((d) => `<option value="${d.id}">${Eartha.esc(d.name)}</option>`).join('')}
+                </select>
+              </div>
             </div>
-            <button class="btn btn-sm" data-act="dispatch" data-id="${s.id}" ${noAddress ? 'disabled title="User has no pickup address"' : ''}>DISPATCH</button>
+            <button class="btn btn-sm" data-act="dispatch" data-id="${s.id}" ${noAddress || noDrivers ? `disabled title="${disabledReason}"` : ''}>DISPATCH</button>
             <button class="btn btn-ghost btn-sm" data-act="reject" data-id="${s.id}" title="Correct a mistaken accept">UNDO — REJECT</button>
           </div>`;
       }
@@ -162,6 +170,18 @@ if (admin) {
       ['accepted', 'dispatched'].includes(s.status)
         ? `<p class="muted" style="font-size:11px;margin-top:4px;">PICKUP: ${s.pickupAddress ? Eartha.esc(s.pickupAddress) : '<span style="color:var(--bad);">NO ADDRESS ON PROFILE</span>'}</p>`
         : '';
+    // Clickable WhatsApp link once there's a real phone — same reasoning
+    // as the driver's number on the dispatch step, just for the uploader
+    // this time, so whoever's coordinating pickup can actually reach them.
+    const phoneDigits = (s.userPhone || '').replace(/\D/g, '');
+    const phoneLine =
+      ['accepted', 'dispatched'].includes(s.status)
+        ? `<p class="muted" style="font-size:11px;margin-top:4px;">PHONE: ${
+            phoneDigits
+              ? `<a href="https://wa.me/${phoneDigits}" target="_blank" rel="noopener" class="link-underline">${Eartha.esc(s.userPhone)}</a>`
+              : '<span style="color:var(--bad);">NO PHONE ON PROFILE</span>'
+          }</p>`
+        : '';
     const driverLine = s.driverName && s.status !== 'accepted'
       ? `<p class="muted" style="font-size:11px;margin-top:4px;">DRIVER: ${Eartha.esc(s.driverName)}</p>`
       : '';
@@ -176,6 +196,7 @@ if (admin) {
           </p>
           ${s.description ? `<p class="muted" style="font-size:11px;margin-top:4px;">"${Eartha.esc(s.description)}"</p>` : ''}
           ${addressLine}
+          ${phoneLine}
           ${driverLine}
         </div>
         <div style="text-align:right;">
@@ -265,10 +286,27 @@ if (admin) {
         open.reject.delete(id);
         Eartha.toast('REJECTED — USER NOTIFIED');
       } else if (act === 'dispatch') {
-        const driverName = document.getElementById('driver-' + id).value.trim();
-        if (!driverName) { Eartha.toast('ENTER A DRIVER NAME'); return; }
-        await Eartha.dispatchItem(id, driverName);
-        Eartha.toast(`DISPATCHED TO ${driverName.toUpperCase()}`);
+        const select = document.getElementById('driver-' + id);
+        const driver = driversList.find((d) => d.id === (select && select.value));
+        if (!driver) { Eartha.toast('SELECT A DRIVER'); return; }
+
+        // Opened synchronously, in the same click gesture, so browsers
+        // don't treat it as a blocked popup — the dispatch call below is
+        // async, and by the time it resolves the gesture context is gone.
+        const waWindow = window.open('', '_blank', 'noopener');
+        try {
+          await Eartha.dispatchItem(id, driver.name);
+        } catch (err) {
+          if (waWindow) waWindow.close();
+          throw err;
+        }
+        Eartha.toast(`DISPATCHED TO ${driver.name.toUpperCase()}`);
+
+        const phoneDigits = driver.phone.replace(/\D/g, '');
+        if (waWindow) {
+          if (phoneDigits) waWindow.location.href = `https://wa.me/${phoneDigits}`;
+          else waWindow.close();
+        }
       } else if (act === 'collect') {
         await Eartha.collectItem(id);
         Eartha.toast('MARKED COLLECTED');
@@ -429,6 +467,105 @@ if (admin) {
     });
   }
 
+  // ============ DRIVERS ============
+  // driversList also backs the DRIVER dropdown in the pipeline's dispatch
+  // step (see actionArea's 'accepted' case) — loaded once up front,
+  // before the first pipeline render (see the init block at the bottom).
+  let driversList = [];
+  let editingDriverId = null;
+  const dForm = document.getElementById('driverForm');
+  const dMsg = document.getElementById('driverMsg');
+
+  async function renderDrivers() {
+    const body = document.getElementById('driversBody');
+    try {
+      driversList = await Eartha.fetchDriversAdmin();
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="3">${Eartha.esc(err.message || 'COULD NOT LOAD DRIVERS.')}</td></tr>`;
+      return;
+    }
+    body.innerHTML = driversList.length
+      ? driversList
+          .map(
+            (d) => `
+      <tr data-id="${d.id}">
+        <td style="text-transform:uppercase;font-weight:700;">${Eartha.esc(d.name)}</td>
+        <td>${Eartha.esc(d.phone)}</td>
+        <td style="white-space:nowrap;">
+          <button class="link-underline" style="font-size:10px;margin-right:12px;" data-edit="${d.id}">EDIT</button>
+          <button class="link-underline" style="font-size:10px;" data-remove="${d.id}">REMOVE</button>
+        </td>
+      </tr>`
+          )
+          .join('')
+      : '<tr><td colspan="3">NO DRIVERS YET — ADD ONE ABOVE.</td></tr>';
+  }
+
+  dForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('dName').value.trim();
+    const phone = document.getElementById('dPhone').value.trim();
+
+    if (!name || !phone) {
+      dMsg.textContent = 'FILL IN NAME AND PHONE NUMBER.';
+      dMsg.className = 'form-msg is-error';
+      return;
+    }
+
+    try {
+      if (editingDriverId) {
+        await Eartha.updateDriverAdmin(editingDriverId, { name, phone });
+        dMsg.textContent = 'DRIVER UPDATED.';
+      } else {
+        await Eartha.createDriverAdmin({ name, phone });
+        dMsg.textContent = 'DRIVER ADDED.';
+      }
+      dMsg.className = 'form-msg is-ok';
+      resetDriverForm();
+      await renderDrivers();
+      renderList(); // dispatch dropdown on the pipeline tab needs the new roster
+    } catch (err) {
+      dMsg.textContent = err.message || 'SOMETHING WENT WRONG.';
+      dMsg.className = 'form-msg is-error';
+    }
+  });
+
+  function resetDriverForm() {
+    editingDriverId = null;
+    dForm.reset();
+    document.getElementById('driverFormTitle').textContent = 'ADD DRIVER';
+    document.getElementById('driverSubmit').textContent = 'ADD DRIVER';
+    document.getElementById('driverCancel').hidden = true;
+  }
+
+  document.getElementById('driverCancel').addEventListener('click', resetDriverForm);
+
+  document.getElementById('driversBody').addEventListener('click', async (e) => {
+    const edit = e.target.closest('[data-edit]');
+    const remove = e.target.closest('[data-remove]');
+
+    if (edit) {
+      const d = driversList.find((x) => x.id === edit.dataset.edit);
+      editingDriverId = d.id;
+      document.getElementById('dName').value = d.name;
+      document.getElementById('dPhone').value = d.phone;
+      document.getElementById('driverFormTitle').textContent = 'EDIT DRIVER — ' + d.name.toUpperCase();
+      document.getElementById('driverSubmit').textContent = 'SAVE CHANGES';
+      document.getElementById('driverCancel').hidden = false;
+      dForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (remove) {
+      try {
+        await Eartha.removeDriverAdmin(remove.dataset.remove);
+        Eartha.toast('DRIVER REMOVED');
+        await renderDrivers();
+        renderList();
+      } catch (err) {
+        Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
+      }
+    }
+  });
+
   // ============ INBOX ============
   async function renderInbox() {
     const el = document.getElementById('inboxList');
@@ -471,7 +608,14 @@ if (admin) {
     }
   });
 
-  render();
+  // Drivers load first and are awaited — the pipeline's dispatch dropdown
+  // (see actionArea's 'accepted' case) reads driversList synchronously
+  // while building each card, so it needs to be populated before the
+  // first pipeline render, not just eventually.
+  (async () => {
+    await renderDrivers();
+    render();
+  })();
   renderBenefits();
   renderInbox();
 }
