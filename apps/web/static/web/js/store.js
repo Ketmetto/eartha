@@ -853,6 +853,7 @@ const Eartha = (() => {
       <nav class="app-nav" id="appNav" aria-label="App">
         <a href="/upload/" class="${current === 'upload' ? 'is-current' : ''}">UPLOAD</a>
         <a href="/benefits/" class="${current === 'benefits' ? 'is-current' : ''}">BENEFITS</a>
+        <a href="/contact/" class="${current === 'contact' ? 'is-current' : ''}">CONTACT</a>
         ${profileLink}
         ${adminLink}
         <button class="logout-btn" id="logoutBtn">LOGOUT</button>
