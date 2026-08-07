@@ -231,7 +231,17 @@
           subject: document.getElementById('cSubject').value.trim(),
           body,
         });
-        e.target.reset();
+        // For a logged-in user, cName/cEmail were set via .value (not the
+        // HTML attribute) and then disabled — form.reset() reverts inputs
+        // to their *attribute* default, which is blank here, leaving the
+        // disabled fields stuck empty and blocking any further submission
+        // this session. Only clear the fields that should actually reset.
+        if (adminUser) {
+          document.getElementById('cSubject').value = '';
+          document.getElementById('cBody').value = '';
+        } else {
+          e.target.reset();
+        }
         msg.textContent = 'SENT — WE READ EVERYTHING AND REPLY WITHIN 48H.';
         msg.className = 'form-msg is-ok';
       } catch (err) {
