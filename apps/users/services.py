@@ -4,6 +4,7 @@ import uuid
 
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
+from django.db import IntegrityError, transaction
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import get_user_model
@@ -146,12 +147,19 @@ def confirm_email_change(uidb64, token):
     if not email_change_token.check_token(user, token):
         return False, "Confirmation link expired or invalid."
 
-    if User.objects.filter(email__iexact=user.pending_email).exclude(pk=user.pk).exists():
-        return False, "That email is now used by another account."
-
+    # No separate pre-check here — an .exists() check followed by a save
+    # is a TOCTOU race (two users confirming a change to the same address
+    # at nearly the same time could both pass the check before either
+    # commits). Attempt the save and let the DB's own unique constraint on
+    # email be the single source of truth, catching the resulting
+    # IntegrityError instead of letting it surface as an unhandled 500.
     user.email = user.pending_email
     user.pending_email = None
-    user.save(update_fields=["email", "pending_email"])
+    try:
+        with transaction.atomic():
+            user.save(update_fields=["email", "pending_email"])
+    except IntegrityError:
+        return False, "That email is now used by another account."
     EmailAddress.objects.filter(user=user, email=user.email).update(verified=True)
     return True, "Email address updated."
 
