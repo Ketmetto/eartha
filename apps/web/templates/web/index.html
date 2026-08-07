@@ -192,8 +192,8 @@
     Eartha.renderHeader(Eartha.currentUser(), 'index');
     // if signed in, "donate" goes straight to the upload flow
     if (Eartha.currentUser()) {
-      document.querySelectorAll('.js-donate').forEach((a) => (a.href = 'upload.html'));
-      document.querySelectorAll('.js-benefits').forEach((a) => (a.href = 'benefits.html'));
+      document.querySelectorAll('.js-donate').forEach((a) => (a.href = '{% url "web:upload" %}'));
+      document.querySelectorAll('.js-benefits').forEach((a) => (a.href = '{% url "web:benefits" %}'));
     }
   </script>
 </body>
