@@ -15,7 +15,7 @@ def transition_item_status(item: Item, target_status: str, *, reason: str = "") 
     """
     Drive an item through the state machine. Pure status-machine +
     notification — no points side effects here. Points are awarded
-    separately, at admin discretion, any time from DISPATCHED status
+    separately, at admin discretion, any time from COLLECTED status
     onward (see apps.points.services.set_item_award), independent of
     which transition got the item there.
     Raises DRF ValidationError so DRF's exception handler returns 400,

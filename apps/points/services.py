@@ -57,14 +57,19 @@ def set_item_award(item, points: int, admin_user) -> PointsLedgerEntry:
     """
     from apps.submissions.models import Item
 
-    if item.status not in (Item.Status.COLLECTED, Item.Status.COMPLETED):
-        raise ValidationError(
-            f"Cannot award points while item status is '{item.status}'. "
-            "Item must be collected or completed."
-        )
-
     with transaction.atomic():
         _lock_user(item.user_id)
+        # Refreshed after the lock, not the possibly-stale status the
+        # caller already had in memory — nothing currently mutates an
+        # item's status concurrently with an award call, but checking a
+        # value read before the lock defeats the point of taking it.
+        item.refresh_from_db(fields=["status"])
+
+        if item.status not in (Item.Status.COLLECTED, Item.Status.COMPLETED):
+            raise ValidationError(
+                f"Cannot award points while item status is '{item.status}'. "
+                "Item must be collected or completed."
+            )
 
         current_total = get_awarded_total(item)
         is_first_award = current_total is None
