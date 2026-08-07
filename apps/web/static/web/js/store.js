@@ -931,20 +931,58 @@ const Eartha = (() => {
     if (!targets.length) return;
     targets.forEach((el) => el.classList.add('reveal'));
 
-    if (!('IntersectionObserver' in window)) {
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    if (reduced.matches) {
       targets.forEach((el) => el.classList.add('is-visible'));
       return;
     }
 
-    // toggles on every crossing (not just once) so the reveal replays
-    // whenever a section re-enters the viewport, scrolling either direction
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        entry.target.classList.toggle('is-visible', entry.isIntersecting);
-      });
-    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+    // Deliberately not IntersectionObserver: it measures each target's
+    // *rendered* (transformed) position, and .reveal moves the target via
+    // transform — observing the very element the animation moves means a
+    // section exiting the viewport at the right angle can shift itself back
+    // across the threshold it just crossed and re-trigger indefinitely at
+    // one scroll position, or (worse) drop the real final state when a fast
+    // scroll lands more than one crossing in the same callback batch. Both
+    // happened in production. offsetTop/offsetHeight are layout-only and
+    // never affected by transform, so tracking position by hand this way
+    // can't feed back into its own trigger. Re-measured on load (fonts/
+    // images can reflow the page after first paint) and on resize.
+    const THRESHOLD = 0.12;
+    const BOTTOM_MARGIN = 60; // mirrors the previous rootMargin's -60px
+    const layout = new Map(); // target -> { top, height } in document coordinates
 
-    targets.forEach((el) => io.observe(el));
+    const measure = () => {
+      targets.forEach((el) => {
+        let top = 0;
+        for (let node = el; node; node = node.offsetParent) top += node.offsetTop;
+        layout.set(el, { top, height: el.offsetHeight });
+      });
+    };
+
+    const evaluate = () => {
+      const viewTop = window.scrollY;
+      const viewBottom = viewTop + window.innerHeight - BOTTOM_MARGIN;
+      targets.forEach((el) => {
+        const { top, height } = layout.get(el);
+        if (height <= 0) return;
+        const visible = Math.min(viewBottom, top + height) - Math.max(viewTop, top);
+        el.classList.toggle('is-visible', visible / height >= THRESHOLD);
+      });
+    };
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; evaluate(); });
+    };
+
+    measure();
+    evaluate();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', () => { measure(); evaluate(); });
+    window.addEventListener('load', () => { measure(); evaluate(); });
   }
 
   document.addEventListener('DOMContentLoaded', initMotion);
