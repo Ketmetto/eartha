@@ -933,28 +933,31 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   margin-bottom: 36px;
 }
 
-/* Infinite right-to-left marquee. main.js clones the card group enough
-   times to cover the viewport twice over, then drives --marquee-distance
-   and animation-duration from one real measured group width. The CSS
-   keyframe just translates by that exact pixel value — since every clone
-   is identical and adjacent, translating by one group's real width always
-   lands the next copy exactly where the previous one started, regardless
-   of how many copies exist. (An earlier version translated by -50% of the
-   track, which requires two independently-laid-out flex groups to compute
-   the exact same subpixel width — clamp()-based card widths don't reliably
-   do that, and the drift showed up as a blank gap at the seam.)
-   Without JS, it stays a plain horizontal scroller. */
+/* Infinite right-to-left marquee. main.js clones the card group, so the track
+   holds exactly two copies and the strip can wrap by one full group before
+   restarting, which reads as a seamless loop. The gap lives on the cards rather
+   than the flex container so that a group ends on an exact card boundary.
+   The travel is driven by main.js as real scroll position rather than a CSS
+   transform — that is what keeps the strip swipeable while it animates, since
+   touch and trackpad are then just native scrolling and the loop keeps running
+   from wherever the finger left it. Without JS it stays a plain scroller. */
 .accept-marquee {
   --accept-gap: clamp(16px, 2vw, 28px);
   margin: 0 calc(var(--pad-x) * -1);
   padding: 0 var(--pad-x);
   overflow-x: auto;
   scrollbar-width: none;
+  /* a horizontal overscroll here must not become a back-navigation swipe */
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .accept-marquee::-webkit-scrollbar { display: none; }
 
-.accept-marquee.is-marquee { overflow: hidden; }
+/* touch swipes come free with the scroller; main.js adds drag for the mouse,
+   so say so with the cursor */
+.accept-marquee.is-marquee { cursor: grab; }
+.accept-marquee.is-grabbing { cursor: grabbing; user-select: none; }
 
 .accept-track,
 .accept-group {
@@ -962,28 +965,21 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   width: max-content;
 }
 
-.accept-marquee.is-marquee .accept-track {
-  /* duration is set inline by main.js (groupWidth / speed), since the
-     distance itself varies with clamp()-based card widths per viewport */
-  animation-name: accept-scroll;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-
-@keyframes accept-scroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(calc(-1 * var(--marquee-distance, 0px))); }
-}
-
-/* pause on hover so a card can actually be looked at */
-.accept-marquee.is-marquee:hover .accept-track { animation-play-state: paused; }
-
 .accept-card {
-  flex: 0 0 clamp(240px, 30vw, 420px);
+  --accept-card-w: clamp(240px, 30vw, 420px);
+  flex: 0 0 var(--accept-card-w);
   margin-right: var(--accept-gap);
 }
 
 .accept-img {
+  /* .accept-track/.accept-group are sized via width:max-content, which
+     forces the browser to compute each card's own intrinsic (max-content)
+     width. .accept-img's old width:100% is a percentage — indefinite for
+     that computation — so Firefox fell back to the raw <img> pixel size
+     instead of the card's clamp() above (Chrome doesn't; hence the two
+     rendering hundreds of pixels apart from each other). Giving it the same
+     definite width as the card removes the ambiguity. */
+  width: var(--accept-card-w);
   aspect-ratio: 4 / 5;
   overflow: hidden;
   margin-bottom: 20px;
