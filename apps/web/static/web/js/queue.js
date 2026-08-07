@@ -296,7 +296,13 @@ if (admin) {
     renderList();
   });
 
-  // actions — one delegated listener, whole pipeline
+  // actions — one delegated listener, whole pipeline. These never reach
+  // the server — they just toggle which panel a card shows — so a full
+  // render() (re-fetches actionItems, and resets+re-fetches the done tab
+  // from page 1) would be wasted network calls that also silently discard
+  // any infinite-scroll progress the admin had made in the done tab.
+  const LOCAL_ONLY_ACTIONS = new Set(['reject', 'reject-cancel', 'reassign-open', 'reassign-cancel']);
+
   listEl.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
@@ -324,7 +330,14 @@ if (admin) {
         // Opened synchronously, in the same click gesture, so browsers
         // don't treat it as a blocked popup — the dispatch call below is
         // async, and by the time it resolves the gesture context is gone.
-        const waWindow = window.open('', '_blank', 'noopener');
+        // Can't pass 'noopener' here: per spec it makes window.open return
+        // null, which silently broke every waWindow.* call below (the tab
+        // opened but never got navigated to WhatsApp or closed on error).
+        // Get a real reference instead, and sever .opener by hand — same
+        // tabnabbing protection 'noopener' gives, without losing the
+        // reference we need to navigate/close it once dispatch resolves.
+        const waWindow = window.open('', '_blank');
+        if (waWindow) waWindow.opener = null;
         try {
           await Eartha.dispatchItem(id, driver.name);
         } catch (err) {
@@ -348,8 +361,10 @@ if (admin) {
         if (!driver) { Eartha.toast('SELECT A DRIVER'); return; }
 
         // Same popup-blocker workaround as dispatch — open in the click
-        // gesture, fill in the URL once the reassign call resolves.
-        const waWindow = window.open('', '_blank', 'noopener');
+        // gesture, fill in the URL once the reassign call resolves. See
+        // the dispatch branch above for why this isn't 'noopener'.
+        const waWindow = window.open('', '_blank');
+        if (waWindow) waWindow.opener = null;
         try {
           await Eartha.reassignDriver(id, driver.name);
         } catch (err) {
@@ -396,7 +411,8 @@ if (admin) {
       Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
     }
 
-    render();
+    if (LOCAL_ONLY_ACTIONS.has(act)) renderList();
+    else render();
   });
 
   // ============ MANAGE BENEFITS ============
