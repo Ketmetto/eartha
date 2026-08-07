@@ -58,16 +58,41 @@ if (user && !user.isAdmin) {
   // dispatch onward — not derivable from status/condition alone (an admin
   // may award more, less, or 0). awardedPoints comes straight from the
   // ledger via the API; null means not yet awarded, see apps.points.services.
-  async function renderSubs() {
-    const subsBody = document.getElementById('subsBody');
-    let subs = [];
+  // Paginated + infinite scroll — a long-time user's history can outgrow
+  // one response (same pattern as the admin queue's done tab).
+  let subsItems = [];
+  let subsNextPage = 1;
+  let subsHasMore = true;
+  let subsLoading = false;
+
+  async function loadMoreSubs() {
+    if (subsLoading || !subsHasMore) return;
+    subsLoading = true;
     try {
-      subs = await Eartha.fetchMySubmissions();
-    } catch (err) {
-      Eartha.toast(err.message || 'COULD NOT LOAD YOUR SUBMISSIONS.');
+      const { items, hasMore } = await Eartha.fetchMySubmissions(subsNextPage, subsItems.length);
+      subsItems = subsItems.concat(items);
+      subsHasMore = hasMore;
+      subsNextPage += 1;
+    } finally {
+      subsLoading = false;
     }
-    document.getElementById('subsEmpty').hidden = subs.length > 0;
-    subsBody.innerHTML = subs
+  }
+
+  function wireSubsSentinel() {
+    const sentinel = document.getElementById('subsSentinel');
+    if (!sentinel) return;
+    const io = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      io.disconnect();
+      loadMoreSubs().then(renderSubsList);
+    }, { rootMargin: '600px' });
+    io.observe(sentinel);
+  }
+
+  function renderSubsList() {
+    const subsBody = document.getElementById('subsBody');
+    document.getElementById('subsEmpty').hidden = subsItems.length > 0;
+    const rows = subsItems
       .map(
         (s) => `
         <tr>
@@ -79,19 +104,59 @@ if (user && !user.isAdmin) {
         </tr>`
       )
       .join('');
+    const sentinel = subsHasMore
+      ? '<tr id="subsSentinel"><td colspan="5" class="muted" style="text-align:center;font-size:11px;">LOADING MORE…</td></tr>'
+      : '';
+    subsBody.innerHTML = rows + sentinel;
+    if (subsHasMore) wireSubsSentinel();
+  }
+
+  async function renderSubs() {
+    subsItems = [];
+    subsNextPage = 1;
+    subsHasMore = true;
+    try {
+      await loadMoreSubs();
+    } catch (err) {
+      Eartha.toast(err.message || 'COULD NOT LOAD YOUR SUBMISSIONS.');
+    }
+    renderSubsList();
   }
 
   // ---------- redemption history ----------
-  async function renderReds() {
-    const redsBody = document.getElementById('redsBody');
-    let reds = [];
+  let redsItems = [];
+  let redsNextPage = 1;
+  let redsHasMore = true;
+  let redsLoading = false;
+
+  async function loadMoreReds() {
+    if (redsLoading || !redsHasMore) return;
+    redsLoading = true;
     try {
-      reds = await Eartha.fetchMyRedemptions();
-    } catch (err) {
-      Eartha.toast(err.message || 'COULD NOT LOAD YOUR REDEMPTIONS.');
+      const { items, hasMore } = await Eartha.fetchMyRedemptions(redsNextPage);
+      redsItems = redsItems.concat(items);
+      redsHasMore = hasMore;
+      redsNextPage += 1;
+    } finally {
+      redsLoading = false;
     }
-    document.getElementById('redsEmpty').hidden = reds.length > 0;
-    redsBody.innerHTML = reds
+  }
+
+  function wireRedsSentinel() {
+    const sentinel = document.getElementById('redsSentinel');
+    if (!sentinel) return;
+    const io = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      io.disconnect();
+      loadMoreReds().then(renderRedsList);
+    }, { rootMargin: '600px' });
+    io.observe(sentinel);
+  }
+
+  function renderRedsList() {
+    const redsBody = document.getElementById('redsBody');
+    document.getElementById('redsEmpty').hidden = redsItems.length > 0;
+    const rows = redsItems
       .map(
         (r) => `
         <tr>
@@ -103,6 +168,23 @@ if (user && !user.isAdmin) {
         </tr>`
       )
       .join('');
+    const sentinel = redsHasMore
+      ? '<tr id="redsSentinel"><td colspan="5" class="muted" style="text-align:center;font-size:11px;">LOADING MORE…</td></tr>'
+      : '';
+    redsBody.innerHTML = rows + sentinel;
+    if (redsHasMore) wireRedsSentinel();
+  }
+
+  async function renderReds() {
+    redsItems = [];
+    redsNextPage = 1;
+    redsHasMore = true;
+    try {
+      await loadMoreReds();
+    } catch (err) {
+      Eartha.toast(err.message || 'COULD NOT LOAD YOUR REDEMPTIONS.');
+    }
+    renderRedsList();
   }
 
   // ---------- settings ----------

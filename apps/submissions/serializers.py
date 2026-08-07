@@ -135,3 +135,8 @@ class DriverDispatchSerializer(serializers.Serializer):
             "Optional — falls back to the user's saved address if omitted."
         ),
     )
+
+
+class DriverReassignSerializer(serializers.Serializer):
+    """Admin action: correct the driver on an already-dispatched item."""
+    driver_name = serializers.CharField(max_length=120)

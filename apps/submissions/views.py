@@ -6,10 +6,12 @@ from .services import create_item_with_photos
 
 
 class ItemUploadView(generics.ListCreateAPIView):
-    """User-facing: submit a new item, list own submissions."""
+    """User-facing: submit a new item, list own submissions. The list side
+    uses the default pagination (base.pagination.StandardResultsPagination)
+    — a long-time user's submission history can grow past what's
+    comfortable to ship in one response."""
     serializer_class = ItemSerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = None
 
     def get_queryset(self):
         return Item.objects.filter(user=self.request.user)

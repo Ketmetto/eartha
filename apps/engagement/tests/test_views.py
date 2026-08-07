@@ -73,7 +73,43 @@ class TestContactMessageAdminListView:
         response = admin_client.get(self.url)
 
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 2
+        assert response.data["count"] == 2
+        assert len(response.data["results"]) == 2
+
+    def test_paginates_at_20_per_page(self, admin_client):
+        for _ in range(25):
+            ContactMessage.objects.create(name="A", email="a@example.com", message="hi")
+
+        first_page = admin_client.get(self.url)
+        assert first_page.status_code == status.HTTP_200_OK
+        assert first_page.data["count"] == 25
+        assert len(first_page.data["results"]) == 20
+        assert first_page.data["next"] is not None
+
+        second_page = admin_client.get(self.url, {"page": 2})
+        assert len(second_page.data["results"]) == 5
+        assert second_page.data["next"] is None
+
+    def test_resolved_filter(self, admin_client):
+        ContactMessage.objects.create(name="A", email="a@example.com", message="unread")
+        ContactMessage.objects.create(name="B", email="b@example.com", message="read", resolved=True)
+
+        unread = admin_client.get(self.url, {"resolved": "false"})
+        assert unread.data["count"] == 1
+        assert unread.data["results"][0]["message"] == "unread"
+
+        read = admin_client.get(self.url, {"resolved": "true"})
+        assert read.data["count"] == 1
+        assert read.data["results"][0]["message"] == "read"
+
+    def test_resolved_filter_with_page_size_gives_cheap_unread_count(self, admin_client):
+        ContactMessage.objects.create(name="A", email="a@example.com", message="unread")
+        ContactMessage.objects.create(name="B", email="b@example.com", message="also unread")
+        ContactMessage.objects.create(name="C", email="c@example.com", message="read", resolved=True)
+
+        response = admin_client.get(self.url, {"resolved": "false", "page_size": 1})
+        assert response.data["count"] == 2
+        assert len(response.data["results"]) == 1
 
 
 @pytest.mark.django_db

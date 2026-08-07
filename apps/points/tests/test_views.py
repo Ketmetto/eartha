@@ -106,8 +106,22 @@ class TestMyRedemptionsView:
         response = auth_client.get(self.url)
 
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 1
-        assert response.data[0]["brand_name"] == benefit.brand_name
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["brand_name"] == benefit.brand_name
+
+    def test_paginates_at_20_per_page(self, auth_client, user, benefit):
+        PointsLedgerEntry.objects.create(user=user, entry_type=PointsLedgerEntry.EntryType.AWARD, points=100000)
+        for _ in range(25):
+            auth_client.post(reverse("benefit-redeem"), {"benefit": str(benefit.id)}, format="json")
+
+        first_page = auth_client.get(self.url)
+        assert first_page.data["count"] == 25
+        assert len(first_page.data["results"]) == 20
+        assert first_page.data["next"] is not None
+
+        second_page = auth_client.get(self.url, {"page": 2})
+        assert len(second_page.data["results"]) == 5
+        assert second_page.data["next"] is None
 
 
 @pytest.mark.django_db

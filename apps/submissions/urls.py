@@ -8,6 +8,7 @@ from .admin_views import (
     DriverAdminListCreateView,
     DriverAdminDetailView,
     DriverDispatchView,
+    DriverReassignView,
     SubmissionMarkCollectedView,
     SubmissionMarkCompletedView,
 )
@@ -21,6 +22,7 @@ urlpatterns = [
     path("admin/drivers/", DriverAdminListCreateView.as_view(), name="submissions-admin-drivers"),
     path("admin/drivers/<uuid:pk>/", DriverAdminDetailView.as_view(), name="submissions-admin-driver-detail"),
     path("admin/<uuid:pk>/dispatch/", DriverDispatchView.as_view(), name="submissions-admin-dispatch"),
+    path("admin/<uuid:pk>/reassign-driver/", DriverReassignView.as_view(), name="submissions-admin-reassign-driver"),
     path("admin/<uuid:pk>/collect/", SubmissionMarkCollectedView.as_view(), name="submissions-admin-collect"),
     path("admin/<uuid:pk>/complete/", SubmissionMarkCompletedView.as_view(), name="submissions-admin-complete"),
 ]

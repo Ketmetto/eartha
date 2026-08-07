@@ -94,8 +94,24 @@ class TestItemUploadView:
         response = auth_client.get(reverse("submissions-list-create"))
 
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 1
-        assert response.data[0]["id"] == str(pending_item.id)
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == str(pending_item.id)
+
+    def test_own_submissions_paginate_at_20_per_page(self, auth_client, user):
+        for _ in range(25):
+            Item.objects.create(
+                user=user, category=Item.Category.CLOTHING, condition=Item.Condition.GOOD,
+                status=Item.Status.PENDING,
+            )
+
+        first_page = auth_client.get(reverse("submissions-list-create"))
+        assert first_page.data["count"] == 25
+        assert len(first_page.data["results"]) == 20
+        assert first_page.data["next"] is not None
+
+        second_page = auth_client.get(reverse("submissions-list-create"), {"page": 2})
+        assert len(second_page.data["results"]) == 5
+        assert second_page.data["next"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +414,61 @@ class TestDriverDispatchView:
                 "driver_name": "John Doe",
                 "pickup_address_snapshot": "123 Main St",
             },
+        )
+        assert response.status_code in (
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_401_UNAUTHORIZED,
+        )
+
+
+# ---------------------------------------------------------------------------
+# DriverReassignView (Admin)
+# ---------------------------------------------------------------------------
+
+class TestDriverReassignView:
+    """Test correcting a wrong driver on an already-dispatched item."""
+
+    def test_admin_can_reassign_driver(self, admin_client, dispatched_item):
+        response = admin_client.post(
+            reverse("submissions-admin-reassign-driver", kwargs={"pk": dispatched_item.id}),
+            data={"driver_name": "Karim Haddad"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+        dispatched_item.refresh_from_db()
+        assert dispatched_item.status == Item.Status.DISPATCHED
+        assert dispatched_item.dispatch.driver_name == "Karim Haddad"
+
+    def test_cannot_reassign_on_accepted_item(self, admin_client, accepted_item):
+        response = admin_client.post(
+            reverse("submissions-admin-reassign-driver", kwargs={"pk": accepted_item.id}),
+            data={"driver_name": "Karim Haddad"},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Cannot reassign driver" in str(response.data)
+
+    def test_cannot_reassign_on_collected_item(self, admin_client, collected_item):
+        response = admin_client.post(
+            reverse("submissions-admin-reassign-driver", kwargs={"pk": collected_item.id}),
+            data={"driver_name": "Karim Haddad"},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_missing_driver_name_returns_400(self, admin_client, dispatched_item):
+        response = admin_client.post(
+            reverse("submissions-admin-reassign-driver", kwargs={"pk": dispatched_item.id}),
+            data={},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_non_admin_cannot_reassign(self, auth_client, dispatched_item):
+        response = auth_client.post(
+            reverse("submissions-admin-reassign-driver", kwargs={"pk": dispatched_item.id}),
+            data={"driver_name": "Karim Haddad"},
         )
         assert response.status_code in (
             status.HTTP_403_FORBIDDEN,

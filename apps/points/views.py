@@ -46,10 +46,12 @@ class RedeemBenefitView(generics.CreateAPIView):
 
 
 class MyRedemptionsView(generics.ListAPIView):
-    """The authenticated user's own redemption history."""
+    """The authenticated user's own redemption history. Default pagination
+    (base.pagination.StandardResultsPagination) — bounded by individual
+    usage, but a long-time user could still build up enough of these to be
+    worth loading a page at a time."""
     serializer_class = RedemptionSerializer
     permission_classes = [permissions.IsAuthenticated]
-    pagination_class = None
 
     def get_queryset(self):
         return Redemption.objects.filter(user=self.request.user).select_related("benefit")

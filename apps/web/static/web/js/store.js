@@ -372,10 +372,19 @@ const Eartha = (() => {
     };
   }
 
-  async function fetchMySubmissions() {
-    const list = await apiFetch('/submissions/');
-    const total = list.length;
-    return list.map((item, i) => mapItem(item, 'N. ' + String(total - i).padStart(4, '0')));
+  // Paginated — a long-time user's history can outgrow a single response.
+  // alreadyLoaded is how many the caller has already fetched across
+  // earlier pages, needed to keep the "N. 0001" numbering counting down
+  // correctly across page boundaries (same pattern as the admin done list).
+  async function fetchMySubmissions(page = 1, alreadyLoaded = 0) {
+    const data = await apiFetch(`/submissions/?page=${page}`);
+    return {
+      items: data.results.map((item, i) =>
+        mapItem(item, 'N. ' + String(data.count - alreadyLoaded - i).padStart(4, '0'))
+      ),
+      hasMore: !!data.next,
+      count: data.count,
+    };
   }
 
   async function createSubmission({ category, condition, description, files }) {
@@ -434,6 +443,16 @@ const Eartha = (() => {
   // admins only supply who's driving.
   async function dispatchItem(id, driverName) {
     await apiFetch(`/submissions/admin/${id}/dispatch/`, { method: 'POST', body: { driver_name: driverName } });
+  }
+
+  // Correct a wrong driver while the item's still dispatched (not yet
+  // collected) — only legal server-side in that window.
+  async function reassignDriver(id, driverName) {
+    const item = await apiFetch(`/submissions/admin/${id}/reassign-driver/`, {
+      method: 'POST',
+      body: { driver_name: driverName },
+    });
+    return mapItem(item, null);
   }
 
   // ---------- admin: driver roster ----------
@@ -565,16 +584,22 @@ const Eartha = (() => {
     return apiFetch('/points/redeem/', { method: 'POST', body: { benefit: benefitId } });
   }
 
-  async function fetchMyRedemptions() {
-    const list = await apiFetch('/points/redemptions/');
-    return list.map((r) => ({
-      id: r.id,
-      brand: r.brand_name,
-      discount: r.discount_percent,
-      code: r.code,
-      points: r.points_spent,
-      date: new Date(r.created_at).getTime(),
-    }));
+  // Paginated — bounded by individual usage, but a long-time user could
+  // still build up enough of these to be worth loading a page at a time.
+  async function fetchMyRedemptions(page = 1) {
+    const data = await apiFetch(`/points/redemptions/?page=${page}`);
+    return {
+      items: data.results.map((r) => ({
+        id: r.id,
+        brand: r.brand_name,
+        discount: r.discount_percent,
+        code: r.code,
+        points: r.points_spent,
+        date: new Date(r.created_at).getTime(),
+      })),
+      hasMore: !!data.next,
+      count: data.count,
+    };
   }
 
   // ---------- contact form (public — no auth) ----------
@@ -610,9 +635,23 @@ const Eartha = (() => {
     };
   }
 
-  async function fetchContactMessages() {
-    const list = await apiFetch('/engagement/admin/messages/');
-    return list.map(mapMessage);
+  // Paginated — the public contact form has no natural cap on how large
+  // this list can grow.
+  async function fetchContactMessages(page = 1) {
+    const data = await apiFetch(`/engagement/admin/messages/?page=${page}`);
+    return {
+      items: data.results.map(mapMessage),
+      hasMore: !!data.next,
+      count: data.count,
+    };
+  }
+
+  // The unread badge needs the true total, not just what's been paged in —
+  // page_size=1 makes this a cheap way to read the paginated envelope's
+  // `count` without actually fetching a page of real data.
+  async function fetchUnreadMessageCount() {
+    const data = await apiFetch('/engagement/admin/messages/?resolved=false&page_size=1');
+    return data.count;
   }
 
   async function resolveMessage(id) {
@@ -916,11 +955,11 @@ const Eartha = (() => {
     POINTS_CRITERIA,
     currentUser, register, login, socialLogin, verifyEmail, logout, requireAuth, requireAdmin,
     fetchMySubmissions, createSubmission,
-    fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, collectItem, completeItem, awardItemPoints,
+    fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, reassignDriver, collectItem, completeItem, awardItemPoints,
     fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
-    submitContactMessage, fetchContactMessages, resolveMessage,
+    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage,
     fetchDashboardStats,
     fetchMe, updateMe, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,

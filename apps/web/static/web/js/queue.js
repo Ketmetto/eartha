@@ -21,7 +21,7 @@ if (admin) {
 
   let filter = 'action';
   // per-card UI state that survives re-renders
-  const open = { reject: new Set() };
+  const open = { reject: new Set(), reassign: new Set() };
 
   // ---------- data ----------
   // Action items (pending -> collected) come back in one unpaginated call —
@@ -97,6 +97,33 @@ if (admin) {
       </div>`;
   }
 
+  // Correct a wrong driver while the item's still dispatched — the only
+  // way to fix this used to be editing DriverAssignment in Django admin.
+  function reassignControl(s) {
+    if (!open.reassign.has(s.id)) {
+      return `
+        <div style="margin-top:12px;">
+          <button class="link-underline" style="font-size:10px;" data-act="reassign-open" data-id="${s.id}">CHANGE DRIVER</button>
+        </div>`;
+    }
+    const noDrivers = driversList.length === 0;
+    return `
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-top:12px;flex-wrap:wrap;">
+        <div class="field" style="margin:0;min-width:220px;">
+          <label for="reassign-${s.id}">NEW DRIVER</label>
+          <div class="select-wrap">
+            <select id="reassign-${s.id}" ${noDrivers ? 'disabled' : ''}>
+              ${noDrivers
+                ? '<option value="">NO DRIVERS YET</option>'
+                : driversList.map((d) => `<option value="${d.id}">${Eartha.esc(d.name)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-act="reassign-confirm" data-id="${s.id}" ${noDrivers ? 'disabled' : ''}>SAVE</button>
+        <button class="btn btn-ghost btn-sm" data-act="reassign-cancel" data-id="${s.id}">CANCEL</button>
+      </div>`;
+  }
+
   function actionArea(s) {
     // reject panel (available while pending)
     if (open.reject.has(s.id)) {
@@ -143,7 +170,7 @@ if (admin) {
       }
 
       case 'dispatched':
-        return `<button class="btn btn-sm" data-act="collect" data-id="${s.id}">MARK COLLECTED</button>${awardControl(s)}`;
+        return `<button class="btn btn-sm" data-act="collect" data-id="${s.id}">MARK COLLECTED</button>${reassignControl(s)}${awardControl(s)}`;
 
       case 'collected':
         return `<button class="btn btn-sm" data-act="complete" data-id="${s.id}">CONFIRM &amp; CLOSE OUT</button>${awardControl(s)}`;
@@ -275,7 +302,7 @@ if (admin) {
     try {
       if (act === 'accept') {
         await Eartha.acceptItem(id);
-        Eartha.toast('ACCEPTED — ASSIGN A DRIVER BELOW');
+        Eartha.toast('ACCEPTED — ASSIGN A DRIVER');
       } else if (act === 'reject') {
         open.reject.add(id);
       } else if (act === 'reject-cancel') {
@@ -301,6 +328,32 @@ if (admin) {
           throw err;
         }
         Eartha.toast(`DISPATCHED TO ${driver.name.toUpperCase()}`);
+
+        const phoneDigits = driver.phone.replace(/\D/g, '');
+        if (waWindow) {
+          if (phoneDigits) waWindow.location.href = `https://wa.me/${phoneDigits}`;
+          else waWindow.close();
+        }
+      } else if (act === 'reassign-open') {
+        open.reassign.add(id);
+      } else if (act === 'reassign-cancel') {
+        open.reassign.delete(id);
+      } else if (act === 'reassign-confirm') {
+        const select = document.getElementById('reassign-' + id);
+        const driver = driversList.find((d) => d.id === (select && select.value));
+        if (!driver) { Eartha.toast('SELECT A DRIVER'); return; }
+
+        // Same popup-blocker workaround as dispatch — open in the click
+        // gesture, fill in the URL once the reassign call resolves.
+        const waWindow = window.open('', '_blank', 'noopener');
+        try {
+          await Eartha.reassignDriver(id, driver.name);
+        } catch (err) {
+          if (waWindow) waWindow.close();
+          throw err;
+        }
+        open.reassign.delete(id);
+        Eartha.toast(`REASSIGNED TO ${driver.name.toUpperCase()}`);
 
         const phoneDigits = driver.phone.replace(/\D/g, '');
         if (waWindow) {
@@ -567,34 +620,83 @@ if (admin) {
   });
 
   // ============ INBOX ============
+  // Paginated + infinite scroll (same pattern as the pipeline's done tab)
+  // — the public contact form has no natural cap on inbox size. The
+  // unread badge is fetched separately via fetchUnreadMessageCount(),
+  // since counting only what's been paged in would undercount once
+  // there's more than one page.
+  let inboxItems = [];
+  let inboxNextPage = 1;
+  let inboxHasMore = true;
+  let inboxLoading = false;
+
+  async function loadMoreInbox() {
+    if (inboxLoading || !inboxHasMore) return;
+    inboxLoading = true;
+    try {
+      const { items, hasMore } = await Eartha.fetchContactMessages(inboxNextPage);
+      inboxItems = inboxItems.concat(items);
+      inboxHasMore = hasMore;
+      inboxNextPage += 1;
+    } finally {
+      inboxLoading = false;
+    }
+  }
+
+  function wireInboxSentinel() {
+    const sentinel = document.getElementById('inboxSentinel');
+    if (!sentinel) return;
+    const io = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      io.disconnect();
+      loadMoreInbox().then(renderInboxList);
+    }, { rootMargin: '600px' });
+    io.observe(sentinel);
+  }
+
+  function renderInboxList() {
+    const el = document.getElementById('inboxList');
+    if (!inboxItems.length) {
+      el.innerHTML = '<div class="empty">INBOX IS EMPTY — CONTACT FORM MESSAGES LAND HERE.</div>';
+      return;
+    }
+    const cards = inboxItems
+      .map(
+        (m) => `
+      <div class="card" style="${m.read ? 'opacity:0.65;' : ''}">
+        <p class="batch-tag">${Eartha.fmtDate(m.date)} · ${Eartha.esc(m.email)}</p>
+        <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
+          ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
+        </p>
+        <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
+        ${m.read ? '' : `<button class="link-underline" style="font-size:10px;margin-top:12px;" data-read="${m.id}">MARK AS READ</button>`}
+      </div>`
+      )
+      .join('');
+    const sentinel = inboxHasMore ? '<div id="inboxSentinel" class="empty">LOADING MORE…</div>' : '';
+    el.innerHTML = cards + sentinel;
+    if (inboxHasMore) wireInboxSentinel();
+  }
+
+  async function refreshInboxCount() {
+    try {
+      document.getElementById('countInbox').textContent = await Eartha.fetchUnreadMessageCount();
+    } catch { /* badge just won't update; inbox itself still works */ }
+  }
+
   async function renderInbox() {
     const el = document.getElementById('inboxList');
-    let list;
+    inboxItems = [];
+    inboxNextPage = 1;
+    inboxHasMore = true;
     try {
-      list = await Eartha.fetchContactMessages();
+      await loadMoreInbox();
     } catch (err) {
       el.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD MESSAGES.')}</div>`;
       return;
     }
-
-    if (!list.length) {
-      el.innerHTML = '<div class="empty">INBOX IS EMPTY — CONTACT FORM MESSAGES LAND HERE.</div>';
-    } else {
-      el.innerHTML = list
-        .map(
-          (m) => `
-        <div class="card" style="${m.read ? 'opacity:0.65;' : ''}">
-          <p class="batch-tag">${Eartha.fmtDate(m.date)} · ${Eartha.esc(m.email)}</p>
-          <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
-            ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
-          </p>
-          <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
-          ${m.read ? '' : `<button class="link-underline" style="font-size:10px;margin-top:12px;" data-read="${m.id}">MARK AS READ</button>`}
-        </div>`
-        )
-        .join('');
-    }
-    document.getElementById('countInbox').textContent = list.filter((m) => !m.read).length;
+    renderInboxList();
+    refreshInboxCount();
   }
 
   document.getElementById('inboxList').addEventListener('click', async (e) => {
@@ -602,7 +704,10 @@ if (admin) {
     if (!btn) return;
     try {
       await Eartha.resolveMessage(btn.dataset.read);
-      await renderInbox();
+      const m = inboxItems.find((x) => x.id === btn.dataset.read);
+      if (m) m.read = true;
+      renderInboxList();
+      refreshInboxCount();
     } catch (err) {
       Eartha.toast(err.message || 'SOMETHING WENT WRONG.');
     }

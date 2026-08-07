@@ -167,23 +167,31 @@ if (user) {
     completed: '',
   };
 
+  // This sidebar only ever shows the first page — it's a quick-glance
+  // summary next to the upload form, not the full history (that's the
+  // Submission History tab on the profile page, which paginates properly).
   async function renderSubs() {
     const el = document.getElementById('subList');
-    let list;
+    let data;
     try {
-      list = await Eartha.fetchMySubmissions();
+      data = await Eartha.fetchMySubmissions();
     } catch (err) {
       el.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD SUBMISSIONS.')}</div>`;
       return;
     }
+    const list = data.items;
 
     document.getElementById('nextBatch').textContent =
-      'NEXT BATCH — N. ' + String(list.length + 1).padStart(4, '0');
+      'NEXT BATCH — N. ' + String(data.count + 1).padStart(4, '0');
 
     if (list.length === 0) {
       el.innerHTML = '<div class="empty">NOTHING YET — YOUR FIRST DONATION STARTS ON THE LEFT.</div>';
       return;
     }
+
+    const seeAll = data.hasMore
+      ? `<a href="/profile/" class="link-underline" style="font-size:10px;display:block;margin-top:16px;">SEE FULL HISTORY IN YOUR PROFILE</a>`
+      : '';
 
     el.innerHTML = list
       .map((s) => {
@@ -209,7 +217,7 @@ if (user) {
           </div>
         </div>`;
       })
-      .join('');
+      .join('') + seeAll;
   }
 
   renderSubs();

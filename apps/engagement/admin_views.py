@@ -2,17 +2,33 @@ from django.db.models import Sum
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from base.pagination import StandardResultsPagination
 from base.permissions import IsAdmin
 from .models import ContactMessage
 from .serializers import ContactMessageAdminSerializer
 
 
 class ContactMessageAdminListView(generics.ListAPIView):
-    """Admin inbox: every contact-form message, newest first."""
+    """Admin inbox: every contact-form message, newest first. Paginated —
+    the public contact form is unauthenticated and open to anyone, so
+    unlike most admin lists this one has no natural bound on how large it
+    can grow.
+
+    ?resolved=true/false filters by read state — used on its own with
+    page_size=1 (see StandardResultsPagination) purely to read the
+    paginated envelope's `count`, i.e. a cheap accurate unread badge that
+    doesn't depend on how many pages of the inbox have actually been
+    loaded client-side."""
     serializer_class = ContactMessageAdminSerializer
     permission_classes = [IsAdmin]
-    pagination_class = None
-    queryset = ContactMessage.objects.all()
+    pagination_class = StandardResultsPagination
+
+    def get_queryset(self):
+        queryset = ContactMessage.objects.all()
+        resolved = self.request.query_params.get("resolved")
+        if resolved is not None:
+            queryset = queryset.filter(resolved=resolved.lower() == "true")
+        return queryset
 
 
 class ContactMessageResolveView(APIView):

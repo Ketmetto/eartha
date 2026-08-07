@@ -114,32 +114,77 @@
       form.replaceWith(inbox);
       document.getElementById('contactEyebrow').textContent = 'INBOX — CONTACT FORM MESSAGES LAND HERE.';
 
-      const renderInbox = async () => {
-        let list;
+      // Paginated + infinite scroll — the public contact form has no
+      // natural cap on inbox size (same pattern used on the queue page's
+      // own inbox tab).
+      let inboxItems = [];
+      let inboxNextPage = 1;
+      let inboxHasMore = true;
+      let inboxLoading = false;
+
+      const loadMoreInbox = async () => {
+        if (inboxLoading || !inboxHasMore) return;
+        inboxLoading = true;
         try {
-          list = await Eartha.fetchContactMessages();
+          const { items, hasMore } = await Eartha.fetchContactMessages(inboxNextPage);
+          inboxItems = inboxItems.concat(items);
+          inboxHasMore = hasMore;
+          inboxNextPage += 1;
+        } finally {
+          inboxLoading = false;
+        }
+      };
+
+      const wireInboxSentinel = () => {
+        const sentinel = document.getElementById('inboxSentinel');
+        if (!sentinel) return;
+        const io = new IntersectionObserver((entries) => {
+          if (!entries[0].isIntersecting) return;
+          io.disconnect();
+          loadMoreInbox().then(renderInboxList);
+        }, { rootMargin: '600px' });
+        io.observe(sentinel);
+      };
+
+      const renderInboxList = () => {
+        if (!inboxItems.length) {
+          inbox.innerHTML = '<div class="empty">INBOX IS EMPTY — MESSAGES FROM THIS FORM LAND HERE.</div>';
+          return;
+        }
+        const cards = inboxItems.map((m) => `
+          <div class="card" style="${m.read ? 'opacity:0.6;' : ''}">
+            <p class="batch-tag">${Eartha.fmtDate(m.date)} · ${Eartha.esc(m.email)}</p>
+            <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
+              ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
+            </p>
+            <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
+            ${m.read ? '' : `<button class="link-underline" style="font-size:10px;margin-top:12px;" data-read="${m.id}">MARK AS READ</button>`}
+          </div>`).join('');
+        const sentinel = inboxHasMore ? '<div id="inboxSentinel" class="empty">LOADING MORE…</div>' : '';
+        inbox.innerHTML = cards + sentinel;
+        if (inboxHasMore) wireInboxSentinel();
+      };
+
+      const renderInbox = async () => {
+        inboxItems = [];
+        inboxNextPage = 1;
+        inboxHasMore = true;
+        try {
+          await loadMoreInbox();
         } catch (err) {
           inbox.innerHTML = `<div class="empty">${Eartha.esc(err.message || 'COULD NOT LOAD THE INBOX.')}</div>`;
           return;
         }
-        inbox.innerHTML = list.length
-          ? list.map((m) => `
-            <div class="card" style="${m.read ? 'opacity:0.6;' : ''}">
-              <p class="batch-tag">${Eartha.fmtDate(m.date)} · ${Eartha.esc(m.email)}</p>
-              <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
-                ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
-              </p>
-              <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
-              ${m.read ? '' : `<button class="link-underline" style="font-size:10px;margin-top:12px;" data-read="${m.id}">MARK AS READ</button>`}
-            </div>`).join('')
-          : '<div class="empty">INBOX IS EMPTY — MESSAGES FROM THIS FORM LAND HERE.</div>';
+        renderInboxList();
       };
       inbox.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-read]');
         if (!btn) return;
         try {
           await Eartha.resolveMessage(btn.dataset.read);
-          renderInbox();
+          const m = inboxItems.find((x) => x.id === btn.dataset.read);
+          if (m) m.read = true;
+          renderInboxList();
         } catch (err) {
           Eartha.toast(err.message || 'COULD NOT MARK AS READ.');
         }
@@ -148,6 +193,24 @@
     }
 
     const contactFormEl = document.getElementById('contactForm');
+    // adminUser is really just "whoever's logged in" — by the time we get
+    // here, an actual admin's form has already been replaced with the
+    // inbox above, so a truthy value + a form still on the page means a
+    // logged-in non-admin user. Pre-fill AND lock name/email — letting
+    // someone edit them while logged in would just mean the message no
+    // longer matches the account it was sent from.
+    if (contactFormEl && adminUser) {
+      const cNameEl = document.getElementById('cName');
+      const cEmailEl = document.getElementById('cEmail');
+      cNameEl.value = adminUser.name || '';
+      cEmailEl.value = adminUser.email || '';
+      cNameEl.disabled = true;
+      cEmailEl.disabled = true;
+      const lockedHint = document.createElement('p');
+      lockedHint.className = 'hint';
+      lockedHint.textContent = "SENDING AS YOUR ACCOUNT — CAN'T BE CHANGED HERE.";
+      cEmailEl.insertAdjacentElement('afterend', lockedHint);
+    }
     if (contactFormEl) contactFormEl.addEventListener('submit', async (e) => {
       e.preventDefault();
       const msg = document.getElementById('contactMsg');

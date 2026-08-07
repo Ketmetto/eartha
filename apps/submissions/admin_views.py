@@ -7,9 +7,10 @@ from .serializers import (
     ItemAdminSerializer,
     SubmissionDecisionSerializer,
     DriverDispatchSerializer,
+    DriverReassignSerializer,
     DriverSerializer,
 )
-from .services import transition_item_status, assign_driver
+from .services import transition_item_status, assign_driver, reassign_driver
 
 ACTION_STATUSES = [Item.Status.PENDING, Item.Status.ACCEPTED, Item.Status.DISPATCHED, Item.Status.COLLECTED]
 DONE_STATUSES = [Item.Status.COMPLETED, Item.Status.REJECTED]
@@ -129,6 +130,29 @@ class DriverDispatchView(generics.GenericAPIView):
             {"detail": "Driver assigned and item dispatched.", "assignment_id": str(assignment.id)},
             status=status.HTTP_201_CREATED
         )
+
+
+class DriverReassignView(generics.GenericAPIView):
+    """
+    Admin: correct the driver on an already-dispatched item, from the
+    website — previously the only way to fix a wrong assignment was
+    editing DriverAssignment directly in Django admin.
+
+    POST /admin/<uuid:pk>/reassign-driver/  {"driver_name": "..."}
+    Only legal while the item is still DISPATCHED.
+    """
+    serializer_class = DriverReassignSerializer
+    permission_classes = [IsAdmin]
+    queryset = Item.objects.all()
+
+    def post(self, request, *args, **kwargs):
+        item = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reassign_driver(item=item, driver_name=serializer.validated_data["driver_name"])
+
+        return Response(ItemAdminSerializer(item).data, status=status.HTTP_200_OK)
 
 
 class SubmissionMarkCollectedView(generics.GenericAPIView):

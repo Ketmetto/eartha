@@ -108,3 +108,25 @@ def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str 
         assignment.save(update_fields=["status", "updated_at"])
 
     return assignment
+
+
+def reassign_driver(*, item: Item, driver_name: str) -> DriverAssignment:
+    """
+    Correct a wrong driver on an already-dispatched item. Updates the
+    existing DriverAssignment in place — no state-machine transition,
+    since the item's status doesn't change, just who's driving. Only
+    legal while DISPATCHED: once COLLECTED the driver's already been
+    there, so there's nothing left to correct.
+    """
+    if item.status != Item.Status.DISPATCHED:
+        raise ValidationError(
+            {"item": f"Cannot reassign driver for item with status '{item.status}'. Must be 'dispatched'."}
+        )
+
+    assignment = getattr(item, "dispatch", None)
+    if not assignment:
+        raise ValidationError({"item": "No driver assignment exists for this item."})
+
+    assignment.driver_name = driver_name
+    assignment.save(update_fields=["driver_name", "updated_at"])
+    return assignment
