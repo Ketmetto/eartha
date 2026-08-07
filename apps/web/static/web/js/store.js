@@ -983,6 +983,20 @@ const Eartha = (() => {
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', () => { measure(); evaluate(); });
     window.addEventListener('load', () => { measure(); evaluate(); });
+
+    // Pages that fill a section from an async fetch (e.g. dashboard.js's
+    // recentList/attentionGrid) finish that well after 'load' — measure()
+    // would cache the section's pre-fetch (often much shorter) height, so
+    // scrolling past where that stale height ended dropped the now-longer,
+    // fully-populated section's opacity to 0 while it was still on screen.
+    // ResizeObserver catches any target's real size changing, whenever
+    // that happens, not just at a few fixed lifecycle moments. Re-measures
+    // every target, not just the one that changed, since one target
+    // growing shifts every target below it down the page too.
+    if ('ResizeObserver' in window) {
+      const ro = new ResizeObserver(() => { measure(); evaluate(); });
+      targets.forEach((el) => ro.observe(el));
+    }
   }
 
   document.addEventListener('DOMContentLoaded', initMotion);
