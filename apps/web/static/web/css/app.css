@@ -722,7 +722,14 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   position: fixed;
   bottom: 24px;
   left: 50%;
-  transform: translate(-50%, 120%);
+  /* Hidden state needs to clear its own height *plus* the 24px bottom
+     offset above. 120% of the box's own height covered that for a tall
+     multi-line toast, but this is one short line (~43px) — 20% of that is
+     under 9px, nowhere near enough to clear the 24px gap, so a ~15px
+     sliver stayed permanently visible at the bottom of the viewport even
+     at rest. 100% + a fixed clearance beyond the 24px gap covers any
+     height. */
+  transform: translate(-50%, calc(100% + 40px));
   background: var(--ink);
   color: var(--cream-text);
   font-size: 11px;
