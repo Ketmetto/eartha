@@ -1,7 +1,8 @@
-Hi {{ first_name|default:email }},
+{% autoescape off %}Hi {{ first_name|default:email }},
 
 Thanks for signing up! Please verify your email address by visiting the link below:
 
 {{ verification_url }}
 
 If you didn't create an account, you can safely ignore this email.
+{% endautoescape %}

@@ -1,7 +1,8 @@
-Hi {{ first_name|default:email }},
+{% autoescape off %}Hi {{ first_name|default:email }},
 
 Someone (hopefully you) requested to change the email address on an Eartha account to this one. Visit the link below to confirm the change:
 
 {{ confirmation_url }}
 
 If you didn't request this, you can safely ignore this email — the address on the account won't change unless this link is used.
+{% endautoescape %}
