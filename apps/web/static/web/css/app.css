@@ -251,8 +251,6 @@ img:not([src*="logo"]),
 
 /* tablet + mobile nav */
 @media (max-width: 1024px) {
-  .app-header { position: relative; }
-
   .menu-toggle { display: inline-flex; }
 
   .app-nav {
@@ -1402,9 +1400,13 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 
   .about-mission-grid .img-card { order: -1; }
 
-  /* narrower cards so more than one is on screen as the marquee runs */
+  /* narrower cards so more than one is on screen as the marquee runs.
+     Overriding --accept-card-w itself, not flex-basis directly — .accept-img
+     reads the same variable for its own width, so setting flex-basis alone
+     left the image (still sized off the desktop clamp()) out of sync with
+     its card box, opening a gap between the image and the next card. */
   .accept-marquee { --accept-gap: 16px; }
-  .accept-card { flex-basis: min(78vw, 320px); }
+  .accept-card { --accept-card-w: min(78vw, 320px); }
 
   .batch-band { grid-template-columns: 1fr; gap: 28px; }
 
