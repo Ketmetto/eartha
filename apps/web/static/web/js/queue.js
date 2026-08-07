@@ -368,6 +368,22 @@ if (admin) {
         await Eartha.collectItem(id);
         Eartha.toast('MARKED COLLECTED');
       } else if (act === 'complete') {
+        // Closing out used to leave points unawarded unless the admin had
+        // separately hit SAVE on the award field first — easy to miss,
+        // since the field always shows a value (the suggested default, or
+        // whatever's already saved). Save whatever's in that field now,
+        // same as a normal award, before closing out — skipped only if
+        // it's unchanged from what's already recorded (the backend
+        // rejects a same-value re-award as a no-op).
+        const awardInput = document.getElementById('award-' + id);
+        if (awardInput) {
+          const points = Number(awardInput.value);
+          if (Number.isNaN(points) || points < 0) { Eartha.toast('ENTER A VALID POINTS AMOUNT'); return; }
+          const item = actionItems.find((x) => x.id === id);
+          if (!item || item.awardedPoints == null || points !== item.awardedPoints) {
+            await Eartha.awardItemPoints(id, points);
+          }
+        }
         await Eartha.completeItem(id);
         Eartha.toast('CLOSED OUT');
       } else if (act === 'award') {
