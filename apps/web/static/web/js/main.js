@@ -75,12 +75,19 @@ function runAcceptMarquee(el, group) {
   // the user scrolled (swipe, trackpad, keyboard) — take their position as ours
   // and keep wrapping, so swiping past the end loops instead of hitting a wall
   el.addEventListener('scroll', () => {
-    // Browsers that round scrollLeft to whole pixels (Firefox does; Chrome
-    // allows subpixel) can land our own sub-pixel-per-frame write exactly
-    // 1px from the last recorded value — a strict "< 1" threshold treats
-    // that rounding as a real user scroll and pauses the animation for
-    // RESUME_DELAY on every such frame, which reads as a near-total stall.
-    if (Math.abs(el.scrollLeft - applied) <= 1) return; // that was our own frame
+    // Exact equality, not a pixel-distance tolerance — a fixed-size
+    // tolerance (this used to be "<= 1") breaks under exactly the
+    // real-world condition it needs to survive: any single slow frame
+    // (main-thread jank, not just tab backgrounding) makes that frame's
+    // write bigger than the tolerance, misreads it as a user scroll, and
+    // pauses the animation for RESUME_DELAY. `applied` is read back from
+    // el.scrollLeft immediately after every write, so it already reflects
+    // whatever the browser actually stored (rounded or not) — by the time
+    // any scroll event fires, applied always matches the *latest* write's
+    // result exactly, however large that write was, unless something
+    // other than us changed scrollLeft since. That's the real thing this
+    // needs to detect, not "close enough".
+    if (el.scrollLeft === applied) return; // that was our own frame
     pos = el.scrollLeft;
     const width = groupWidth();
     if (width > 0 && (pos >= width || pos < 0)) {
@@ -100,8 +107,16 @@ function runAcceptMarquee(el, group) {
   let startScroll = 0;
 
   el.addEventListener('pointerdown', (e) => {
+    // A non-primary button (right-click, middle-click) isn't a hold
+    // gesture at all — leave it alone entirely. held used to get set
+    // before this check, for every pointerdown regardless of button, but
+    // only primary-mouse/touch pointers reliably get a matching pointerup
+    // routed back here; a right-click's context menu can swallow or
+    // misdirect it, which would leave held stuck true and the marquee
+    // frozen for the rest of the page's life.
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     held = true;
-    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    if (e.pointerType !== 'mouse') return; // touch drags the scroller natively from here
     dragX = e.clientX;
     startScroll = el.scrollLeft;
     el.setPointerCapture(e.pointerId);
