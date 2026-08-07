@@ -4,9 +4,23 @@ PointsLedgerEntry directly from a view or another app.
 """
 import uuid
 from rest_framework.exceptions import ValidationError
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
 from .models import PointsLedgerEntry, Benefit, Redemption
+
+
+def _lock_user(user_id):
+    """Row-lock the user for the rest of this transaction. The ledger is
+    append-only (balance = sum(entries)), so there's no single balance row
+    to lock directly — locking the user row instead serializes concurrent
+    award/redeem calls for *that user* (a read-check-write race between two
+    requests would otherwise let both pass the balance check before either
+    commits, e.g. two redemptions each individually affordable but not
+    together). Different users' operations are unaffected and still run
+    fully in parallel. Must be called inside a transaction.atomic() block,
+    before the balance is read."""
+    get_user_model().objects.select_for_update().get(pk=user_id)
 
 
 def get_balance(user) -> int:
@@ -47,27 +61,30 @@ def set_item_award(item, points: int, admin_user) -> PointsLedgerEntry:
             "Item must be dispatched, collected, or completed."
         )
 
-    current_total = get_awarded_total(item)
-    is_first_award = current_total is None
-    delta = points - (current_total or 0)
+    with transaction.atomic():
+        _lock_user(item.user_id)
 
-    if not is_first_award and delta == 0:
-        raise ValidationError("No change — item already has this many points awarded.")
+        current_total = get_awarded_total(item)
+        is_first_award = current_total is None
+        delta = points - (current_total or 0)
 
-    if delta < 0 and get_balance(item.user) + delta < 0:
-        raise ValidationError("Cannot reduce this award — the user has already spent these points.")
+        if not is_first_award and delta == 0:
+            raise ValidationError("No change — item already has this many points awarded.")
 
-    entry = PointsLedgerEntry.objects.create(
-        user=item.user,
-        entry_type=PointsLedgerEntry.EntryType.AWARD if is_first_award else PointsLedgerEntry.EntryType.ADJUSTMENT,
-        points=delta,
-        reference_item=item,
-        awarded_by=admin_user,
-        note=(
-            f"Awarded: {item.category} ({item.condition})" if is_first_award
-            else f"Correction: {item.category} ({item.condition})"
-        ),
-    )
+        if delta < 0 and get_balance(item.user) + delta < 0:
+            raise ValidationError("Cannot reduce this award — the user has already spent these points.")
+
+        entry = PointsLedgerEntry.objects.create(
+            user=item.user,
+            entry_type=PointsLedgerEntry.EntryType.AWARD if is_first_award else PointsLedgerEntry.EntryType.ADJUSTMENT,
+            points=delta,
+            reference_item=item,
+            awarded_by=admin_user,
+            note=(
+                f"Awarded: {item.category} ({item.condition})" if is_first_award
+                else f"Correction: {item.category} ({item.condition})"
+            ),
+        )
 
     if is_first_award:
         from notifications.tasks import notify_points_awarded
@@ -78,6 +95,8 @@ def set_item_award(item, points: int, admin_user) -> PointsLedgerEntry:
 
 @transaction.atomic
 def redeem_benefit(user, benefit: Benefit) -> Redemption:
+    _lock_user(user.id)
+
     balance = get_balance(user)
     if balance < benefit.points_required:
         raise ValidationError("Not enough points for this benefit.")
