@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -123,10 +124,17 @@ class MeView(generics.RetrieveUpdateAPIView):
         # a typo, or someone else's session, could silently reassign the
         # account (and, for a social-login account, permanently orphan it
         # — see that function's docstring).
+        #
+        # Wrapped in one transaction: request_email_change can raise (e.g.
+        # the new address is already taken) after serializer.save() has
+        # already persisted the other fields (name, phone) — without this,
+        # the client sees a 400 and assumes nothing changed, but those
+        # other edits would already be committed.
         new_email = serializer.validated_data.pop("email", None)
-        user = serializer.save()
-        if new_email:
-            services.request_email_change(user, new_email, self.request)
+        with transaction.atomic():
+            user = serializer.save()
+            if new_email:
+                services.request_email_change(user, new_email, self.request)
 
 
 class AddressView(generics.RetrieveUpdateAPIView):

@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from apps.users.models import User
 
 
@@ -141,6 +142,28 @@ class TestMeEndpoint:
         user.refresh_from_db()
         assert user.pending_email is None
         mock_send.delay.assert_not_called()
+
+    def test_other_fields_roll_back_when_email_change_fails(self, api_client, user):
+        # This is DRF's auto UniqueValidator catching a plainly-duplicate
+        # address at serializer validation time — before perform_update
+        # ever runs, so it can't exercise the rollback this test is for.
+        # Force request_email_change itself to raise (as it still can, on
+        # a narrower race DRF's check doesn't cover — see
+        # test_rejects_if_the_email_was_claimed_by_someone_else_meanwhile
+        # in test_email_change.py) and confirm first_name — sent in the
+        # same request — doesn't get persisted alongside the failure.
+        api_client.force_authenticate(user=user)
+        original_first_name = user.first_name
+
+        with patch("apps.users.views.services.request_email_change", side_effect=ValidationError("boom")):
+            response = api_client.patch(
+                "/api/v1/auth/me/", {"email": "new@example.com", "first_name": "Changed"}, format="json"
+            )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        user.refresh_from_db()
+        assert user.first_name == original_first_name
+        assert user.pending_email is None
 
     @patch("apps.users.services.send_transactional_email")
     def test_resubmitting_the_same_email_is_a_no_op(self, mock_send, api_client, user):
