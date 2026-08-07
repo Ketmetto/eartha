@@ -16,6 +16,18 @@ def send_transactional_email(to_email: str, subject: str, message: str = "", tem
     Legacy usage: pass message as plain text.
     Template usage: pass template_name (without extension) and context dict.
     Renders both .txt and .html versions if templates exist.
+
+    IMPORTANT: the .txt template is rendered through the same Django
+    template engine as every HTML page, which autoescapes by default
+    regardless of file extension — a context value containing "&" (e.g.
+    a query-string URL like "?uid=x&token=y") renders as "&amp;" in the
+    plain-text body, which breaks the link if a client pastes it as a
+    literal URL. Any new .txt template that interpolates a URL needs to
+    wrap its body in {% autoescape off %}...{% endautoescape %} (see
+    verify_email.txt / password_reset.txt / confirm_email_change.txt for
+    the pattern) — don't disable autoescape at the engine level in
+    settings.py to "fix" this, since that engine also renders every
+    user-facing HTML page and would reopen it to XSS.
     """
     if template_name and context is not None:
         # Try to render HTML version
