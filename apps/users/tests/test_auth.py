@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from rest_framework import status
 from apps.users.models import User
@@ -108,6 +110,61 @@ class TestMeEndpoint:
         assert response.status_code == status.HTTP_200_OK
         user.refresh_from_db()
         assert user.is_staff is False
+
+    # A changed email used to be written straight to the account — see
+    # apps.users.services.request_email_change for why that's unsafe
+    # (mainly: it silently broke the link a Firebase-login account has to
+    # its Google identity, orphaning all of the account's data).
+    @patch("apps.users.services.send_transactional_email")
+    def test_email_change_does_not_apply_immediately(self, mock_send, api_client, user):
+        original_email = user.email
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch("/api/v1/auth/me/", {"email": "new@example.com"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["email"] == original_email
+        assert response.data["pending_email"] == "new@example.com"
+        user.refresh_from_db()
+        assert user.email == original_email
+        assert user.pending_email == "new@example.com"
+        mock_send.delay.assert_called_once()
+        assert mock_send.delay.call_args.kwargs["to_email"] == "new@example.com"
+
+    @patch("apps.users.services.send_transactional_email")
+    def test_email_change_rejects_address_already_in_use(self, mock_send, api_client, user, admin_user):
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch("/api/v1/auth/me/", {"email": admin_user.email}, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        user.refresh_from_db()
+        assert user.pending_email is None
+        mock_send.delay.assert_not_called()
+
+    @patch("apps.users.services.send_transactional_email")
+    def test_resubmitting_the_same_email_is_a_no_op(self, mock_send, api_client, user):
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch("/api/v1/auth/me/", {"email": user.email}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        user.refresh_from_db()
+        assert user.pending_email is None
+        mock_send.delay.assert_not_called()
+
+    @patch("apps.users.services.send_transactional_email")
+    def test_other_fields_still_save_alongside_a_pending_email_change(self, mock_send, api_client, user):
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch(
+            "/api/v1/auth/me/", {"email": "new@example.com", "first_name": "Changed"}, format="json"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        user.refresh_from_db()
+        assert user.first_name == "Changed"
+        assert user.pending_email == "new@example.com"
 
 
 @pytest.mark.django_db

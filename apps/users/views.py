@@ -60,6 +60,29 @@ class VerifyEmailView(APIView):
         return Response({"detail": message}, status=status_code)
 
 
+class ConfirmEmailChangeView(APIView):
+    """
+    GET /api/v1/auth/confirm-email-change/?uid=<uidb64>&token=<token>
+    Validates the token and applies a pending email change requested via
+    MeView (see services.request_email_change).
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        uidb64 = request.query_params.get("uid")
+        token = request.query_params.get("token")
+
+        if not uidb64 or not token:
+            return Response(
+                {"detail": "Missing confirmation parameters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        success, message = services.confirm_email_change(uidb64, token)
+        status_code = status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST
+        return Response({"detail": message}, status=status_code)
+
+
 class ResendVerificationView(APIView):
     """
     POST /api/v1/auth/resend-verification/
@@ -93,6 +116,17 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+    def perform_update(self, serializer):
+        # A changed email doesn't get written to the instance here — see
+        # services.request_email_change. Applying it directly would mean
+        # a typo, or someone else's session, could silently reassign the
+        # account (and, for a social-login account, permanently orphan it
+        # — see that function's docstring).
+        new_email = serializer.validated_data.pop("email", None)
+        user = serializer.save()
+        if new_email:
+            services.request_email_change(user, new_email, self.request)
 
 
 class AddressView(generics.RetrieveUpdateAPIView):

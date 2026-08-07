@@ -188,6 +188,16 @@ if (user && !user.isAdmin) {
   }
 
   // ---------- settings ----------
+  function showEmailHint(pendingEmail) {
+    const hint = document.getElementById('setEmailHint');
+    if (pendingEmail) {
+      hint.textContent = `CONFIRMATION SENT TO ${pendingEmail.toUpperCase()} — CHANGE APPLIES ONCE YOU CLICK THE LINK.`;
+      hint.hidden = false;
+    } else {
+      hint.hidden = true;
+    }
+  }
+
   async function loadSettings() {
     try {
       const [me, address, prefs] = await Promise.all([
@@ -200,6 +210,7 @@ if (user && !user.isAdmin) {
       document.getElementById('setPhone').value = me.phone || '';
       document.getElementById('setAddress').value = address.line1 || '';
       document.getElementById('setNotify').checked = prefs.email_enabled;
+      showEmailHint(me.pending_email);
     } catch (err) {
       Eartha.toast(err.message || 'COULD NOT LOAD YOUR SETTINGS.');
     }
@@ -242,7 +253,14 @@ if (user && !user.isAdmin) {
       document.getElementById('setPassword').value = '';
       document.getElementById('setCurrentPassword').value = '';
       document.getElementById('helloLine').textContent = `HELLO, ${user.name.toUpperCase()}`;
-      msg.textContent = 'SAVED.';
+      // A changed email doesn't take effect immediately — see
+      // apps.users.services.request_email_change — so the field reverts
+      // to the still-current address rather than showing the unconfirmed one.
+      document.getElementById('setEmail').value = user.email;
+      showEmailHint(user.pendingEmail);
+      msg.textContent = user.pendingEmail
+        ? `SAVED — CHECK ${user.pendingEmail.toUpperCase()} TO CONFIRM YOUR NEW EMAIL.`
+        : 'SAVED.';
       msg.className = 'form-msg is-ok';
     } catch (err) {
       msg.textContent = err.message || 'SOMETHING WENT WRONG.';

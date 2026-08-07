@@ -13,6 +13,23 @@ class User(AbstractUser):
         default=False,
         help_text="Manually verified accounts skip email verification on login. Used to grant access to test accounts.",
     )
+    # Stable Firebase identity (Google/Apple sign-in), set on first social
+    # login and never changed after. apps.users.services.
+    # get_or_create_user_from_firebase matches on this first — not on
+    # email, which the user can freely edit via MeView. Matching on email
+    # alone meant editing your profile email broke the link to your
+    # Firebase identity: the next social login wouldn't find your account
+    # (its email no longer matched what the provider sent) and silently
+    # created a new, empty one instead, orphaning everything under the old
+    # account — which, for a social-only account, has no password either,
+    # so it becomes unrecoverable without admin intervention.
+    firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    # A requested-but-unconfirmed new email — see apps.users.services.
+    # request_email_change/confirm_email_change. The address on `email`
+    # itself (what social login matches against, and what receives
+    # password-reset / notification mail) only changes once the user
+    # clicks the confirmation link sent to this address.
+    pending_email = models.EmailField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]

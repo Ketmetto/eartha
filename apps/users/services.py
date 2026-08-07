@@ -7,6 +7,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_toke
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import get_user_model
+from rest_framework.exceptions import ValidationError
 
 from allauth.account.models import EmailAddress
 
@@ -80,6 +81,79 @@ def verify_email_token(uidb64, token):
         return True, "Email verified successfully."
     else:
         return False, "Verification link expired or invalid."
+
+
+class EmailChangeTokenGenerator(PasswordResetTokenGenerator):
+    """Generates tokens for confirming a pending email change. Hashes on
+    pending_email rather than email — so requesting a different change
+    invalidates any link already sent for the previous one."""
+    def _make_hash_value(self, user, timestamp):
+        pending = getattr(user, 'pending_email', '') or ''
+        return f"{user.pk}{timestamp}{pending}"
+
+
+email_change_token = EmailChangeTokenGenerator()
+
+
+def request_email_change(user, new_email, request=None):
+    """
+    Starts an email change: the account's real `email` — what social
+    login matches against (see get_or_create_user_from_firebase) and
+    where password-reset/notification mail goes — does NOT change here.
+    Only `pending_email` is set, and a confirmation link is sent to the
+    new address; `email` only updates once that link is used. Applying
+    the new address immediately, unverified, is exactly what let a typo
+    or a bad actor silently reassign an account.
+    """
+    new_email = (new_email or "").strip().lower()
+    if not new_email or new_email == user.email.lower():
+        return
+
+    if User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
+        raise ValidationError("An account with this email already exists.")
+
+    user.pending_email = new_email
+    user.save(update_fields=["pending_email"])
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = email_change_token.make_token(user)
+    url = f"/confirm-email-change/?uid={uid}&token={token}"
+    absolute_url = request.build_absolute_uri(url) if request is not None else url
+
+    send_transactional_email.delay(
+        to_email=new_email,
+        subject="Confirm your new email address",
+        template_name="confirm_email_change",
+        context={
+            "first_name": user.first_name,
+            "email": new_email,
+            "confirmation_url": absolute_url,
+        },
+    )
+
+
+def confirm_email_change(uidb64, token):
+    """Validate token and apply the pending email change. Returns (success, message)."""
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return False, "Invalid confirmation link."
+
+    if not user.pending_email:
+        return False, "There's no pending email change for this account."
+
+    if not email_change_token.check_token(user, token):
+        return False, "Confirmation link expired or invalid."
+
+    if User.objects.filter(email__iexact=user.pending_email).exclude(pk=user.pk).exists():
+        return False, "That email is now used by another account."
+
+    user.email = user.pending_email
+    user.pending_email = None
+    user.save(update_fields=["email", "pending_email"])
+    EmailAddress.objects.filter(user=user, email=user.email).update(verified=True)
+    return True, "Email address updated."
 
 
 def get_password_reset_url(user, request=None):
@@ -164,11 +238,32 @@ def verify_firebase_token(id_token):
 
 
 def get_or_create_user_from_firebase(decoded_token, display_name=""):
-    """Find or create the local User for a verified Firebase identity."""
+    """
+    Find or create the local User for a verified Firebase identity.
+
+    Matches on the Firebase UID first — a stable identifier that never
+    changes — not on email. A user can freely edit their profile email
+    (see request_email_change below), and matching by email alone meant
+    that edit broke the link: the next social login's email no longer
+    matched the account, so a new, empty account got created instead of
+    finding the real one, orphaning everything under the old account.
+    """
+    uid = decoded_token["uid"]
     email = decoded_token["email"]
 
+    user = User.objects.filter(firebase_uid=uid).first()
+    if user:
+        return user
+
+    # First time seeing this Firebase identity. If it matches an existing
+    # account by email (e.g. they registered with a password first, this
+    # is their first Google sign-in), link it there instead of creating a
+    # duplicate; otherwise this is a brand new user.
     user = User.objects.filter(email__iexact=email).first()
     if user:
+        if not user.firebase_uid:
+            user.firebase_uid = uid
+            user.save(update_fields=["firebase_uid"])
         return user
 
     name = (decoded_token.get("name") or display_name or "").strip()
@@ -179,6 +274,7 @@ def get_or_create_user_from_firebase(decoded_token, display_name=""):
         email=email,
         first_name=first_name,
         last_name=last_name,
+        firebase_uid=uid,
     )
     user.set_unusable_password()
     user.save()

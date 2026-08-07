@@ -10,8 +10,12 @@ from . import services
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "phone", "is_staff"]
-        read_only_fields = ["id", "is_staff"]
+        fields = ["id", "email", "pending_email", "first_name", "last_name", "phone", "is_staff"]
+        # email is writable at the field level (PATCH still validates a
+        # new value, including DRF's auto uniqueness check), but MeView
+        # intercepts it before save — see MeView.perform_update. pending_email
+        # is read-only: it's only ever set by request_email_change.
+        read_only_fields = ["id", "is_staff", "pending_email"]
 
 
 class RegisterSerializer(serializers.ModelSerializer):

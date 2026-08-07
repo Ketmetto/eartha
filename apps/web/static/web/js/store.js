@@ -177,6 +177,10 @@ const Eartha = (() => {
       id: apiUser.id,
       name,
       email: apiUser.email,
+      // Set once a MeView email change is awaiting confirmation — email
+      // itself stays the old address until the emailed link is used, see
+      // apps.users.services.request_email_change.
+      pendingEmail: apiUser.pending_email || null,
       isAdmin: !!apiUser.is_staff,
       points: 0,
     };
@@ -237,6 +241,17 @@ const Eartha = (() => {
   async function verifyEmail(uid, token) {
     try {
       const res = await authRequest(`/verify-email/?uid=${encodeURIComponent(uid)}&token=${encodeURIComponent(token)}`);
+      return { detail: res.detail };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  // uid/token come from the query string of the emailed email-change
+  // confirmation link (see MeView / request_email_change).
+  async function confirmEmailChange(uid, token) {
+    try {
+      const res = await authRequest(`/confirm-email-change/?uid=${encodeURIComponent(uid)}&token=${encodeURIComponent(token)}`);
       return { detail: res.detail };
     } catch (e) {
       return { error: e.message };
@@ -1005,7 +1020,7 @@ const Eartha = (() => {
 
   return {
     POINTS_CRITERIA,
-    currentUser, register, login, socialLogin, verifyEmail, logout, requireAuth, requireAdmin,
+    currentUser, register, login, socialLogin, verifyEmail, confirmEmailChange, logout, requireAuth, requireAdmin,
     fetchMySubmissions, createSubmission,
     fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, reassignDriver, collectItem, completeItem, awardItemPoints,
     fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,

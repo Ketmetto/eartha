@@ -11,6 +11,7 @@ URL = "/api/v1/auth/social/firebase/"
 
 def decoded_token(**overrides):
     token = {
+        "uid": "firebase-uid-1",
         "email": "google.user@example.com",
         "email_verified": True,
         "name": "Google User",
@@ -35,18 +36,49 @@ class TestFirebaseSocialLogin:
         assert user.first_name == "Google"
         assert user.last_name == "User"
         assert not user.has_usable_password()
+        assert user.firebase_uid == "firebase-uid-1"
 
         email_address = EmailAddress.objects.get(user=user, email=user.email)
         assert email_address.verified is True
 
     @patch("apps.users.services.verify_firebase_token")
     def test_matches_existing_user_by_email(self, mock_verify, api_client, user):
+        # First-time link: an account that registered with a password
+        # before (no firebase_uid yet) signs in with Google for the first
+        # time — should attach to it, not duplicate it.
+        assert not user.firebase_uid
         mock_verify.return_value = (decoded_token(email=user.email), None)
 
         response = api_client.post(URL, {"id_token": "fake-token"}, format="json")
 
         assert response.status_code == status.HTTP_200_OK
         assert User.objects.filter(email=user.email).count() == 1
+        user.refresh_from_db()
+        assert user.firebase_uid == "firebase-uid-1"
+
+    @patch("apps.users.services.verify_firebase_token")
+    def test_repeat_login_matches_by_uid_even_after_email_changed(self, mock_verify, api_client):
+        # Regression test: the account's Django email field is mutable
+        # (see request_email_change), but the Firebase identity backing it
+        # shouldn't care — that's the whole point of matching by uid.
+        # Before this fix, changing the profile email broke the link
+        # entirely: the next Google login's email no longer matched any
+        # user, so a second, empty account got created instead of finding
+        # the real one.
+        mock_verify.return_value = (decoded_token(), None)
+        api_client.post(URL, {"id_token": "fake-token"}, format="json")
+        created = User.objects.get(email="google.user@example.com")
+
+        created.email = "totally-different@example.com"
+        created.save()
+
+        mock_verify.return_value = (decoded_token(), None)  # same uid, same Google email as before
+        response = api_client.post(URL, {"id_token": "fake-token-2"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert User.objects.count() == 1
+        created.refresh_from_db()
+        assert created.email == "totally-different@example.com"
 
     @patch("apps.users.services.verify_firebase_token")
     def test_falls_back_to_display_name_when_token_has_no_name(self, mock_verify, api_client):

@@ -1,0 +1,32 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Email Change — EARTHA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body class="lock-viewport">
+  {% csrf_token %}
+
+  <header class="app-header" id="appHeader"></header>
+
+  <div class="auth-page">
+    <div class="auth-visual" role="img" aria-label="Two figures in linen, arms linked"></div>
+
+    <div class="auth-panel">
+      <h1 style="margin-top:0;">CONFIRM EMAIL CHANGE</h1>
+      <p class="form-msg" id="confirmMsg" role="status">CHECKING YOUR LINK&hellip;</p>
+      <a href="/login/" class="btn btn-block" id="confirmLoginLink" hidden>GO TO SIGN IN</a>
+    </div>
+  </div>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script>Eartha.renderHeader(Eartha.currentUser(), 'confirm-email-change');</script>
+  <script src="{% static 'web/js/confirm-email-change.js' %}"></script>
+</body>
+</html>
