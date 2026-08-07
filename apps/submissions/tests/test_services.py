@@ -33,7 +33,7 @@ class TestTransitionItemStatus:
                 str(pending_item.id), Item.Status.ACCEPTED
             )
             # Acceptance only screens photos — no points side effect. Points
-            # are awarded separately, at admin discretion, from DISPATCHED
+            # are awarded separately, at admin discretion, from COLLECTED
             # onward (see apps.points.services.set_item_award).
             assert not PointsLedgerEntry.objects.filter(reference_item=pending_item).exists()
 

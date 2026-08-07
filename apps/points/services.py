@@ -46,19 +46,21 @@ def get_awarded_total(item):
 def set_item_award(item, points: int, admin_user) -> PointsLedgerEntry:
     """
     Award or correct the points for a submission, at admin discretion, any
-    time from DISPATCHED status onward — never automatically on accept,
-    since acceptance only screens photos, before the item is physically
-    received. First call creates an AWARD entry; a later call creates an
-    ADJUSTMENT for the delta, keeping the ledger append-only. Raises if a
-    downward correction would take the user's balance negative (they've
+    time from COLLECTED status onward — never automatically on accept or
+    dispatch, since neither confirms the item is actually in Eartha's
+    hands yet (acceptance only screens photos; dispatch just means a
+    driver's been assigned, not that pickup happened — that could still
+    fall through). First call creates an AWARD entry; a later call creates
+    an ADJUSTMENT for the delta, keeping the ledger append-only. Raises if
+    a downward correction would take the user's balance negative (they've
     already spent some of what this item contributed).
     """
     from apps.submissions.models import Item
 
-    if item.status not in (Item.Status.DISPATCHED, Item.Status.COLLECTED, Item.Status.COMPLETED):
+    if item.status not in (Item.Status.COLLECTED, Item.Status.COMPLETED):
         raise ValidationError(
             f"Cannot award points while item status is '{item.status}'. "
-            "Item must be dispatched, collected, or completed."
+            "Item must be collected or completed."
         )
 
     with transaction.atomic():

@@ -170,7 +170,7 @@ class SubmissionMarkCompletedView(generics.GenericAPIView):
     Admin: mark a collected item as completed, closing out the pipeline.
     POST /admin/<uuid:pk>/complete/
     This transition itself has no points effect — points can be awarded or
-    corrected any time from DISPATCHED status onward (including on a
+    corrected any time from COLLECTED status onward (including on a
     COMPLETED item) via apps.points.admin_views.ItemAwardView, independent
     of this status change.
     """

@@ -78,11 +78,12 @@ if (admin) {
       : '<div class="thumb-64"></div>';
   }
 
-  // Award/correct points — shown once an item is dispatched onward, at
-  // admin discretion (never automatic on accept, since acceptance only
-  // screens photos, before the item is physically received). Pre-filled
-  // from the condition's suggested default, but freely editable; 0 is a
-  // valid award for a misrepresented item caught on physical inspection.
+  // Award/correct points — shown once an item is collected onward, at
+  // admin discretion (never automatic on accept or dispatch, since neither
+  // confirms the item is actually in hand — dispatch could still fall
+  // through). Pre-filled from the condition's suggested default, but
+  // freely editable; 0 is a valid award for a misrepresented item caught
+  // on physical inspection.
   function awardControl(s) {
     const suggested = Eartha.POINTS_CRITERIA[s.condition] ?? 0;
     const already = s.awardedPoints != null;
@@ -170,7 +171,10 @@ if (admin) {
       }
 
       case 'dispatched':
-        return `<button class="btn btn-sm" data-act="collect" data-id="${s.id}">MARK COLLECTED</button>${reassignControl(s)}${awardControl(s)}`;
+        // no awardControl here — dispatch only means a driver's been
+        // assigned, not that pickup has actually happened yet, and the
+        // backend now rejects awarding before COLLECTED for the same reason
+        return `<button class="btn btn-sm" data-act="collect" data-id="${s.id}">MARK COLLECTED</button>${reassignControl(s)}`;
 
       case 'collected':
         return `<button class="btn btn-sm" data-act="complete" data-id="${s.id}">CONFIRM &amp; CLOSE OUT</button>${awardControl(s)}`;

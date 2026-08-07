@@ -8,7 +8,7 @@ from rest_framework import status
 from apps.points.models import Benefit, PointsLedgerEntry
 
 # api_client / auth_client / admin_client / benefit / inactive_benefit /
-# dispatched_item come from conftest.py (root + apps/points/tests/)
+# collected_item come from conftest.py (root + apps/points/tests/)
 
 
 @pytest.mark.django_db
@@ -197,8 +197,8 @@ class TestItemAwardView:
     def url(self, item):
         return reverse("items-admin-award", kwargs={"pk": item.id})
 
-    def test_non_admin_cannot_access(self, auth_client, dispatched_item):
-        response = auth_client.post(self.url(dispatched_item), {"points": 70}, format="json")
+    def test_non_admin_cannot_access(self, auth_client, collected_item):
+        response = auth_client.post(self.url(collected_item), {"points": 70}, format="json")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_blocked_before_dispatch(self, admin_client, user):
@@ -210,23 +210,25 @@ class TestItemAwardView:
         response = admin_client.post(self.url(pending), {"points": 70}, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_admin_can_award_on_dispatched_item(self, admin_client, dispatched_item):
-        response = admin_client.post(self.url(dispatched_item), {"points": 70}, format="json")
+    def test_blocked_while_dispatched(self, admin_client, user):
+        # dispatch only means a driver's been assigned, not that pickup has
+        # actually happened yet — that could still fall through
+        from apps.submissions.models import Item
+
+        dispatched = Item.objects.create(
+            user=user, category=Item.Category.CLOTHING, condition=Item.Condition.GOOD, status=Item.Status.DISPATCHED,
+        )
+        response = admin_client.post(self.url(dispatched), {"points": 70}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_admin_can_award_on_collected_item(self, admin_client, collected_item):
+        response = admin_client.post(self.url(collected_item), {"points": 70}, format="json")
         assert response.status_code == status.HTTP_200_OK
         assert response.data["awarded_points"] == 70
 
-        entry = PointsLedgerEntry.objects.get(reference_item=dispatched_item)
+        entry = PointsLedgerEntry.objects.get(reference_item=collected_item)
         assert entry.entry_type == PointsLedgerEntry.EntryType.AWARD
         assert entry.awarded_by is not None
-
-    def test_admin_can_award_on_collected_item(self, admin_client, user):
-        from apps.submissions.models import Item
-
-        collected = Item.objects.create(
-            user=user, category=Item.Category.CLOTHING, condition=Item.Condition.GOOD, status=Item.Status.COLLECTED,
-        )
-        response = admin_client.post(self.url(collected), {"points": 40}, format="json")
-        assert response.status_code == status.HTTP_200_OK
 
     def test_admin_can_award_on_completed_item(self, admin_client, user):
         from apps.submissions.models import Item
@@ -237,16 +239,16 @@ class TestItemAwardView:
         response = admin_client.post(self.url(completed), {"points": 15}, format="json")
         assert response.status_code == status.HTTP_200_OK
 
-    def test_correction_respects_spent_guard(self, admin_client, dispatched_item):
-        admin_client.post(self.url(dispatched_item), {"points": 100}, format="json")
+    def test_correction_respects_spent_guard(self, admin_client, collected_item):
+        admin_client.post(self.url(collected_item), {"points": 100}, format="json")
         PointsLedgerEntry.objects.create(
-            user=dispatched_item.user, entry_type=PointsLedgerEntry.EntryType.REDEEM, points=-80,
+            user=collected_item.user, entry_type=PointsLedgerEntry.EntryType.REDEEM, points=-80,
         )
 
-        response = admin_client.post(self.url(dispatched_item), {"points": 10}, format="json")
+        response = admin_client.post(self.url(collected_item), {"points": 10}, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_missing_points_returns_400(self, admin_client, dispatched_item):
-        response = admin_client.post(self.url(dispatched_item), {}, format="json")
+    def test_missing_points_returns_400(self, admin_client, collected_item):
+        response = admin_client.post(self.url(collected_item), {}, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST

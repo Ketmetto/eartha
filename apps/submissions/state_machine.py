@@ -11,7 +11,7 @@ ALLOWED_TRANSITIONS = {
     # mistaken admin decision, allowed only this early — not once a driver's
     # been dispatched. No points implication either way: acceptance only
     # screens photos, points can't exist yet (see apps.points.services.
-    # set_item_award, which only allows awarding from DISPATCHED onward).
+    # set_item_award, which only allows awarding from COLLECTED onward).
     Item.Status.ACCEPTED: {Item.Status.DISPATCHED, Item.Status.REJECTED},
     Item.Status.DISPATCHED: {Item.Status.COLLECTED},
     Item.Status.COLLECTED: {Item.Status.COMPLETED},

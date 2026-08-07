@@ -9,12 +9,12 @@ from apps.submissions.models import Item
 
 
 @pytest.fixture
-def dispatched_item(user):
+def collected_item(user):
     return Item.objects.create(
         user=user,
         category=Item.Category.CLOTHING,
         condition=Item.Condition.GOOD,
-        status=Item.Status.DISPATCHED,
+        status=Item.Status.COLLECTED,
     )
 
 

@@ -11,7 +11,7 @@ class ItemPhotoSerializer(serializers.ModelSerializer):
 class ItemSerializer(serializers.ModelSerializer):
     photos = ItemPhotoSerializer(many=True, read_only=True)
     # Real awarded amount from the points ledger — null until an admin has
-    # awarded points (any time from DISPATCHED onward), not a guess from
+    # awarded points (any time from COLLECTED onward), not a guess from
     # condition. Safe to expose to the owning user, it's their own points.
     awarded_points = serializers.SerializerMethodField()
 

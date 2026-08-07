@@ -55,7 +55,8 @@ class BenefitReorderView(APIView):
 class ItemAwardView(generics.GenericAPIView):
     """
     Admin: award or correct the points for a submission, at discretion,
-    any time from DISPATCHED status onward — never automatic on accept.
+    any time from COLLECTED status onward — never automatic on accept or
+    dispatch, since neither confirms the item is actually in hand yet.
     POST /admin/items/<uuid:pk>/award/  {"points": 70}
     """
     serializer_class = ItemAwardSerializer

@@ -55,7 +55,7 @@ if (user && !user.isAdmin) {
 
   // ---------- submission history ----------
   // Points are awarded by an admin at their discretion, any time from
-  // dispatch onward — not derivable from status/condition alone (an admin
+  // collection onward — not derivable from status/condition alone (an admin
   // may award more, less, or 0). awardedPoints comes straight from the
   // ledger via the API; null means not yet awarded, see apps.points.services.
   // Paginated + infinite scroll — a long-time user's history can outgrow

@@ -40,7 +40,7 @@ const Eartha = (() => {
 
   // ---------- seed ----------
   // Suggested default only, per condition — points are awarded at admin
-  // discretion any time from dispatch onward (see queue.js's award
+  // discretion any time from collection onward (see queue.js's award
   // control), the admin can type a different amount. Not a guarantee.
   const POINTS_CRITERIA = {
     'like_new': 100,
@@ -496,7 +496,7 @@ const Eartha = (() => {
   }
 
   // Award or correct an item's points, at admin discretion — legal any
-  // time from dispatched status onward. Note: points endpoints, not
+  // time from collected status onward. Note: points endpoints, not
   // submissions.
   async function awardItemPoints(id, points) {
     return apiFetch(`/points/admin/items/${id}/award/`, { method: 'POST', body: { points } });
