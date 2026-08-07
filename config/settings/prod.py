@@ -1,5 +1,4 @@
-import os
-from .base import *  
+from .base import *  # noqa
 
 DEBUG = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -12,11 +11,6 @@ CSRF_TRUSTED_ORIGINS = [
     "https://YOURDOMAIN.com",
     "https://www.YOURDOMAIN.com",
 ]
-
-
-# Local-only testing addition — do NOT deploy this line to the VPS
-if os.environ.get("LOCAL_TESTING") == "1":
-    CSRF_TRUSTED_ORIGINS.append("https://localhost")
 
 # Baseline hardening — see REMINDERS.txt for the CSP header, which
 # needs a dependency decision before it's added on top of this.
