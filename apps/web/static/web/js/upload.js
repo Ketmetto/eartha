@@ -74,8 +74,14 @@ if (user) {
   // for text the user has since edited by hand.
   let addressParts = null;
   const mapsKey = JSON.parse(document.getElementById('google-maps-key').textContent);
-  EarthaAddressAutocomplete(pickupInput, mapsKey, document.getElementById('pickupMap'), (parts) => { addressParts = parts; });
+  EarthaAddressAutocomplete(
+    pickupInput, mapsKey, document.getElementById('pickupMap'),
+    (parts) => { addressParts = parts; }, document.getElementById('pickupLocate')
+  );
   pickupInput.addEventListener('input', () => { addressParts = null; });
+  const buildingInput = document.getElementById('pickupBuilding');
+  const floorUnitInput = document.getElementById('pickupFloorUnit');
+  const instructionsInput = document.getElementById('pickupInstructions');
 
   // ---------- phone number (asked once, saved to profile) ----------
   const phoneField = document.getElementById('phoneField');
@@ -107,7 +113,16 @@ if (user) {
       // addressParts (city/country/postal_code) only exists if a real
       // autocomplete suggestion was picked — otherwise fall back to the
       // plain typed line, same as before this integration existed.
-      addressToSave = addressParts ? { ...addressParts, line1: addressParts.line1 || typed } : typed;
+      // building/floor_unit/instructions are independent manual fields,
+      // not something Places Autocomplete resolves, so they're merged in
+      // either way.
+      addressToSave = {
+        ...(addressParts || {}),
+        line1: (addressParts && addressParts.line1) || typed,
+        building: buildingInput.value.trim(),
+        floor_unit: floorUnitInput.value.trim(),
+        instructions: instructionsInput.value.trim(),
+      };
     }
 
     let phoneToSave = null;

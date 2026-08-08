@@ -304,6 +304,7 @@ if (admin) {
     const lines = [
       `Pickup for ${item.userName || 'an Eartha user'}${item.userPhone ? ' (' + item.userPhone + ')' : ''}`,
       item.pickupAddress ? `Address: ${item.pickupAddress}` : null,
+      item.pickupInstructions ? `Instructions: ${item.pickupInstructions}` : null,
       (item.pickupLat != null && item.pickupLng != null)
         ? `Map: https://www.google.com/maps?q=${item.pickupLat},${item.pickupLng}`
         : null,

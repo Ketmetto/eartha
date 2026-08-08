@@ -13,6 +13,13 @@
    web component — it drops onto our existing styled <input> with no
    markup changes and no Shadow DOM styling to fight. Google still fully
    supports it; only new *features* are Element-only.
+
+   A "use my current location" button is a second, optional entry point
+   into the same pin — useful standing at the actual pickup spot, where
+   typing/searching an address is slower and less exact than just sharing
+   position. It reverse-geocodes the browser's coordinates back into the
+   same structured fields Places Autocomplete produces, so either path
+   ends up in the same shape.
 */
 (function () {
   let loaderPromise = null;
@@ -55,8 +62,10 @@
   // onSelect(parts): called with {line1, city, country, postal_code,
   // latitude, longitude} — once when a suggestion is picked, and again
   // (same address fields, updated coordinates) every time the pin is
-  // dragged to a new spot.
-  window.EarthaAddressAutocomplete = async function (input, apiKey, mapEl, onSelect) {
+  // dragged to a new spot, or "use my current location" resolves.
+  // locateBtn: optional "use my current location" button — stays hidden
+  // (its markup default) until Maps has actually loaded.
+  window.EarthaAddressAutocomplete = async function (input, apiKey, mapEl, onSelect, locateBtn) {
     if (!apiKey || !input) return;
     try {
       await loadGoogleMaps(apiKey);
@@ -91,25 +100,69 @@
       });
     }
 
+    function showPin(location) {
+      if (!mapEl) return;
+      mapEl.hidden = false;
+      if (!map) {
+        map = new google.maps.Map(mapEl, { center: location, zoom: 17, disableDefaultUI: true, zoomControl: true });
+        marker = new google.maps.Marker({ position: location, map, draggable: true });
+        marker.addListener('dragend', () => emit(marker.getPosition()));
+      } else {
+        map.setCenter(location);
+        marker.setPosition(location);
+      }
+    }
+
     autocomplete.addListener('place_changed', () => {
       const place = autocomplete.getPlace();
       if (!place.geometry) return; // user hit Enter without picking a suggestion
       input.value = place.formatted_address || input.value;
       textParts = place.address_components ? parseAddressComponents(place.address_components) : {};
-      const location = place.geometry.location;
+      showPin(place.geometry.location);
+      emit(place.geometry.location);
+    });
 
-      if (mapEl) {
-        mapEl.hidden = false;
-        if (!map) {
-          map = new google.maps.Map(mapEl, { center: location, zoom: 17, disableDefaultUI: true, zoomControl: true });
-          marker = new google.maps.Marker({ position: location, map, draggable: true });
-          marker.addListener('dragend', () => emit(marker.getPosition()));
-        } else {
-          map.setCenter(location);
-          marker.setPosition(location);
-        }
+    if (!locateBtn) return;
+    locateBtn.hidden = false;
+
+    locateBtn.addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        Eartha.toast("YOUR BROWSER DOESN'T SUPPORT LOCATION SHARING — ENTER YOUR ADDRESS ABOVE INSTEAD.");
+        return;
       }
-      emit(location);
+      const originalText = locateBtn.textContent;
+      locateBtn.disabled = true;
+      locateBtn.textContent = 'LOCATING…';
+      const reset = () => { locateBtn.disabled = false; locateBtn.textContent = originalText; };
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const location = new google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+          showPin(location);
+          // Reverse geocode so the text input and structured fields end
+          // up holding a real address, not just a bare coordinate — the
+          // pin is still dropped and usable even if this part fails.
+          new google.maps.Geocoder().geocode({ location }, (results, status) => {
+            if (status === 'OK' && results[0]) {
+              input.value = results[0].formatted_address;
+              textParts = parseAddressComponents(results[0].address_components);
+            } else {
+              textParts = {};
+            }
+            emit(location);
+            reset();
+          });
+        },
+        (err) => {
+          reset();
+          Eartha.toast(
+            err.code === err.PERMISSION_DENIED
+              ? 'LOCATION ACCESS WAS DENIED — ENTER YOUR ADDRESS ABOVE INSTEAD.'
+              : 'COULD NOT GET YOUR LOCATION — ENTER YOUR ADDRESS ABOVE INSTEAD.'
+          );
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
     });
   };
 })();

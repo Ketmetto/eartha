@@ -23,6 +23,27 @@ class TestAddress:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["city"] == "Beirut"
 
+    def test_update_address_with_optional_fields(self, api_client, user):
+        api_client.force_authenticate(user=user)
+        payload = {
+            "line1": "12 Hamra St", "city": "Beirut", "country": "Lebanon",
+            "building": "Sakr Building", "floor_unit": "4th floor, Apt 12",
+            "instructions": "Gate code 1234, call on arrival",
+        }
+        response = api_client.put(self.url, payload, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["building"] == "Sakr Building"
+        assert response.data["floor_unit"] == "4th floor, Apt 12"
+        assert response.data["instructions"] == "Gate code 1234, call on arrival"
+
+    def test_address_optional_fields_default_blank(self, api_client, user):
+        api_client.force_authenticate(user=user)
+        response = api_client.get(self.url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["building"] == ""
+        assert response.data["floor_unit"] == ""
+        assert response.data["instructions"] == ""
+
     def test_address_is_scoped_to_the_authenticated_user(self, api_client, user, django_user_model):
         other = django_user_model.objects.create_user(
             username="other", email="other@example.com", password="testpass123"

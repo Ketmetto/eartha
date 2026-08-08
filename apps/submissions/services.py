@@ -89,8 +89,9 @@ def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str 
             raise ValidationError(
                 {"pickup_address_snapshot": "User has no saved pickup address."}
             )
-        parts = [address.line1, address.line2, address.city, address.country, address.postal_code]
-        pickup_address_snapshot = ", ".join(p for p in parts if p)
+        pickup_address_snapshot = address.as_pickup_text()
+        if address.instructions:
+            pickup_address_snapshot += f"\nInstructions: {address.instructions}"
 
     with transaction.atomic():
         # Create the driver assignment

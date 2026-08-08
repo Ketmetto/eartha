@@ -14,8 +14,14 @@ if (user && !user.isAdmin) {
   let addressParts = null;
   const addressInput = document.getElementById('setAddress');
   const mapsKey = JSON.parse(document.getElementById('google-maps-key').textContent);
-  EarthaAddressAutocomplete(addressInput, mapsKey, document.getElementById('pickupMap'), (parts) => { addressParts = parts; });
+  EarthaAddressAutocomplete(
+    addressInput, mapsKey, document.getElementById('pickupMap'),
+    (parts) => { addressParts = parts; }, document.getElementById('setLocate')
+  );
   addressInput.addEventListener('input', () => { addressParts = null; });
+  const buildingInput = document.getElementById('setBuilding');
+  const floorUnitInput = document.getElementById('setFloorUnit');
+  const instructionsInput = document.getElementById('setInstructions');
 
   // ---------- balance ----------
   async function renderBalance() {
@@ -209,6 +215,9 @@ if (user && !user.isAdmin) {
       document.getElementById('setEmail').value = me.email;
       document.getElementById('setPhone').value = me.phone || '';
       document.getElementById('setAddress').value = address.line1 || '';
+      buildingInput.value = address.building || '';
+      floorUnitInput.value = address.floor_unit || '';
+      instructionsInput.value = address.instructions || '';
       document.getElementById('setNotify').checked = prefs.email_enabled;
       showEmailHint(me.pending_email);
     } catch (err) {
@@ -227,7 +236,15 @@ if (user && !user.isAdmin) {
     // addressParts (city/country/postal_code) only exists if a real
     // autocomplete suggestion was picked — otherwise fall back to the
     // plain typed line, same as before this integration existed.
-    const address = addressParts ? { ...addressParts, line1: addressParts.line1 || typedAddress } : typedAddress;
+    // building/floor_unit/instructions are independent manual fields, not
+    // something Places Autocomplete resolves, so they're merged in either way.
+    const address = {
+      ...(addressParts || {}),
+      line1: (addressParts && addressParts.line1) || typedAddress,
+      building: buildingInput.value.trim(),
+      floor_unit: floorUnitInput.value.trim(),
+      instructions: instructionsInput.value.trim(),
+    };
     const currentPassword = document.getElementById('setCurrentPassword').value;
     const newPassword = document.getElementById('setPassword').value;
     const notify = document.getElementById('setNotify').checked;

@@ -108,7 +108,10 @@ class EmailVerifiedTokenObtainPairSerializer(TokenObtainPairSerializer):
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        fields = ["line1", "line2", "city", "country", "postal_code", "latitude", "longitude"]
+        fields = [
+            "line1", "building", "floor_unit", "instructions",
+            "city", "country", "postal_code", "latitude", "longitude",
+        ]
 
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):

@@ -83,8 +83,21 @@
         <div class="field">
           <label for="setAddress">PICKUP ADDRESS</label>
           <input type="text" id="setAddress" autocomplete="street-address" placeholder="Street, building, city">
+          <button type="button" id="setLocate" class="btn btn-ghost btn-sm" style="margin-top:8px;" hidden>USE MY CURRENT LOCATION</button>
           <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);" hidden></div>
-          <p class="hint">USED BY OUR DRIVER WHEN COLLECTING YOUR ITEMS. DRAG THE PIN IF IT'S NOT EXACTLY ON YOUR ENTRANCE.</p>
+          <p class="hint">USED BY OUR DRIVER WHEN COLLECTING YOUR ITEMS. DRAG THE PIN IF IT'S NOT EXACTLY ON YOUR ENTRANCE, OR TAP "USE MY CURRENT LOCATION" IF YOU'RE THERE NOW. THE PIN IS OPTIONAL — WE CAN STILL DISPATCH A DRIVER FROM THE ADDRESS ALONE.</p>
+        </div>
+        <div class="field">
+          <label for="setBuilding">BUILDING NAME / NUMBER <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>
+          <input type="text" id="setBuilding" placeholder="e.g. Sakr Building">
+        </div>
+        <div class="field">
+          <label for="setFloorUnit">FLOOR / APARTMENT <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>
+          <input type="text" id="setFloorUnit" placeholder="e.g. 4th floor, Apt 12">
+        </div>
+        <div class="field">
+          <label for="setInstructions">DELIVERY INSTRUCTIONS <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>
+          <textarea id="setInstructions" rows="2" placeholder="e.g. Gate code 1234, call on arrival"></textarea>
         </div>
         <div class="field">
           <label for="setPassword">NEW PASSWORD <span class="muted" style="font-weight:400;">(LEAVE BLANK TO KEEP CURRENT)</span></label>

@@ -238,3 +238,19 @@ class TestAssignDriver:
             )
 
         assert "already assigned" in str(exc_info.value.detail)
+
+    def test_falls_back_to_saved_address_including_instructions(self, accepted_item):
+        from apps.users.models import Address
+
+        Address.objects.create(
+            user=accepted_item.user, line1="12 Hamra St", building="Sakr Building",
+            floor_unit="4th floor", city="Beirut", country="Lebanon",
+            instructions="Gate code 1234, call on arrival",
+        )
+
+        assignment = assign_driver(item=accepted_item, driver_name="John Doe")
+
+        assert assignment.pickup_address_snapshot == (
+            "12 Hamra St, Sakr Building, 4th floor, Beirut, Lebanon\n"
+            "Instructions: Gate code 1234, call on arrival"
+        )

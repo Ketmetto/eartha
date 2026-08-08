@@ -380,6 +380,7 @@ const Eartha = (() => {
       userEmail: apiItem.user_email,
       userPhone: apiItem.user_phone,
       pickupAddress: apiItem.pickup_address,
+      pickupInstructions: apiItem.pickup_instructions,
       // present only once the user's address has a confirmed map pin —
       // see ItemAdminSerializer.get_pickup_latitude
       pickupLat: apiItem.pickup_latitude,

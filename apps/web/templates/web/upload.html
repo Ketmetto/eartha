@@ -60,11 +60,26 @@
           <p class="hint">REQUIRED FOR REVIEW · MAX 5 IMAGES</p>
         </div>
 
-        <div class="field" id="addressField" hidden>
-          <label for="pickupAddress">PICKUP ADDRESS</label>
-          <input type="text" id="pickupAddress" autocomplete="street-address" placeholder="Street, building, city">
-          <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);" hidden></div>
-          <p class="hint">WE NEED THIS ONCE — OUR DRIVER USES IT TO COLLECT YOUR ITEMS. SAVED TO YOUR PROFILE. DRAG THE PIN IF IT'S NOT EXACTLY ON YOUR ENTRANCE.</p>
+        <div id="addressField" hidden>
+          <div class="field">
+            <label for="pickupAddress">PICKUP ADDRESS</label>
+            <input type="text" id="pickupAddress" autocomplete="street-address" placeholder="Street, building, city">
+            <button type="button" id="pickupLocate" class="btn btn-ghost btn-sm" style="margin-top:8px;" hidden>USE MY CURRENT LOCATION</button>
+            <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);" hidden></div>
+            <p class="hint">WE NEED THIS ONCE — OUR DRIVER USES IT TO COLLECT YOUR ITEMS. SAVED TO YOUR PROFILE. DRAG THE PIN IF IT'S NOT EXACTLY ON YOUR ENTRANCE, OR TAP "USE MY CURRENT LOCATION" IF YOU'RE THERE NOW. THE PIN IS OPTIONAL.</p>
+          </div>
+          <div class="field">
+            <label for="pickupBuilding">BUILDING NAME / NUMBER <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>
+            <input type="text" id="pickupBuilding" placeholder="e.g. Sakr Building">
+          </div>
+          <div class="field">
+            <label for="pickupFloorUnit">FLOOR / APARTMENT <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>
+            <input type="text" id="pickupFloorUnit" placeholder="e.g. 4th floor, Apt 12">
+          </div>
+          <div class="field">
+            <label for="pickupInstructions">DELIVERY INSTRUCTIONS <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>
+            <textarea id="pickupInstructions" rows="2" placeholder="e.g. Gate code 1234, call on arrival"></textarea>
+          </div>
         </div>
 
         <div class="field" id="phoneField" hidden>

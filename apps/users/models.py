@@ -57,7 +57,14 @@ class User(AbstractUser):
 class Address(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="address")
     line1 = models.CharField(max_length=255)
-    line2 = models.CharField(max_length=255, blank=True)
+    # Free-text extras Places Autocomplete has no structured slot for —
+    # Lebanese addressing commonly identifies a pickup by building name
+    # rather than street number, so these matter more here than in most
+    # places. All optional; a bare line1/city/country is still a complete
+    # address.
+    building = models.CharField(max_length=255, blank=True)
+    floor_unit = models.CharField(max_length=60, blank=True)
+    instructions = models.TextField(blank=True)
     city = models.CharField(max_length=120)
     country = models.CharField(max_length=120)
     postal_code = models.CharField(max_length=20, blank=True)
@@ -67,6 +74,17 @@ class Address(BaseModel):
     # ~11cm precision, the standard for this kind of pin location.
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
+    def as_pickup_text(self):
+        """Single-line address for admin display and the driver handoff
+        (pickup_address_snapshot, WhatsApp dispatch message) — the one
+        place this formatting lives, so it can't drift out of sync between
+        the two callers the way line1/line2/city/country/postal_code did
+        before this method existed. Doesn't include `instructions` —
+        driver-facing notes are surfaced as their own field so they can't
+        get lost inside a long comma-joined line."""
+        parts = [self.line1, self.building, self.floor_unit, self.city, self.country, self.postal_code]
+        return ", ".join(p for p in parts if p)
 
 
 class NotificationPreference(BaseModel):
