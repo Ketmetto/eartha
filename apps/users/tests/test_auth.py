@@ -65,6 +65,22 @@ class TestRegister:
         usernames = set(User.objects.values_list("username", flat=True))
         assert len(usernames) == User.objects.count()
 
+    def test_email_is_stored_lowercase(self, api_client):
+        response = api_client.post(
+            self.url, self.valid_payload(email="Mixed.Case@Example.com"), format="json"
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert User.objects.filter(email="mixed.case@example.com").exists()
+
+    def test_rejects_duplicate_email_differing_only_by_case(self, api_client, user):
+        # user's fixture email is test@example.com — same account, just
+        # typed in a different case, is still "an account with this email"
+        response = api_client.post(
+            self.url, self.valid_payload(email=user.email.upper()), format="json"
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "email" in response.data
+
 
 @pytest.mark.django_db
 class TestLoginAndTokens:

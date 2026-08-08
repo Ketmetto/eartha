@@ -1,7 +1,6 @@
 from allauth.account.models import EmailAddress
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, Address, NotificationPreference
 from . import services
@@ -41,9 +40,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     (+ confirm), terms checkbox. Username isn't a user-facing field —
     it's derived from the email so the frontend never has to collect it.
     """
-    email = serializers.EmailField(
-        validators=[UniqueValidator(queryset=User.objects.all(), message="An account with this email already exists.")]
-    )
+    # No UniqueValidator here — it would run on the raw submitted value
+    # (before validate_email below gets a chance to lowercase it), so
+    # "Jane@Example.com" would sail through as "unique" even with
+    # "jane@example.com" already registered. Checking after normalizing,
+    # in validate_email, is the only way to get the order right.
+    email = serializers.EmailField()
     full_name = serializers.CharField(write_only=True, max_length=150)
     password = serializers.CharField(write_only=True, validators=[validate_password])
     password_confirm = serializers.CharField(write_only=True)
@@ -52,6 +54,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["email", "full_name", "password", "password_confirm", "agree_to_terms"]
+
+    def validate_email(self, value):
+        value = value.strip().lower()
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+        return value
 
     def validate_agree_to_terms(self, value):
         if not value:

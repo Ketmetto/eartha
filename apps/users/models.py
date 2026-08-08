@@ -40,6 +40,19 @@ class User(AbstractUser):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
+    # There are three separate places a User's email first gets set
+    # (RegisterSerializer.create, get_or_create_user_from_firebase, Django
+    # admin edits) plus request_email_change's own careful lowercasing —
+    # normalizing here once, on every save, is the one place that
+    # guarantees "Jane@Example.com" and "jane@example.com" can't both end
+    # up stored (email's unique=True is otherwise a case-sensitive DB
+    # constraint, same gap phone had before apps.users.services.
+    # normalize_phone).
+    def save(self, *args, **kwargs):
+        if self.email:
+            self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
+
 
 class Address(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="address")

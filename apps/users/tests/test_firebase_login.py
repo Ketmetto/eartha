@@ -42,6 +42,19 @@ class TestFirebaseSocialLogin:
         assert email_address.verified is True
 
     @patch("apps.users.services.verify_firebase_token")
+    def test_new_user_email_is_stored_lowercase(self, mock_verify, api_client):
+        # Providers aren't guaranteed to send a lowercase email — without
+        # normalizing here, this could create an account that doesn't
+        # match a same-address, different-case account registered the
+        # normal way (User.email's uniqueness is otherwise case-sensitive).
+        mock_verify.return_value = (decoded_token(email="Google.User@Example.com"), None)
+
+        response = api_client.post(URL, {"id_token": "fake-token"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert User.objects.filter(email="google.user@example.com").exists()
+
+    @patch("apps.users.services.verify_firebase_token")
     def test_matches_existing_user_by_email(self, mock_verify, api_client, user):
         # First-time link: an account that registered with a password
         # before (no firebase_uid yet) signs in with Google for the first

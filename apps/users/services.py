@@ -284,7 +284,10 @@ def get_or_create_user_from_firebase(decoded_token, display_name=""):
     finding the real one, orphaning everything under the old account.
     """
     uid = decoded_token["uid"]
-    email = decoded_token["email"]
+    # Lowercased mainly so generate_unique_username below derives from a
+    # normalized local-part — User.save() would lowercase the stored email
+    # regardless, but username generation runs before that save.
+    email = decoded_token["email"].strip().lower()
 
     user = User.objects.filter(firebase_uid=uid).first()
     if user:
