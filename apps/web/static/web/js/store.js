@@ -380,6 +380,10 @@ const Eartha = (() => {
       userEmail: apiItem.user_email,
       userPhone: apiItem.user_phone,
       pickupAddress: apiItem.pickup_address,
+      // present only once the user's address has a confirmed map pin —
+      // see ItemAdminSerializer.get_pickup_latitude
+      pickupLat: apiItem.pickup_latitude,
+      pickupLng: apiItem.pickup_longitude,
       driverName: apiItem.driver_name,
       // null/undefined = not yet awarded; 0 is itself a valid award
       // (e.g. an item caught as misrepresented on inspection).

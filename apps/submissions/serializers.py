@@ -31,11 +31,14 @@ class ItemAdminSerializer(ItemSerializer):
     user_email = serializers.SerializerMethodField()
     user_phone = serializers.SerializerMethodField()
     pickup_address = serializers.SerializerMethodField()
+    pickup_latitude = serializers.SerializerMethodField()
+    pickup_longitude = serializers.SerializerMethodField()
     driver_name = serializers.SerializerMethodField()
 
     class Meta(ItemSerializer.Meta):
         fields = ItemSerializer.Meta.fields + [
-            "user", "user_name", "user_email", "user_phone", "pickup_address", "driver_name",
+            "user", "user_name", "user_email", "user_phone", "pickup_address",
+            "pickup_latitude", "pickup_longitude", "driver_name",
             "rejection_reason", "updated_at",
         ]
 
@@ -55,6 +58,17 @@ class ItemAdminSerializer(ItemSerializer):
             return None
         parts = [address.line1, address.line2, address.city, address.country, address.postal_code]
         return ", ".join(p for p in parts if p)
+
+    # Null whenever the address predates the map pin-drop step, or the pin
+    # was never confirmed — see Address.latitude's docstring. The queue
+    # falls back to text-address-only dispatch messages in that case.
+    def get_pickup_latitude(self, obj):
+        address = getattr(obj.user, "address", None)
+        return address.latitude if address else None
+
+    def get_pickup_longitude(self, obj):
+        address = getattr(obj.user, "address", None)
+        return address.longitude if address else None
 
     def get_driver_name(self, obj):
         dispatch = getattr(obj, "dispatch", None)

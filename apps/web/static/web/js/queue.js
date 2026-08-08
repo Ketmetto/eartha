@@ -296,6 +296,22 @@ if (admin) {
     renderList();
   });
 
+  // Builds the wa.me URL a driver gets sent to for a pickup: the contact
+  // details they need plus a Google Maps link straight to the pin the user
+  // dropped on their address (falls back to the text address alone when no
+  // pin was ever confirmed — see ItemAdminSerializer.get_pickup_latitude).
+  function waDispatchUrl(phoneDigits, item) {
+    const lines = [
+      `Pickup for ${item.userName || 'an Eartha user'}${item.userPhone ? ' (' + item.userPhone + ')' : ''}`,
+      item.pickupAddress ? `Address: ${item.pickupAddress}` : null,
+      (item.pickupLat != null && item.pickupLng != null)
+        ? `Map: https://www.google.com/maps?q=${item.pickupLat},${item.pickupLng}`
+        : null,
+    ].filter(Boolean);
+    const text = encodeURIComponent(lines.join('\n'));
+    return `https://wa.me/${phoneDigits}?text=${text}`;
+  }
+
   // actions — one delegated listener, whole pipeline. These never reach
   // the server — they just toggle which panel a card shows — so a full
   // render() (re-fetches actionItems, and resets+re-fetches the done tab
@@ -348,7 +364,8 @@ if (admin) {
 
         const phoneDigits = driver.phone.replace(/\D/g, '');
         if (waWindow) {
-          if (phoneDigits) waWindow.location.href = `https://wa.me/${phoneDigits}`;
+          const item = actionItems.find((x) => x.id === id);
+          if (phoneDigits) waWindow.location.href = waDispatchUrl(phoneDigits, item || {});
           else waWindow.close();
         }
       } else if (act === 'reassign-open') {
@@ -376,7 +393,8 @@ if (admin) {
 
         const phoneDigits = driver.phone.replace(/\D/g, '');
         if (waWindow) {
-          if (phoneDigits) waWindow.location.href = `https://wa.me/${phoneDigits}`;
+          const item = actionItems.find((x) => x.id === id);
+          if (phoneDigits) waWindow.location.href = waDispatchUrl(phoneDigits, item || {});
           else waWindow.close();
         }
       } else if (act === 'collect') {
