@@ -16,6 +16,23 @@ class UserSerializer(serializers.ModelSerializer):
         # intercepts it before save — see MeView.perform_update. pending_email
         # is read-only: it's only ever set by request_email_change.
         read_only_fields = ["id", "is_staff", "pending_email"]
+        # phone's model-level unique=True would otherwise get DRF's auto
+        # UniqueValidator attached here, which runs (on the raw input)
+        # before validate_phone below gets a chance to normalize it —
+        # "70123456" and "+96170123456" would each sail through as
+        # "unique" even though they're the same number. Doing the
+        # uniqueness check ourselves, after normalizing, is the only way
+        # to get the order right.
+        extra_kwargs = {"phone": {"validators": []}}
+
+    def validate_phone(self, value):
+        if not value:
+            return None
+        normalized = services.normalize_phone(value)
+        already_used = User.objects.filter(phone=normalized).exclude(pk=self.instance.pk).exists()
+        if already_used:
+            raise serializers.ValidationError("This phone number is already associated with another account.")
+        return normalized
 
 
 class RegisterSerializer(serializers.ModelSerializer):

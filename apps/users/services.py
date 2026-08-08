@@ -2,6 +2,7 @@
 import logging
 import uuid
 
+import phonenumbers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
 from django.db import IntegrityError, transaction
@@ -24,6 +25,32 @@ def generate_unique_username(email: str) -> str:
     while User.objects.filter(username=username).exists():
         username = f"{base}-{uuid.uuid4().hex[:6]}"
     return username
+
+
+# Eartha operates in Lebanon, so a number typed without a country code
+# ("70123456", "03123456") is assumed local — same default region the
+# Places Autocomplete address flow uses. A caller can still type a full
+# "+961..." or other-country number; phonenumbers detects the leading "+"
+# regardless of this default.
+PHONE_DEFAULT_REGION = "LB"
+
+
+def normalize_phone(raw: str) -> str:
+    """
+    Canonicalize a user-entered phone number to E.164 (e.g. "+96170123456")
+    so that "(961) 70 123 456", "70123456" and "+961 70 123 456" all collapse
+    to the same stored value — without this, User.phone's uniqueness
+    constraint only catches byte-for-byte duplicate strings, not the same
+    number typed three different ways. Raises DRF ValidationError (not
+    Django's) since the only caller is UserSerializer.validate_phone.
+    """
+    try:
+        parsed = phonenumbers.parse(raw, PHONE_DEFAULT_REGION)
+    except phonenumbers.NumberParseException:
+        raise ValidationError("Enter a valid phone number.")
+    if not phonenumbers.is_valid_number(parsed):
+        raise ValidationError("Enter a valid phone number.")
+    return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
 
 class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):

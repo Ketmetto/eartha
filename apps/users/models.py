@@ -8,7 +8,13 @@ from base.models import BaseModel
 class User(AbstractUser):
     """Custom user so we can add fields later without a painful migration."""
     email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=32, blank=True)
+    # null (not just blank) so multiple users can each leave this unset
+    # without colliding on '' under the uniqueness constraint below. Always
+    # stored in E.164 — see apps.users.services.normalize_phone — so that
+    # "(961) 70 123 456", "70123456" and "+961 70 123 456" are recognized
+    # as the same number instead of three distinct strings all satisfying
+    # uniqueness.
+    phone = models.CharField(max_length=32, blank=True, null=True, unique=True)
     verified = models.BooleanField(
         default=False,
         help_text="Manually verified accounts skip email verification on login. Used to grant access to test accounts.",

@@ -191,6 +191,54 @@ class TestMeEndpoint:
 
 
 @pytest.mark.django_db
+class TestPhoneNumber:
+    """Two accounts entering "the same" Lebanese number in different
+    clothing (spaces, a leading 0, a +961) used to both save fine — see
+    apps.users.services.normalize_phone."""
+
+    def test_phone_is_normalized_to_e164(self, api_client, user):
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch("/api/v1/auth/me/", {"phone": "03 111 222"}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["phone"] == "+9613111222"
+
+    def test_rejects_a_number_already_used_by_someone_else(self, api_client, user, admin_user):
+        admin_user.phone = "+96170123456"
+        admin_user.save(update_fields=["phone"])
+
+        api_client.force_authenticate(user=user)
+        response = api_client.patch(
+            "/api/v1/auth/me/", {"phone": "(961) 70 123 456"}, format="json"
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        user.refresh_from_db()
+        assert user.phone is None
+
+    def test_rejects_an_unparseable_number(self, api_client, user):
+        api_client.force_authenticate(user=user)
+
+        response = api_client.patch("/api/v1/auth/me/", {"phone": "123"}, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_clearing_phone_stores_null_not_empty_string(self, api_client, user, admin_user):
+        # Postgres doesn't consider two NULLs equal under a unique
+        # constraint, but it does consider two ''s equal — so an unset
+        # phone has to serialize as null, not '', or a second user
+        # clearing theirs would collide with the first (this is exactly
+        # what 0006/0007's migration bug did to pre-existing '' rows).
+        api_client.force_authenticate(user=user)
+        response = api_client.patch("/api/v1/auth/me/", {"phone": ""}, format="json")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["phone"] is None
+        assert admin_user.phone is None  # unaffected, and no collision on either save
+
+
+@pytest.mark.django_db
 class TestAdminRBAC:
     """
     IsAdmin is used across apps (e.g. the submissions review queue) but
