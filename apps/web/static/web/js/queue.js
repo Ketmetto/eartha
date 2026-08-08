@@ -708,6 +708,22 @@ if (admin) {
     io.observe(sentinel);
   }
 
+  // Replies go out from the admin's own mail client, not through Eartha's
+  // system email — a contact-form inbox is exactly the kind of free-form,
+  // two-way conversation a transactional-email pipeline shouldn't carry
+  // (deliverability/reputation risk for the sender address, and it'd mean
+  // building storage + a mini email client for what's really just "hand
+  // this off to Gmail/Outlook"). mailto: does that with no backend at all.
+  function mailtoReplyUrl(m) {
+    const subject = `Re: ${m.subject || 'your message to Eartha'}`;
+    const quoted = `\n\n---\nOn ${Eartha.fmtDate(m.date)}, ${m.name} wrote:\n${m.body}`;
+    // The recipient goes in unencoded — encodeURIComponent would %40 the
+    // "@", which most mail clients do decode back correctly, but the
+    // mailto: RFC (6068) treats the to-part as a raw addr-spec, so this is
+    // both simpler and more compatible.
+    return `mailto:${m.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(quoted)}`;
+  }
+
   function renderInboxList() {
     const el = document.getElementById('inboxList');
     if (!inboxItems.length) {
@@ -723,7 +739,10 @@ if (admin) {
           ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
         </p>
         <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
-        ${m.read ? '' : `<button class="link-underline" style="font-size:10px;margin-top:12px;" data-read="${m.id}">MARK AS READ</button>`}
+        <div style="display:flex;gap:16px;margin-top:12px;">
+          <a class="link-underline" style="font-size:10px;" href="${Eartha.esc(mailtoReplyUrl(m))}">REPLY BY EMAIL</a>
+          ${m.read ? '' : `<button class="link-underline" style="font-size:10px;" data-read="${m.id}">MARK AS READ</button>`}
+        </div>
       </div>`
       )
       .join('');
