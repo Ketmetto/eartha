@@ -187,12 +187,10 @@
     }
 
     const contactFormEl = document.getElementById('contactForm');
-    // adminUser is really just "whoever's logged in" — by the time we get
-    // here, an actual admin's form has already been replaced with the
-    // inbox above, so a truthy value + a form still on the page means a
-    // logged-in non-admin user. Pre-fill AND lock name/email — letting
-    // someone edit them while logged in would just mean the message no
-    // longer matches the account it was sent from.
+    // A form still on the page + a truthy adminUser means a logged-in
+    // non-admin (an actual admin's form was already replaced above).
+    // Pre-fill and lock name/email so the message can't drift from the
+    // account it's actually sent from.
     if (contactFormEl && adminUser) {
       const cNameEl = document.getElementById('cName');
       const cEmailEl = document.getElementById('cEmail');
@@ -225,11 +223,9 @@
           subject: document.getElementById('cSubject').value.trim(),
           body,
         });
-        // For a logged-in user, cName/cEmail were set via .value (not the
-        // HTML attribute) and then disabled — form.reset() reverts inputs
-        // to their *attribute* default, which is blank here, leaving the
-        // disabled fields stuck empty and blocking any further submission
-        // this session. Only clear the fields that should actually reset.
+        // form.reset() reverts to each input's HTML attribute default,
+        // not its .value — for a logged-in user that's blank, which would
+        // leave the disabled name/email fields stuck empty.
         if (adminUser) {
           document.getElementById('cSubject').value = '';
           document.getElementById('cBody').value = '';
