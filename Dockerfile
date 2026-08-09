@@ -3,12 +3,8 @@ FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Gunicorn's control-socket defaults to $XDG_RUNTIME_DIR/gunicorn.ctl, falling
-# back to $HOME/.gunicorn/ if unset. The `app` user below is created with
-# `-M` (no home dir), so that fallback path doesn't exist and gunicorn logs
-# "Control server error: Permission denied: '/home/app'" on every boot.
-# Pointing XDG_RUNTIME_DIR at /tmp (world-writable in this base image) gives
-# it a real, writable target instead.
+# Gunicorn's control-socket falls back to $HOME/.gunicorn/, which doesn't
+# exist for the -M (no home dir) `app` user below — point it at /tmp instead.
 ENV XDG_RUNTIME_DIR=/tmp
 
 WORKDIR /app
@@ -26,19 +22,9 @@ COPY . .
 
 RUN chmod +x scripts/entrypoint.sh
 
-# Run as a non-root, host-UID-matched user so files the container writes
-# into the bind-mounted ./:/app dev volume (media/, staticfiles/,
-# __pycache__) come out owned by you on the host instead of root. Override
-# APP_UID/APP_GID at build time if your host user isn't the common default
-# 1000 (check with `id -u`/`id -g`); in Compose that's the `build.args` for
-# each service. Only matters for the bind-mount case (dev) — the prod
-# compose file has no volume, so the chown below is what actually sticks.
-
-# ARG APP_UID=1000
-# ARG APP_GID=1000
-# RUN groupadd -g "${APP_GID}" app && useradd -u "${APP_UID}" -g app -M app \
-#     && chown -R app:app /app
-# USER app
+# Non-root, host-UID-matched user so files written into the bind-mounted
+# dev volume come out owned by you, not root. Override APP_UID/APP_GID at
+# build time if your host user isn't the default 1000 (`id -u`/`id -g`).
 ARG APP_UID=1000
 ARG APP_GID=1000
 RUN mkdir -p /app/staticfiles /app/media \

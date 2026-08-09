@@ -9,12 +9,9 @@ class ContactMessageSerializer(serializers.ModelSerializer):
         fields = ["name", "email", "subject", "message", "is_partner_inquiry"]
 
     def validate_email(self, value):
-        # The form is public and unauthenticated, so nothing normally
-        # stops a visitor from typing someone else's address — the admin
-        # inbox shows whatever's submitted as the sender, so that would
-        # read as a message genuinely from that account. Registered
-        # emails are only allowed through when the request really is
-        # authenticated as that account (a logged-in user's own address).
+        # A registered email is only allowed through when the request is
+        # actually authenticated as that account — otherwise a visitor
+        # could impersonate any user in the admin inbox.
         value = value.strip().lower()
         User = get_user_model()
         owner = User.objects.filter(email=value).first()

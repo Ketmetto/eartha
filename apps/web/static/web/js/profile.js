@@ -60,12 +60,9 @@ if (user && !user.isAdmin) {
   });
 
   // ---------- submission history ----------
-  // Points are awarded by an admin at their discretion, any time from
-  // collection onward — not derivable from status/condition alone (an admin
-  // may award more, less, or 0). awardedPoints comes straight from the
-  // ledger via the API; null means not yet awarded, see apps.points.services.
-  // Paginated + infinite scroll — a long-time user's history can outgrow
-  // one response (same pattern as the admin queue's done tab).
+  // awardedPoints comes straight from the ledger; null means not yet
+  // awarded. Paginated + infinite scroll — a long-time user's history
+  // can outgrow one response.
   let subsItems = [];
   let subsNextPage = 1;
   let subsHasMore = true;
@@ -233,11 +230,9 @@ if (user && !user.isAdmin) {
     const email = document.getElementById('setEmail').value.trim().toLowerCase();
     const phone = document.getElementById('setPhone').value.trim();
     const typedAddress = addressInput.value.trim();
-    // addressParts (city/country/postal_code) only exists if a real
-    // autocomplete suggestion was picked — otherwise fall back to the
-    // plain typed line. building/floor_unit/instructions are independent
-    // manual fields, not something Places Autocomplete resolves, so
-    // they're merged in either way.
+    // addressParts only exists if a real suggestion was picked;
+    // building/floor_unit/instructions are separate manual fields
+    // either way.
     const address = {
       ...(addressParts || {}),
       line1: (addressParts && addressParts.line1) || typedAddress,

@@ -9,11 +9,10 @@ pillow_heif.register_heif_opener()
 
 MAX_UPLOAD_SIZE_MB = 10
 
-# What a phone/camera upload actually produces (HEIC/HEIF is the default
-# iPhone capture format unless "Most Compatible" is on). SVG is excluded
-# on purpose — it's XML, can embed <script>, and that runs if a browser
-# is ever pointed at the file directly (uploads are served with no auth
-# check; see nginx/nginx.conf's /media/ location).
+# SVG excluded on purpose: it can embed <script>, which runs if a
+# browser is ever pointed at the file directly (uploads have no auth
+# check; see nginx/nginx.conf's /media/ location). HEIC/HEIF included
+# since it's the default iPhone capture format.
 ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 
 
@@ -23,24 +22,20 @@ def validate_image_size(file):
 
 
 def validate_image_content_type(file):
-    # content_type only exists on a freshly-uploaded file from the current
-    # request (e.g. UploadedFile) — an already-saved FieldFile/ImageFieldFile
-    # doesn't have it at all. Re-saving a form without replacing the file
-    # (e.g. editing an Item's status in admin, which re-validates its
-    # existing photos) must not fail just because there's nothing new to
-    # check — it was already validated when it was originally uploaded.
+    # content_type only exists on a freshly-uploaded file — an
+    # already-saved FieldFile has none, so re-saving a form without
+    # replacing the file (e.g. admin re-validating existing photos)
+    # shouldn't fail on a field that was already checked once.
     content_type = getattr(file, "content_type", None)
     if content_type is None:
         return
     if content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
         raise ValidationError("File must be a JPEG, PNG, or WEBP image.")
 
-    # The check above is on the Content-Type the client *claims* — nothing
-    # requires it to match the bytes that follow. Decoding the real
-    # content is the only way to know this is genuinely a photo and not,
-    # say, an HTML file wearing a spoofed "image/jpeg" label. Broad except:
-    # any decode failure means reject it, including Pillow's
-    # DecompressionBombError, which isn't an OSError.
+    # The check above is only on what the client *claims* — decoding the
+    # real bytes is the only way to know it's genuinely a photo. Broad
+    # except on purpose: any decode failure should reject it, including
+    # Pillow's DecompressionBombError, which isn't an OSError.
     try:
         Image.open(file).verify()
     except Exception:

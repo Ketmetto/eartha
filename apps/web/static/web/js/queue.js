@@ -24,10 +24,9 @@ if (admin) {
   const open = { reject: new Set(), reassign: new Set() };
 
   // ---------- data ----------
-  // Action items (pending -> collected) come back in one unpaginated call —
-  // that list is naturally bounded by how fast the queue gets worked.
-  // Done items (completed/rejected) only ever grow, so they're paginated
-  // and loaded a page at a time as the user scrolls (see loadMoreDone).
+  // Action items (pending -> collected) are naturally bounded, so one
+  // unpaginated call covers them. Done items only grow, so they're
+  // paginated and loaded a page at a time (see loadMoreDone).
   let actionItems = [];
   let doneItems = [];
   let doneNextPage = 1;
@@ -78,12 +77,9 @@ if (admin) {
       : '<div class="thumb-64"></div>';
   }
 
-  // Award/correct points — shown once an item is collected onward, at
-  // admin discretion (never automatic on accept or dispatch, since neither
-  // confirms the item is actually in hand — dispatch could still fall
-  // through). Pre-filled from the condition's suggested default, but
-  // freely editable; 0 is a valid award for a misrepresented item caught
-  // on physical inspection.
+  // Award/correct points — shown from collected onward, never automatic
+  // on accept/dispatch, since neither confirms the item is actually in
+  // hand. Pre-filled from the suggested default but freely editable.
   function awardControl(s) {
     const suggested = pointsRulesLookup(s.category, s.condition);
     const already = s.awardedPoints != null;
@@ -259,12 +255,9 @@ if (admin) {
     if (showSentinel) wireDoneSentinel();
   }
 
-  // Fetches the action list in full plus the first page of done, then
-  // renders. Called on initial load and after every action — an action can
-  // move an item between the two lists, so both need a fresh first page;
-  // any additional done pages the user had scrolled to are dropped and
-  // would need re-loading, a reasonable tradeoff since actions normally
-  // happen from the action tab, not deep in a scrolled done list.
+  // Fetches the action list plus the first page of done, then renders —
+  // an action can move an item between the two lists, so both need a
+  // fresh first page. Any scrolled-past done pages are dropped.
   async function render() {
     try {
       actionItems = await Eartha.fetchAdminSubmissions();
@@ -312,11 +305,9 @@ if (admin) {
     return `https://wa.me/${phoneDigits}?text=${text}`;
   }
 
-  // actions — one delegated listener, whole pipeline. These never reach
-  // the server — they just toggle which panel a card shows — so a full
-  // render() (re-fetches actionItems, and resets+re-fetches the done tab
-  // from page 1) would be wasted network calls that also silently discard
-  // any infinite-scroll progress the admin had made in the done tab.
+  // actions — one delegated listener, whole pipeline. These only toggle
+  // which panel a card shows, so a full render() would be wasted network
+  // calls that also discard any infinite-scroll progress on the done tab.
   const LOCAL_ONLY_ACTIONS = new Set(['reject', 'reject-cancel', 'reassign-open', 'reassign-cancel']);
 
   listEl.addEventListener('click', async (e) => {
@@ -343,13 +334,11 @@ if (admin) {
         const driver = driversList.find((d) => d.id === (select && select.value));
         if (!driver) { Eartha.toast('SELECT A DRIVER'); return; }
 
-        // Opened synchronously, in the same click gesture, so browsers
-        // don't treat it as a blocked popup — the dispatch call below is
-        // async, and by the time it resolves the gesture context is gone.
-        // Can't pass 'noopener' here: per spec it makes window.open return
-        // null, and the waWindow.* calls below need a real reference to
-        // navigate/close once dispatch resolves. Sever .opener by hand
-        // instead — same tabnabbing protection, without losing the reference.
+        // Opened synchronously, in the click gesture itself, or browsers
+        // treat it as a blocked popup once the async dispatch resolves.
+        // Can't pass 'noopener' — per spec it makes window.open return
+        // null, and the code below needs a real reference. .opener = null
+        // gives the same tabnabbing protection without losing that.
         const waWindow = window.open('', '_blank');
         if (waWindow) waWindow.opener = null;
         try {
@@ -670,10 +659,9 @@ if (admin) {
   });
 
   // ============ AWARD RULES ============
-  // Suggested-points table (category x condition) that pre-fills the
-  // pipeline's award field (see awardControl above) — loaded once up
-  // front, same as driversList, since awardControl reads it synchronously
-  // while building each card.
+  // Pre-fills the pipeline's award field (see awardControl above) —
+  // loaded once up front, like driversList, since awardControl reads it
+  // synchronously while building each card.
   let pointsRules = [];
   const CATEGORY_LABELS = { clothing: 'CLOTHING', shoes: 'SHOES', accessories: 'ACCESSORIES', bags: 'BAGS' };
   const CONDITION_LABELS = { like_new: 'LIKE NEW', good: 'GOOD', worn: 'WORN', damaged: 'DAMAGED' };
@@ -732,11 +720,9 @@ if (admin) {
   });
 
   // ============ INBOX ============
-  // Paginated + infinite scroll (same pattern as the pipeline's done tab)
-  // — the public contact form has no natural cap on inbox size. The
-  // unread badge is fetched separately via fetchUnreadMessageCount(),
-  // since counting only what's been paged in would undercount once
-  // there's more than one page.
+  // Paginated + infinite scroll, since the contact form has no natural
+  // cap on inbox size. Unread badge fetched separately via
+  // fetchUnreadMessageCount(), or it'd undercount past one page.
   let inboxItems = [];
   let inboxNextPage = 1;
   let inboxHasMore = true;
@@ -815,11 +801,8 @@ if (admin) {
     }
   });
 
-  // Drivers and award rules load first and are awaited — the pipeline's
-  // dispatch dropdown and award field (see actionArea/awardControl above)
-  // read driversList/pointsRules synchronously while building each card,
-  // so both need to be populated before the first pipeline render, not
-  // just eventually.
+  // Awaited before the first render — actionArea/awardControl read
+  // driversList/pointsRules synchronously while building each card.
   (async () => {
     await Promise.all([renderDrivers(), renderPointsRules()]);
     render();

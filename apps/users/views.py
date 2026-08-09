@@ -119,17 +119,10 @@ class MeView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
     def perform_update(self, serializer):
-        # A changed email doesn't get written to the instance here — see
-        # services.request_email_change. Applying it directly would mean
-        # a typo, or someone else's session, could silently reassign the
-        # account (and, for a social-login account, permanently orphan it
-        # — see that function's docstring).
-        #
-        # Wrapped in one transaction: request_email_change can raise (e.g.
-        # the new address is already taken) after serializer.save() has
-        # already persisted the other fields (name, phone) — without this,
-        # the client sees a 400 and assumes nothing changed, but those
-        # other edits would already be committed.
+        # Email routes through request_email_change instead of being
+        # applied directly — see that function's docstring. Wrapped in one
+        # transaction so a failure there (e.g. address already taken)
+        # doesn't leave other fields (name, phone) silently saved anyway.
         new_email = serializer.validated_data.pop("email", None)
         with transaction.atomic():
             user = serializer.save()

@@ -27,23 +27,16 @@ def generate_unique_username(email: str) -> str:
     return username
 
 
-# Eartha operates in Lebanon, so a number typed without a country code
-# ("70123456", "03123456") is assumed local — same default region the
-# Places Autocomplete address flow uses. A caller can still type a full
-# "+961..." or other-country number; phonenumbers detects the leading "+"
-# regardless of this default.
+# A number typed without a country code is assumed Lebanese local; a
+# caller can still type a full "+961..." or other-country number.
 PHONE_DEFAULT_REGION = "LB"
 
 
 def normalize_phone(raw: str) -> str:
-    """
-    Canonicalize a user-entered phone number to E.164 (e.g. "+96170123456")
-    so that "(961) 70 123 456", "70123456" and "+961 70 123 456" all collapse
-    to the same stored value — without this, User.phone's uniqueness
-    constraint only catches byte-for-byte duplicate strings, not the same
-    number typed three different ways. Raises DRF ValidationError (not
-    Django's) since the only caller is UserSerializer.validate_phone.
-    """
+    """Canonicalize to E.164 (e.g. "+96170123456") so differently
+    formatted input for the same number collapses to one stored value.
+    Raises DRF's ValidationError, since the only caller is
+    UserSerializer.validate_phone."""
     try:
         parsed = phonenumbers.parse(raw, PHONE_DEFAULT_REGION)
     except phonenumbers.NumberParseException:
@@ -174,12 +167,9 @@ def confirm_email_change(uidb64, token):
     if not email_change_token.check_token(user, token):
         return False, "Confirmation link expired or invalid."
 
-    # No separate pre-check here — an .exists() check followed by a save
-    # is a TOCTOU race (two users confirming a change to the same address
-    # at nearly the same time could both pass the check before either
-    # commits). Attempt the save and let the DB's own unique constraint on
-    # email be the single source of truth, catching the resulting
-    # IntegrityError instead of letting it surface as an unhandled 500.
+    # No separate exists()-then-save pre-check — that's a TOCTOU race.
+    # Attempt the save and let the DB's unique constraint be the single
+    # source of truth, catching IntegrityError instead of a 500.
     user.email = user.pending_email
     user.pending_email = None
     try:

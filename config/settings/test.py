@@ -22,17 +22,12 @@ CACHES = {
     }
 }
 
-# Throttle counts also accumulate *within* one pytest session (there's no
-# per-test cache reset the way there is a per-test DB rollback), so many
-# tests hitting the same rate-limited endpoint (login/register/etc.) would
-# start tripping 429s on each other well before any real abuse. Rate
-# limiting is an infra concern, not application logic under test here.
-# Views with an explicit throttle_scope (ScopedRateThrottle) ignore
-# DEFAULT_THROTTLE_CLASSES, and an empty DEFAULT_THROTTLE_RATES would make
-# them raise ImproperlyConfigured (unknown scope) rather than just pass —
-# so every scope gets a rate here, just an effectively-unlimited one.
-# Write a dedicated test with @override_settings if you specifically need
-# to assert real throttling behavior.
+# Throttle counts accumulate across the whole pytest session (no per-test
+# reset like the DB gets), so tests would start tripping 429s on each
+# other. Every scope still needs a rate — an empty DEFAULT_THROTTLE_RATES
+# makes a ScopedRateThrottle view raise ImproperlyConfigured rather than
+# just pass — so each gets an effectively-unlimited one instead. Use
+# @override_settings in a dedicated test to assert real throttling.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "DEFAULT_THROTTLE_CLASSES": [],

@@ -10,18 +10,12 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "email", "pending_email", "first_name", "last_name", "phone", "is_staff"]
-        # email is writable at the field level (PATCH still validates a
-        # new value, including DRF's auto uniqueness check), but MeView
-        # intercepts it before save — see MeView.perform_update. pending_email
-        # is read-only: it's only ever set by request_email_change.
+        # email is writable here (MeView intercepts it before save — see
+        # perform_update); pending_email is set only by request_email_change.
         read_only_fields = ["id", "is_staff", "pending_email"]
-        # phone's model-level unique=True would otherwise get DRF's auto
-        # UniqueValidator attached here, which runs (on the raw input)
-        # before validate_phone below gets a chance to normalize it —
-        # "70123456" and "+96170123456" would each sail through as
-        # "unique" even though they're the same number. Doing the
-        # uniqueness check ourselves, after normalizing, is the only way
-        # to get the order right.
+        # Disables DRF's auto UniqueValidator on phone: it would run on
+        # the raw input before validate_phone normalizes it, letting
+        # "70123456" and "+96170123456" both pass as "unique".
         extra_kwargs = {"phone": {"validators": []}}
 
     def validate_phone(self, value):
@@ -40,11 +34,8 @@ class RegisterSerializer(serializers.ModelSerializer):
     (+ confirm), terms checkbox. Username isn't a user-facing field —
     it's derived from the email so the frontend never has to collect it.
     """
-    # No UniqueValidator here — it would run on the raw submitted value
-    # (before validate_email below gets a chance to lowercase it), so
-    # "Jane@Example.com" would sail through as "unique" even with
-    # "jane@example.com" already registered. Checking after normalizing,
-    # in validate_email, is the only way to get the order right.
+    # No UniqueValidator — same reasoning as UserSerializer.phone above;
+    # the uniqueness check happens in validate_email, after normalizing.
     email = serializers.EmailField()
     full_name = serializers.CharField(write_only=True, max_length=150)
     password = serializers.CharField(write_only=True, validators=[validate_password])

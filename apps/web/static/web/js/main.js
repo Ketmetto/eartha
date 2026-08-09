@@ -4,18 +4,12 @@
    ============================================================ */
 
 // ---------- What we accept: infinite, swipeable marquee ----------
-// The strip scrolls itself left by exactly one group width, so the group is
-// duplicated here to fill the gap it leaves behind — the loop point is then
-// invisible. Duplicating in JS keeps the cards written once in the HTML.
-// A single clone only covers that gap if the visible strip is narrower than
-// one group — on wide viewports (group width is fixed once cards hit their
-// max clamp() size) a lone clone runs out of cards before the wrap point,
-// showing blank space. So clone enough copies to always keep at least one
-// full group's worth of cards ahead of whatever's on screen.
-//
-// The travel is applied as scrollLeft rather than a transform, which means the
-// element stays a real horizontal scroller: a touch swipe or trackpad flick
-// moves it natively, and the loop simply carries on from the new position.
+// The strip scrolls left by exactly one group width, so the group is
+// duplicated here to fill the gap that leaves behind, making the loop
+// point invisible — enough copies to keep a full group ahead of whatever
+// is on screen, since a wide viewport can outrun a single clone.
+// Travel is applied as scrollLeft, not a transform, so it stays a real
+// scroller: a touch swipe or trackpad flick moves it natively.
 const marquee = document.getElementById('acceptMarquee');
 const group = marquee && marquee.querySelector('.accept-group');
 
@@ -75,13 +69,9 @@ function runAcceptMarquee(el, group) {
   // the user scrolled (swipe, trackpad, keyboard) — take their position as ours
   // and keep wrapping, so swiping past the end loops instead of hitting a wall
   el.addEventListener('scroll', () => {
-    // Exact equality, not a pixel-distance tolerance: a slow frame (main-
-    // thread jank) can make a single write bigger than any fixed
-    // tolerance, misreading it as a user scroll and pausing the animation
-    // for RESUME_DELAY. `applied` is read back from el.scrollLeft right
-    // after every write, so it always matches our latest write exactly,
-    // however large — that's what distinguishes "we moved this" from "the
-    // user did," not proximity.
+    // Exact equality, not a pixel-distance tolerance — a slow frame can
+    // make a single write bigger than any fixed tolerance, misreading it
+    // as a user scroll. `applied` always matches our latest write exactly.
     if (el.scrollLeft === applied) return; // that was our own frame
     pos = el.scrollLeft;
     const width = groupWidth();
@@ -103,10 +93,8 @@ function runAcceptMarquee(el, group) {
 
   el.addEventListener('pointerdown', (e) => {
     // A non-primary button (right-click, middle-click) isn't a hold
-    // gesture — only primary-mouse/touch pointers reliably get a matching
-    // pointerup routed back here; a right-click's context menu can
-    // swallow or misdirect it, leaving `held` stuck true and the marquee
-    // frozen for the rest of the page's life.
+    // gesture — its context menu can swallow the matching pointerup,
+    // leaving `held` stuck true and the marquee frozen for good.
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     held = true;
     if (e.pointerType !== 'mouse') return; // touch drags the scroller natively from here

@@ -332,11 +332,9 @@ const Eartha = (() => {
       res = await doFetch(newAccess);
     }
 
-    // A valid token that's now forbidden means permissions changed after
-    // login (e.g. admin access was revoked) — every 403 in this API comes
-    // from IsAdmin, so this can't misfire on a legitimate per-object 403.
-    // Force a fresh login instead of leaving the user on a stale admin
-    // page where every action would otherwise fail silently-ish.
+    // A valid token that's now forbidden means access changed after login
+    // (every 403 in this API comes from IsAdmin) — force a fresh login
+    // rather than leaving the user on a page where actions just fail.
     if (res.status === 403) {
       logout('YOUR ACCESS HAS CHANGED — PLEASE SIGN IN AGAIN.');
       throw new Error('YOUR ACCESS HAS CHANGED — PLEASE SIGN IN AGAIN.');
@@ -408,23 +406,17 @@ const Eartha = (() => {
   }
 
   // ---------- admin: submissions pipeline ----------
-  // num here is a per-list position label ("N. 0001"), oldest-first by
-  // total count — purely cosmetic, doesn't attempt to match the number the
-  // uploader saw (each user's own list numbers independently). Action and
-  // done items number within their own list, not one shared sequence —
-  // a side effect of the done list being paginated (see below) while the
-  // action list isn't.
+  // num is a purely cosmetic per-list position label ("N. 0001"); action
+  // and done items number within their own list, not one shared sequence.
   async function fetchAdminSubmissions() {
     const list = await apiFetch('/submissions/admin/action/');
     const total = list.length;
     return list.map((item, i) => mapItem(item, 'N. ' + String(total - i).padStart(4, '0')));
   }
 
-  // Completed/rejected history, paginated — this list only grows, so
-  // queue.js loads it a page at a time (infinite scroll) instead of all at
-  // once. `alreadyLoaded` is how many done items the caller has already
-  // fetched across earlier pages, needed to keep the "N. 0001" numbering
-  // counting down correctly across page boundaries.
+  // Completed/rejected history, paginated (loaded a page at a time via
+  // infinite scroll, since it only grows). `alreadyLoaded` keeps the
+  // "N. 0001" numbering counting down correctly across page boundaries.
   async function fetchAdminSubmissionsDone(page, alreadyLoaded) {
     const data = await apiFetch(`/submissions/admin/done/?page=${page}`);
     return {
@@ -627,12 +619,9 @@ const Eartha = (() => {
   }
 
   // ---------- contact form (public — no auth) ----------
-  // Replies go out from the admin's own mail client, not through Eartha's
-  // system email — a contact-form inbox is exactly the kind of free-form,
-  // two-way conversation a transactional-email pipeline shouldn't carry
-  // (deliverability/reputation risk for the sender address, and it'd mean
-  // building storage + a mini email client for what's really just "hand
-  // this off to Gmail/Outlook"). mailto: does that with no backend at all.
+  // Replies go out from the admin's own mail client, not through
+  // Eartha's transactional email — no deliverability risk, no storage,
+  // no mini email client to build.
   function mailtoReplyUrl(m) {
     const subject = `Re: ${m.subject || 'your message to Eartha'}`;
     const quoted = `\n\n---\nOn ${fmtDate(m.date)}, ${m.name} wrote:\n${m.body}`;
@@ -667,12 +656,9 @@ const Eartha = (() => {
     const csrfToken = getCookie('csrftoken');
     if (csrfToken) headers['X-CSRFToken'] = csrfToken;
 
-    // Attached when present, but never required — the endpoint stays open
-    // to anonymous visitors (partner inquiries, pre-signup questions).
-    // Sending it when a session exists is what lets the backend tell "a
-    // logged-in user messaging under their own email" apart from "someone
-    // else typing that same, already-registered email" — see
-    // ContactMessageSerializer.validate_email.
+    // Attached when present, never required — lets the backend tell a
+    // logged-in user apart from someone else using that same registered
+    // email (see ContactMessageSerializer.validate_email).
     let s = session();
     if (s && s.access) headers['Authorization'] = `Bearer ${s.access}`;
 
@@ -686,9 +672,8 @@ const Eartha = (() => {
 
     let res = await doPost();
     if (res.status === 401 && s && s.access) {
-      // Stale token — refresh and retry once; if that fails too, drop
-      // back to an anonymous submission rather than blocking the form,
-      // since it's still meant to work without a session at all.
+      // Stale token — refresh and retry once, or fall back to an
+      // anonymous submission rather than blocking the form entirely.
       const newAccess = await refreshAccessToken();
       if (newAccess) {
         headers['Authorization'] = `Bearer ${newAccess}`;
@@ -786,11 +771,9 @@ const Eartha = (() => {
     return apiFetch('/auth/me/address/');
   }
 
-  // fields: {line1, city, country, postal_code} when Places Autocomplete
-  // resolved a real suggestion, or a bare string for a manually-typed
-  // address (Maps not configured, or the user didn't pick a suggestion) —
-  // in which case only line1 is set and the rest stay blank, same as before
-  // this integration existed.
+  // fields: {line1, city, country, postal_code} from a real Places
+  // suggestion, or a bare string for a manually-typed address (only
+  // line1 gets set then).
   async function updateAddress(fields) {
     const body = typeof fields === 'string' ? { line1: fields } : fields;
     return apiFetch('/auth/me/address/', { method: 'PATCH', body });
@@ -1023,13 +1006,9 @@ const Eartha = (() => {
 
     // Deliberately not IntersectionObserver: it measures each target's
     // *rendered* (transformed) position, and .reveal moves the target via
-    // transform — observing the element the animation itself moves can
-    // feed back into its own trigger (re-crossing the threshold it just
-    // crossed, or missing a crossing entirely under a fast scroll).
-    // offsetTop/offsetHeight are layout-only and never affected by
-    // transform, so tracking position by hand avoids that entirely.
-    // Re-measured on load (fonts/images can reflow the page after first
-    // paint) and on resize.
+    // transform, which can feed back into its own trigger. offsetTop/
+    // offsetHeight are layout-only and unaffected by transform. Re-
+    // measured on load (fonts/images can reflow after first paint) and resize.
     const THRESHOLD = 0.12;
     const BOTTOM_MARGIN = 60; // trigger slightly before a target's bottom edge reaches the viewport bottom
     const layout = new Map(); // target -> { top, height } in document coordinates
@@ -1066,15 +1045,10 @@ const Eartha = (() => {
     window.addEventListener('resize', () => { measure(); evaluate(); });
     window.addEventListener('load', () => { measure(); evaluate(); });
 
-    // Pages that fill a section from an async fetch (e.g. dashboard.js's
-    // recentList/attentionGrid) finish that well after 'load' — measure()
-    // would cache the section's pre-fetch (often much shorter) height, so
-    // scrolling past where that stale height ended dropped the now-longer,
-    // fully-populated section's opacity to 0 while it was still on screen.
-    // ResizeObserver catches any target's real size changing, whenever
-    // that happens, not just at a few fixed lifecycle moments. Re-measures
-    // every target, not just the one that changed, since one target
-    // growing shifts every target below it down the page too.
+    // Sections filled by an async fetch (e.g. the dashboard's recentList)
+    // can grow well after 'load', so ResizeObserver catches that too.
+    // Re-measures every target, not just the one that changed, since one
+    // growing shifts everything below it down the page.
     if ('ResizeObserver' in window) {
       const ro = new ResizeObserver(() => { measure(); evaluate(); });
       targets.forEach((el) => ro.observe(el));

@@ -110,11 +110,9 @@ if (user) {
         msg.className = 'form-msg is-error';
         return;
       }
-      // addressParts (city/country/postal_code) only exists if a real
-      // autocomplete suggestion was picked — otherwise fall back to the
-      // plain typed line. building/floor_unit/instructions are independent
-      // manual fields, not something Places Autocomplete resolves, so
-      // they're merged in either way.
+      // addressParts only exists if a real suggestion was picked;
+      // building/floor_unit/instructions are separate manual fields
+      // either way.
       addressToSave = {
         ...(addressParts || {}),
         line1: (addressParts && addressParts.line1) || typed,

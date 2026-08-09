@@ -16,14 +16,9 @@ if SENTRY_DSN:
 
 DEBUG = False
 
-# Same baseline hardening as prod — staging is client-facing too. No SSL
-# redirect here since staging may sit behind a proxy that already
-# terminates TLS and forwards plain HTTP internally (an SSL_REDIRECT would
-# risk a redirect loop in that case). Cookie security doesn't have that
-# risk — a Secure-flagged cookie is safe regardless of how TLS gets
-# terminated — so unlike SSL_REDIRECT there's no reason to skip it if
-# staging is served over HTTPS at all, which the "client-facing" framing
-# above implies it is.
+# Same baseline hardening as prod. No SSL_REDIRECT — staging may sit
+# behind a proxy that already terminates TLS, risking a redirect loop —
+# but cookie security has no such risk, so no reason to skip it.
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000

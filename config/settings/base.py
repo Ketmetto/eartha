@@ -225,21 +225,14 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "login": "20/hour",
         "email_action": "5/hour",
-        # Public, unauthenticated, and fires a real email to the admin on
-        # every submission — the generic "anon" rate above is too generous
-        # for that combination.
+        # Public and fires a real email to the admin on every submission —
+        # the generic "anon" rate is too loose for that combination.
         "contact": "5/hour",
-        # Generous for one real donation-photography session (dozens of
-        # items), but well under the generic "user" default's ceiling of
-        # up to 10,000 photos/hour (10 photos x 1000 requests) from a
-        # single compromised or malicious account.
+        # Generous for one real donation-photography session, well under
+        # the "user" default's 10,000-photos/hour ceiling (10 per request).
         "item_upload": "30/hour",
-        # redeem_benefit is already race-safe (row-locked balance check,
-        # nothing written on a failed attempt) so this isn't closing an
-        # exploit — it's cutting the "user" default's 1000/hour ceiling
-        # down to something no real redemption session would ever need,
-        # so a scripted hammering attempt costs itself a lockout instead
-        # of just generating load.
+        # redeem_benefit is already race-safe; this just caps a scripted
+        # hammering attempt well below any real redemption session's needs.
         "redeem": "20/hour",
     },
 }

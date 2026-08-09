@@ -158,14 +158,11 @@ class TestMeEndpoint:
         mock_send.delay.assert_not_called()
 
     def test_other_fields_roll_back_when_email_change_fails(self, api_client, user):
-        # This is DRF's auto UniqueValidator catching a plainly-duplicate
-        # address at serializer validation time — before perform_update
-        # ever runs, so it can't exercise the rollback this test is for.
-        # Force request_email_change itself to raise (as it still can, on
-        # a narrower race DRF's check doesn't cover — see
-        # test_rejects_if_the_email_was_claimed_by_someone_else_meanwhile
-        # in test_email_change.py) and confirm first_name — sent in the
-        # same request — doesn't get persisted alongside the failure.
+        # Forces request_email_change to raise mid-request (a plain
+        # duplicate address is instead caught earlier, by DRF's own
+        # validator — see test_rejects_if_the_email_was_claimed_by_
+        # someone_else_meanwhile in test_email_change.py) and confirms
+        # first_name, sent in the same request, doesn't persist anyway.
         api_client.force_authenticate(user=user)
         original_first_name = user.first_name
 
@@ -240,10 +237,9 @@ class TestPhoneNumber:
 
     def test_clearing_phone_stores_null_not_empty_string(self, api_client, user, admin_user):
         # Postgres doesn't consider two NULLs equal under a unique
-        # constraint, but it does consider two ''s equal — so an unset
-        # phone has to serialize as null, not '', or a second user
-        # clearing theirs would collide with the first (this is exactly
-        # what 0006/0007's migration bug did to pre-existing '' rows).
+        # constraint, but does consider two ''s equal — an unset phone has
+        # to serialize as null, or a second user clearing theirs would
+        # collide with the first.
         api_client.force_authenticate(user=user)
         response = api_client.patch("/api/v1/auth/me/", {"phone": ""}, format="json")
 

@@ -1,25 +1,15 @@
 /* EARTHA — address-autocomplete.js
    Progressive enhancement: binds Google Places Autocomplete to a plain
-   text <input> so picking a suggestion auto-fills the structured fields
-   the backend actually stores (line1/city/country/postal_code/lat/lng)
-   instead of one unstructured line, then drops a draggable pin on a small
-   map so the user can nudge it onto their actual entrance — Lebanon
-   addressing is often informal enough that the geocoded point alone isn't
-   reliably exact. Entirely a no-op with no API key configured — the input
-   just stays a plain text field.
+   text <input>, auto-filling the structured fields the backend stores
+   (line1/city/country/postal_code/lat/lng), then drops a draggable pin
+   so the user can nudge it onto their actual entrance. A no-op with no
+   API key configured — the input just stays plain text.
 
-   Uses the classic google.maps.places.Autocomplete widget (bound directly
-   to an existing <input>) rather than the newer PlaceAutocompleteElement
-   web component — it drops onto our existing styled <input> with no
-   markup changes and no Shadow DOM styling to fight. Google still fully
-   supports it; only new *features* are Element-only.
+   Uses the classic Autocomplete widget, not PlaceAutocompleteElement —
+   it binds to our existing styled <input> with no Shadow DOM to fight.
 
-   A "use my current location" button is a second, optional entry point
-   into the same pin — useful standing at the actual pickup spot, where
-   typing/searching an address is slower and less exact than just sharing
-   position. It reverse-geocodes the browser's coordinates back into the
-   same structured fields Places Autocomplete produces, so either path
-   ends up in the same shape.
+   "Use my current location" is a second entry point into the same pin,
+   reverse-geocoding the browser's coordinates into the same field shape.
 */
 (function () {
   let loaderPromise = null;
@@ -53,18 +43,11 @@
     };
   }
 
-  // input: the visible pickup-address <input>.
-  // apiKey: GOOGLE_MAPS_API_KEY from the server (blank means "not
-  // configured" — no-ops below, input stays plain text).
-  // mapEl: a <div> to render the pin-drop confirmation map into once a
-  // suggestion is picked (stays hidden until then). Pass null to skip the
-  // map entirely and just get the autocomplete + structured fields.
-  // onSelect(parts): called with {line1, city, country, postal_code,
-  // latitude, longitude} — once when a suggestion is picked, and again
-  // (same address fields, updated coordinates) every time the pin is
-  // dragged to a new spot, or "use my current location" resolves.
-  // locateBtn: optional "use my current location" button — stays hidden
-  // (its markup default) until Maps has actually loaded.
+  // apiKey: blank means "not configured", no-ops below. mapEl: pin-drop
+  // map <div>, pass null to skip it. onSelect(parts): called with
+  // {line1, city, country, postal_code, latitude, longitude} whenever the
+  // address or pin changes. locateBtn: optional "use my current
+  // location" button, hidden until Maps has actually loaded.
   window.EarthaAddressAutocomplete = async function (input, apiKey, mapEl, onSelect, locateBtn) {
     if (!apiKey || !input) return;
     try {
@@ -72,12 +55,9 @@
     } catch {
       return; // stays a plain text input
     }
-    // Eartha operates in Lebanon, where addressing is often informal
-    // (buildings identified by name/landmark rather than street number) —
-    // types:['address'] only matches formal street addresses and misses
-    // most of those, so 'geocode' (all geocodable results, still excludes
-    // pure businesses) works far better here. componentRestrictions biases
-    // toward Lebanon regardless of where the request is actually made from.
+    // 'geocode' (not 'address') since Lebanese addressing is often
+    // informal — 'address' only matches formal street addresses.
+    // componentRestrictions biases toward Lebanon regardless of origin.
     const autocomplete = new google.maps.places.Autocomplete(input, {
       fields: ['address_components', 'formatted_address', 'geometry'],
       types: ['geocode'],
@@ -88,10 +68,8 @@
     let marker = null;
     let textParts = {};
 
-    // Google's lat()/lng() carry far more floating-point precision than
-    // the backend's DecimalField(decimal_places=6) allows (it rejects
-    // excess precision as a 400, it doesn't silently round) — 6 places is
-    // already ~11cm, plenty for a pickup pin.
+    // toFixed(6): the backend's DecimalField(decimal_places=6) rejects
+    // extra precision as a 400 rather than rounding it.
     function emit(location) {
       onSelect({
         ...textParts,
