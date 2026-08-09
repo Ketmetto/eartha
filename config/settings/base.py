@@ -225,6 +225,15 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "login": "20/hour",
         "email_action": "5/hour",
+        # Public, unauthenticated, and fires a real email to the admin on
+        # every submission — the generic "anon" rate above is too generous
+        # for that combination.
+        "contact": "5/hour",
+        # Generous for one real donation-photography session (dozens of
+        # items), but well under the generic "user" default's ceiling of
+        # up to 10,000 photos/hour (10 photos x 1000 requests) from a
+        # single compromised or malicious account.
+        "item_upload": "30/hour",
     },
 }
 

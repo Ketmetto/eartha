@@ -204,7 +204,14 @@ class PasswordResetConfirmView(APIView):
 
 
 class ChangePasswordView(APIView):
+    """Checks old_password server-side, which makes this a password-
+    guessing oracle for anyone holding a stolen access token — the same
+    "login" scope login itself uses (ScopedRateThrottle keys authenticated
+    requests by user id, not IP, so this isn't affected by IP-spoofing
+    tricks either way)."""
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data, context={"request": request})

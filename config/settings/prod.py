@@ -6,6 +6,20 @@ SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
+# nginx (see nginx/*.conf) sets X-Forwarded-For with $proxy_add_x_forwarded_for,
+# which *appends* to whatever the client already sent rather than replacing
+# it — so without this, DRF's throttle classes (SimpleRateThrottle.get_ident)
+# trust the entire client-supplied header as the caller's identity. A client
+# sending a different fake X-Forwarded-For on every request gets a fresh
+# rate-limit bucket each time, silently defeating login/register/email-action/
+# contact-form throttling. NUM_PROXIES=1 tells DRF exactly one proxy (nginx)
+# sits in front, so it instead reads the last comma-separated address — the
+# one nginx appended from the real TCP connection, which a client can't spoof.
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    "NUM_PROXIES": 1,
+}
+
 CSRF_TRUSTED_ORIGINS = [
     "https://localhost",
     "https://YOURDOMAIN.com",

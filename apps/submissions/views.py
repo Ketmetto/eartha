@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from .models import Item
 from .serializers import ItemSerializer, ItemCreateWithPhotosSerializer
 from .services import create_item_with_photos
@@ -15,6 +16,17 @@ class ItemUploadView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return Item.objects.filter(user=self.request.user)
+
+    # Only the create side needs a tighter cap (each submission can carry
+    # up to 10 photos — the generic "user" default alone would allow up to
+    # 10,000 photos/hour from one account). Browsing your own submission
+    # history isn't a spam vector, so GET keeps the generic default rather
+    # than sharing this budget with it.
+    def get_throttles(self):
+        if self.request.method == "POST":
+            self.throttle_scope = "item_upload"
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
 
     def create(self, request, *args, **kwargs):
         """
