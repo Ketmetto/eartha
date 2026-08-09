@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from base.pagination import StandardResultsPagination
 from base.permissions import IsAdmin
+from .mixins import AwardedTotalsListMixin
 from .models import Item, Driver
 from .serializers import (
     ItemAdminSerializer,
@@ -16,19 +17,20 @@ ACTION_STATUSES = [Item.Status.PENDING, Item.Status.ACCEPTED, Item.Status.DISPAT
 DONE_STATUSES = [Item.Status.COMPLETED, Item.Status.REJECTED]
 
 
-class SubmissionReviewQueueView(generics.ListAPIView):
-    """Admin: pending submissions queue."""
+class SubmissionReviewQueueView(AwardedTotalsListMixin, generics.ListAPIView):
+    """Admin: pending submissions queue. Not used by the frontend (see
+    SubmissionAdminListView below), kept for its own test coverage and
+    any direct API consumer."""
     serializer_class = ItemAdminSerializer
     permission_classes = [IsAdmin]
     pagination_class = None
-    queryset = Item.objects.filter(status=Item.Status.PENDING)
+    queryset = Item.objects.filter(status=Item.Status.PENDING).select_related("user", "user__address")
 
 
-class SubmissionAdminListView(generics.ListAPIView):
+class SubmissionAdminListView(AwardedTotalsListMixin, generics.ListAPIView):
     """Admin: the working backlog — everything from pending through collected,
-    i.e. still needs an admin to do something with it. Unpaginated on purpose:
-    unlike the completed/rejected history below, this stays naturally bounded
-    by how fast the queue gets worked, so there's no unbounded-growth risk."""
+    i.e. still needs an admin to do something with it. Unpaginated: stays
+    naturally bounded by how fast the queue gets worked."""
     serializer_class = ItemAdminSerializer
     permission_classes = [IsAdmin]
     pagination_class = None
@@ -37,12 +39,9 @@ class SubmissionAdminListView(generics.ListAPIView):
     ).select_related("user", "user__address").order_by("-updated_at")
 
 
-class SubmissionAdminDoneListView(generics.ListAPIView):
-    """Admin: completed/rejected submission history. Paginated — unlike the
-    action queue above, this list only ever grows, so returning it in full
-    (previously done via SubmissionAdminListView before it was split) would
-    eventually mean shipping the entire submission history to the browser
-    on every queue page load."""
+class SubmissionAdminDoneListView(AwardedTotalsListMixin, generics.ListAPIView):
+    """Admin: completed/rejected submission history. Paginated: unlike the
+    action queue above, this list only ever grows."""
     serializer_class = ItemAdminSerializer
     permission_classes = [IsAdmin]
     pagination_class = StandardResultsPagination

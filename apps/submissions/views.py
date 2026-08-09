@@ -1,12 +1,13 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+from .mixins import AwardedTotalsListMixin
 from .models import Item
 from .serializers import ItemSerializer, ItemCreateWithPhotosSerializer
 from .services import create_item_with_photos
 
 
-class ItemUploadView(generics.ListCreateAPIView):
+class ItemUploadView(AwardedTotalsListMixin, generics.ListCreateAPIView):
     """User-facing: submit a new item, list own submissions. The list side
     uses the default pagination (base.pagination.StandardResultsPagination)
     — a long-time user's submission history can grow past what's

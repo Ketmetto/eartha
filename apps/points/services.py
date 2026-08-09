@@ -31,16 +31,29 @@ def get_awarded_total(item):
     """Net points currently awarded for this item (AWARD + any ADJUSTMENT
     corrections), or None if no award has ever been made — distinct from
     0, which is itself a valid award (e.g. a misrepresented item caught on
-    physical inspection)."""
-    has_award = PointsLedgerEntry.objects.filter(
-        reference_item=item, entry_type=PointsLedgerEntry.EntryType.AWARD
-    ).exists()
-    if not has_award:
-        return None
+    physical inspection). Sum() over zero matching rows is None already,
+    which is exactly that distinction — no separate existence check needed."""
     return PointsLedgerEntry.objects.filter(
         reference_item=item,
         entry_type__in=[PointsLedgerEntry.EntryType.AWARD, PointsLedgerEntry.EntryType.ADJUSTMENT],
-    ).aggregate(total=Sum("points"))["total"] or 0
+    ).aggregate(total=Sum("points"))["total"]
+
+
+def get_awarded_totals(items):
+    """Batch form of get_awarded_total — one query for a whole list of
+    items instead of one per item (see ItemSerializer.get_awarded_points).
+    Same None-vs-0 meaning: an item absent from the returned dict has
+    never been awarded."""
+    rows = (
+        PointsLedgerEntry.objects
+        .filter(
+            reference_item__in=items,
+            entry_type__in=[PointsLedgerEntry.EntryType.AWARD, PointsLedgerEntry.EntryType.ADJUSTMENT],
+        )
+        .values("reference_item_id")
+        .annotate(total=Sum("points"))
+    )
+    return {row["reference_item_id"]: row["total"] for row in rows}
 
 
 def set_item_award(item, points: int, admin_user) -> PointsLedgerEntry:

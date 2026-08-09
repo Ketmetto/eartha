@@ -55,6 +55,7 @@ class AdminDashboardStatsView(APIView):
         from apps.submissions.models import Item
         from apps.submissions.serializers import ItemAdminSerializer
         from apps.points.models import PointsLedgerEntry, Benefit
+        from apps.points.services import get_awarded_totals
         from apps.users.models import User
 
         pending_count = Item.objects.filter(status=Item.Status.PENDING).count()
@@ -81,5 +82,7 @@ class AdminDashboardStatsView(APIView):
             "total_points_awarded": total_points_awarded,
             "donor_count": donor_count,
             "live_benefits_count": live_benefits_count,
-            "recent_items": ItemAdminSerializer(recent_items, many=True).data,
+            "recent_items": ItemAdminSerializer(
+                recent_items, many=True, context={"awarded_totals": get_awarded_totals(recent_items)}
+            ).data,
         })

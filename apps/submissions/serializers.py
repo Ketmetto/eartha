@@ -21,6 +21,13 @@ class ItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "status", "created_at"]
 
     def get_awarded_points(self, obj):
+        # List views pass a pre-computed lookup in context (one query for
+        # the whole list — see get_awarded_totals) instead of one query
+        # per item; falls back to the single-item query when serializing
+        # just one object (e.g. after creating or awarding an item).
+        totals = self.context.get("awarded_totals")
+        if totals is not None:
+            return totals.get(obj.id)
         from apps.points.services import get_awarded_total
         return get_awarded_total(obj)
 
