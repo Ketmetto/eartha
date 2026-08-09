@@ -27,15 +27,11 @@ class PointsLedgerEntry(BaseModel):
 class PointsRule(BaseModel):
     """Admin-configurable suggested-award table — one row per (category,
     condition) pair, read by apps.points.rules.suggested_points to
-    pre-fill the award amount in the queue pipeline. Never auto-awards
-    anything on its own; the admin can always type a different amount
-    (see apps.points.services.set_item_award).
+    pre-fill the award amount in the queue pipeline; never auto-awards.
 
-    category/condition are plain strings, not FK/enum-typed against
-    apps.submissions.models.Item, matching PointsLedgerEntry.reference_item's
-    string-referenced FK above — this app doesn't import submissions.models
-    at module load time, to avoid a circular import (submissions imports
-    points' set_item_award in its own services)."""
+    category/condition are plain strings rather than FK/enum-typed
+    against apps.submissions.models.Item, to avoid importing that module
+    at load time (submissions imports this app's own services)."""
     CATEGORY_CHOICES = [
         ("clothing", "Clothing"),
         ("shoes", "Shoes"),
@@ -53,10 +49,9 @@ class PointsRule(BaseModel):
     points = models.PositiveIntegerField()
 
     class Meta(BaseModel.Meta):
-        # A fresh `class Meta:` here (not subclassing BaseModel.Meta) would
-        # silently drop the -created_at ordering every other model in this
-        # app gets — Django doesn't merge Meta across abstract-base
-        # inheritance unless the child explicitly subclasses the parent's.
+        # Subclasses BaseModel.Meta, not a fresh class — otherwise this
+        # would silently lose the -created_at ordering every other model
+        # in the app gets.
         constraints = [
             models.UniqueConstraint(fields=["category", "condition"], name="unique_points_rule_per_category_condition"),
         ]
