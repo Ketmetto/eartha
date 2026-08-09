@@ -3,17 +3,33 @@ Fixtures specific to the submissions app. user/admin_user/api_client/
 auth_client/admin_client come from the root conftest.py — don't redefine
 them here.
 """
+import io
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
 from apps.submissions.models import Item, DriverAssignment
 
 
 @pytest.fixture
-def photo_file():
+def make_image_bytes():
+    """Factory, not a single value — base.validators.validate_image_content_type
+    now actually decodes the upload (not just its declared Content-Type),
+    so tests need real image bytes, not placeholder text pretending to be
+    one."""
+    def _make(fmt="JPEG"):
+        buf = io.BytesIO()
+        Image.new("RGB", (10, 10), color="red").save(buf, format=fmt)
+        return buf.getvalue()
+    return _make
+
+
+@pytest.fixture
+def photo_file(make_image_bytes):
     """A valid image upload for testing."""
     return SimpleUploadedFile(
         "test.jpg",
-        b"fake image content",
+        make_image_bytes(),
         content_type="image/jpeg",
     )
 

@@ -17,9 +17,9 @@ from apps.submissions.models import Item, Driver
 class TestItemUploadView:
     """Test photo-validated item creation through the API."""
 
-    def test_create_item_with_photos(self, auth_client):
+    def test_create_item_with_photos(self, auth_client, make_image_bytes):
         photo = SimpleUploadedFile(
-            "test.jpg", b"fake image content", content_type="image/jpeg"
+            "test.jpg", make_image_bytes(), content_type="image/jpeg"
         )
 
         response = auth_client.post(
@@ -52,9 +52,9 @@ class TestItemUploadView:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "photos" in str(response.data)
 
-    def test_create_item_with_multiple_photos(self, auth_client):
+    def test_create_item_with_multiple_photos(self, auth_client, make_image_bytes):
         photos = [
-            SimpleUploadedFile(f"test{i}.jpg", b"fake", content_type="image/jpeg")
+            SimpleUploadedFile(f"test{i}.jpg", make_image_bytes(), content_type="image/jpeg")
             for i in range(3)
         ]
 
@@ -70,6 +70,25 @@ class TestItemUploadView:
 
         assert response.status_code == status.HTTP_201_CREATED
         assert len(response.data["photos"]) == 3
+
+    def test_rejects_svg_upload(self, auth_client):
+        svg = SimpleUploadedFile(
+            "test.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+            content_type="image/svg+xml",
+        )
+
+        response = auth_client.post(
+            reverse("submissions-list-create"),
+            data={
+                "category": Item.Category.CLOTHING,
+                "condition": Item.Condition.GOOD,
+                "photos": [svg],
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_unauthenticated_user_cannot_create(self, api_client):
         response = api_client.post(

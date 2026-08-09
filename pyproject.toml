@@ -21,6 +21,11 @@ dependencies = [
     "whitenoise>=6.7",
     "django-unfold>=0.38",
     "phonenumbers>=8.13",
+    # HEIC/HEIF decode support for Pillow — the default capture format on
+    # iPhones (unless a user has "Most Compatible" enabled), which plain
+    # Pillow can't open at all. Ships libheif prebuilt in its wheel, no
+    # extra system package needed.
+    "pillow-heif>=0.18",
 ]
 
 [project.optional-dependencies]

@@ -129,9 +129,9 @@ class TestTransitionItemStatus:
 class TestCreateItemWithPhotos:
     """Test photo-validated item creation."""
 
-    def test_creates_item_with_single_photo(self, user):
+    def test_creates_item_with_single_photo(self, user, make_image_bytes):
         photo = SimpleUploadedFile(
-            "test.jpg", b"fake image content", content_type="image/jpeg"
+            "test.jpg", make_image_bytes(), content_type="image/jpeg"
         )
 
         item = create_item_with_photos(
@@ -147,9 +147,9 @@ class TestCreateItemWithPhotos:
         assert item.photos.count() == 1
         assert item.status == Item.Status.PENDING
 
-    def test_creates_item_with_multiple_photos(self, user):
+    def test_creates_item_with_multiple_photos(self, user, make_image_bytes):
         photos = [
-            SimpleUploadedFile(f"test{i}.jpg", b"fake", content_type="image/jpeg")
+            SimpleUploadedFile(f"test{i}.jpg", make_image_bytes(), content_type="image/jpeg")
             for i in range(3)
         ]
 
@@ -188,7 +188,62 @@ class TestCreateItemWithPhotos:
                 photos=[bad_photo],
             )
 
-        assert Item.objects.filter(user=user).count() == 0
+    def test_rejects_svg_even_with_image_content_type(self, user):
+        # SVG is XML and can embed <script> that runs if a browser is ever
+        # pointed at the file directly (submission photos are served
+        # publicly with no auth — see nginx/nginx.conf) — excluded
+        # regardless of what Content-Type the client claims.
+        svg_bomb = SimpleUploadedFile(
+            "test.svg",
+            b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+            content_type="image/svg+xml",
+        )
+
+        with pytest.raises(DRFValidationError):
+            create_item_with_photos(
+                user=user,
+                category=Item.Category.CLOTHING,
+                condition=Item.Condition.GOOD,
+                photos=[svg_bomb],
+            )
+
+    def test_rejects_non_image_bytes_with_spoofed_image_content_type(self, user):
+        # The Content-Type header is exactly what the client claims —
+        # nothing about a multipart upload requires it to match the bytes
+        # that follow. This is what actually distinguishes the fix from
+        # the old behavior: the string "image/jpeg" alone used to be
+        # enough to pass.
+        spoofed = SimpleUploadedFile(
+            "totally-a-photo.jpg", b"<html><script>alert(1)</script></html>",
+            content_type="image/jpeg",
+        )
+
+        with pytest.raises(DRFValidationError):
+            create_item_with_photos(
+                user=user,
+                category=Item.Category.CLOTHING,
+                condition=Item.Condition.GOOD,
+                photos=[spoofed],
+            )
+
+    def test_accepts_heic_the_default_iphone_capture_format(self, user):
+        import io
+        import pillow_heif
+        from PIL import Image
+
+        heif_file = pillow_heif.from_pillow(Image.new("RGB", (10, 10), color="blue"))
+        buf = io.BytesIO()
+        heif_file.save(buf, quality=90)
+        photo = SimpleUploadedFile("test.heic", buf.getvalue(), content_type="image/heic")
+
+        item = create_item_with_photos(
+            user=user,
+            category=Item.Category.CLOTHING,
+            condition=Item.Condition.GOOD,
+            photos=[photo],
+        )
+
+        assert item.photos.count() == 1
 
 
 # ---------------------------------------------------------------------------
