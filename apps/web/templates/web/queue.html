@@ -27,6 +27,7 @@
     <div class="tabs" role="tablist">
       <button class="tab is-active" data-panel="pipeline" role="tab">PIPELINE</button>
       <button class="tab" data-panel="benefits" role="tab">MANAGE BENEFITS</button>
+      <button class="tab" data-panel="rules" role="tab">AWARD RULES</button>
       <button class="tab" data-panel="drivers" role="tab">DRIVERS</button>
       <button class="tab" data-panel="inbox" role="tab">INBOX <span class="tab-count" id="countInbox">0</span></button>
     </div>
@@ -87,6 +88,25 @@
           <tbody id="benefitsBody"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- ============ AWARD RULES ============ -->
+    <div class="tab-panel" id="panel-rules">
+      <p class="hint" style="margin-bottom:12px;">SUGGESTED DEFAULT POINTS FOR EACH CATEGORY/CONDITION PAIR — PRE-FILLS THE AWARD FIELD IN THE PIPELINE, BUT ADMINS CAN ALWAYS TYPE A DIFFERENT AMOUNT WHEN ACTUALLY AWARDING.</p>
+      <form id="pointsRulesForm" novalidate>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th></th><th>CLOTHING</th><th>SHOES</th><th>ACCESSORIES</th><th>BAGS</th></tr>
+            </thead>
+            <tbody id="pointsRulesBody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:22px;">
+          <button type="submit" class="btn btn-sm">SAVE</button>
+        </div>
+        <p class="form-msg" id="pointsRulesMsg" role="status"></p>
+      </form>
     </div>
 
     <!-- ============ DRIVERS ============ -->

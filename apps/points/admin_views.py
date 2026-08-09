@@ -1,10 +1,11 @@
+from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from base.permissions import IsAdmin
 from apps.submissions.models import Item
-from .models import Benefit
-from .serializers import BenefitAdminSerializer, BenefitReorderSerializer, ItemAwardSerializer
+from .models import Benefit, PointsRule
+from .serializers import BenefitAdminSerializer, BenefitReorderSerializer, ItemAwardSerializer, PointsRuleSerializer
 from .services import set_item_award, get_awarded_total
 
 
@@ -71,3 +72,44 @@ class ItemAwardView(generics.GenericAPIView):
         set_item_award(item, serializer.validated_data["points"], request.user)
 
         return Response({"awarded_points": get_awarded_total(item)}, status=status.HTTP_200_OK)
+
+
+class PointsRuleAdminListView(generics.ListAPIView):
+    """Admin: the full AWARD RULES table (category x condition suggested
+    points) that pre-fills the queue pipeline's award field. Unpaginated —
+    fixed at len(categories) x len(conditions) rows, currently 16."""
+    serializer_class = PointsRuleSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = None
+    queryset = PointsRule.objects.all()
+
+
+class PointsRuleBulkSaveView(APIView):
+    """
+    Admin: save the whole AWARD RULES table in one shot — the queue UI
+    edits every cell then hits one SAVE button, same "whole set at once"
+    shape as BenefitReorderView above.
+
+    POST [{"category": "clothing", "condition": "like_new", "points": 100}, ...]
+    Upserts by (category, condition); rows not included are left untouched
+    rather than deleted, since every valid combination should always be
+    submitted together by the table UI — a partial submission is more
+    likely a bug than an intentional partial edit.
+    """
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        serializer = PointsRuleSerializer(data=request.data, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            for row in serializer.validated_data:
+                PointsRule.objects.update_or_create(
+                    category=row["category"], condition=row["condition"],
+                    defaults={"points": row["points"]},
+                )
+
+        return Response(
+            PointsRuleSerializer(PointsRule.objects.all(), many=True).data,
+            status=status.HTTP_200_OK,
+        )

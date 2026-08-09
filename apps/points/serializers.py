@@ -1,11 +1,28 @@
 from rest_framework import serializers
-from .models import PointsLedgerEntry, Benefit, Redemption
+from .models import PointsLedgerEntry, Benefit, PointsRule, Redemption
 
 
 class PointsLedgerEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = PointsLedgerEntry
         fields = ["id", "entry_type", "points", "note", "created_at"]
+
+
+class PointsRuleSerializer(serializers.ModelSerializer):
+    """The admin queue's AWARD RULES table — one row per (category,
+    condition) pair. Also doubles as the input validator for
+    PointsRuleBulkSaveView, which reuses this with many=True.
+
+    validators=[] disables the UniqueTogetherValidator DRF would
+    otherwise auto-generate from PointsRule's UniqueConstraint — that
+    validator assumes every write is a brand-new row, but
+    PointsRuleBulkSaveView's whole purpose is upserting already-existing
+    (category, condition) rows, so it would reject every ordinary save
+    with "this combination already exists"."""
+    class Meta:
+        model = PointsRule
+        fields = ["category", "condition", "points"]
+        validators = []
 
 
 class BenefitSerializer(serializers.ModelSerializer):

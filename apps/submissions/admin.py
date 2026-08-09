@@ -57,7 +57,7 @@ class ItemAdmin(ModelAdmin):
     inlines = [ItemPhotoInline]
     actions = ["award_points"]
 
-    @admin.action(description="Award points (suggested amount, per condition)")
+    @admin.action(description="Award points (suggested amount, per category/condition)")
     def award_points(self, request, queryset):
         # Suggested-default only — free-text correction is the ops queue
         # web UI's job (apps/web/static/web/js/queue.js), this is a
@@ -67,7 +67,7 @@ class ItemAdmin(ModelAdmin):
 
         for item in queryset:
             try:
-                set_item_award(item, suggested_points(item.condition), request.user)
+                set_item_award(item, suggested_points(item.category, item.condition), request.user)
             except ValidationError as e:
                 self.message_user(request, f"Skipped {item.id}: {e}", level=messages.ERROR)
 

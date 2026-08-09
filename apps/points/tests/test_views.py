@@ -5,7 +5,7 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
-from apps.points.models import Benefit, PointsLedgerEntry
+from apps.points.models import Benefit, PointsLedgerEntry, PointsRule
 
 # api_client / auth_client / admin_client / benefit / inactive_benefit /
 # collected_item come from conftest.py (root + apps/points/tests/)
@@ -251,4 +251,74 @@ class TestItemAwardView:
 
     def test_missing_points_returns_400(self, admin_client, collected_item):
         response = admin_client.post(self.url(collected_item), {}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+class TestPointsRuleAdminListView:
+    url = reverse("points-rules-admin-list")
+
+    # The 0006_pointsrule migration seeds all 16 category/condition
+    # combinations in every environment, test DBs included.
+    def setup_method(self):
+        PointsRule.objects.all().delete()
+
+    def test_non_admin_cannot_access(self, auth_client):
+        response = auth_client.get(self.url)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_lists_existing_rules(self, admin_client):
+        PointsRule.objects.create(category="clothing", condition="good", points=70)
+        response = admin_client.get(self.url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert response.data[0]["category"] == "clothing"
+        assert response.data[0]["points"] == 70
+
+
+@pytest.mark.django_db
+class TestPointsRuleBulkSaveView:
+    url = reverse("points-rules-admin-save")
+
+    def setup_method(self):
+        PointsRule.objects.all().delete()
+
+    def test_non_admin_cannot_access(self, auth_client):
+        response = auth_client.post(self.url, [{"category": "clothing", "condition": "good", "points": 70}], format="json")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_creates_new_rules(self, admin_client):
+        response = admin_client.post(
+            self.url,
+            [
+                {"category": "clothing", "condition": "good", "points": 70},
+                {"category": "shoes", "condition": "good", "points": 55},
+            ],
+            format="json",
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert PointsRule.objects.count() == 2
+        assert PointsRule.objects.get(category="shoes", condition="good").points == 55
+
+    def test_updates_existing_rule_rather_than_duplicating(self, admin_client):
+        PointsRule.objects.create(category="clothing", condition="good", points=70)
+
+        response = admin_client.post(
+            self.url, [{"category": "clothing", "condition": "good", "points": 85}], format="json"
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert PointsRule.objects.count() == 1
+        assert PointsRule.objects.get(category="clothing", condition="good").points == 85
+
+    def test_rejects_negative_points(self, admin_client):
+        response = admin_client.post(
+            self.url, [{"category": "clothing", "condition": "good", "points": -5}], format="json"
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_rejects_invalid_category(self, admin_client):
+        response = admin_client.post(
+            self.url, [{"category": "electronics", "condition": "good", "points": 70}], format="json"
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
