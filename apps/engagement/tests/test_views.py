@@ -44,6 +44,41 @@ class TestContactMessageCreateView:
         message = ContactMessage.objects.get(email="jane@example.com")
         assert message.is_partner_inquiry is False
 
+    def test_rejects_unauthenticated_submission_using_a_registered_email(self, api_client, user):
+        # The form is public — nothing else stops a visitor from typing
+        # someone else's real address, which would read in the admin
+        # inbox as a message genuinely from that account.
+        response = api_client.post(self.url, self.valid_payload(email=user.email), format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not ContactMessage.objects.filter(email=user.email).exists()
+
+    def test_rejects_case_variant_of_a_registered_email(self, api_client, user):
+        response = api_client.post(
+            self.url, self.valid_payload(email=user.email.upper()), format="json"
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_allows_a_user_to_message_under_their_own_email(self, auth_client, user):
+        with patch("apps.engagement.services.notify_admin_of_contact_message"):
+            response = auth_client.post(self.url, self.valid_payload(email=user.email), format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+
+    def test_rejects_a_logged_in_user_using_someone_elses_registered_email(self, auth_client, admin_user):
+        # Logged in, but as a different account than the email claims —
+        # still impersonation, just not an anonymous one.
+        response = auth_client.post(self.url, self.valid_payload(email=admin_user.email), format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_unregistered_email_still_works_anonymously(self, api_client):
+        # The whole point of keeping this open: partner inquiries and
+        # pre-signup questions come from people who may never have an
+        # account at all.
+        with patch("apps.engagement.services.notify_admin_of_contact_message"):
+            response = api_client.post(
+                self.url, self.valid_payload(email="brand-partner@example.com"), format="json"
+            )
+        assert response.status_code == status.HTTP_201_CREATED
+
 
 @pytest.mark.django_db
 class TestImpactStatsView:

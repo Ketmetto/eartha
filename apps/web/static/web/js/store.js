@@ -668,12 +668,37 @@ const Eartha = (() => {
     const csrfToken = getCookie('csrftoken');
     if (csrfToken) headers['X-CSRFToken'] = csrfToken;
 
-    const res = await fetch(`${API_ROOT}/engagement/contact/`, {
-      method: 'POST',
-      headers,
-      credentials: 'same-origin',
-      body: JSON.stringify({ name, email, subject, message: body }),
-    });
+    // Attached when present, but never required — the endpoint stays open
+    // to anonymous visitors (partner inquiries, pre-signup questions).
+    // Sending it when a session exists is what lets the backend tell "a
+    // logged-in user messaging under their own email" apart from "someone
+    // else typing that same, already-registered email" — see
+    // ContactMessageSerializer.validate_email.
+    let s = session();
+    if (s && s.access) headers['Authorization'] = `Bearer ${s.access}`;
+
+    const doPost = () =>
+      fetch(`${API_ROOT}/engagement/contact/`, {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+        body: JSON.stringify({ name, email, subject, message: body }),
+      });
+
+    let res = await doPost();
+    if (res.status === 401 && s && s.access) {
+      // Stale token — refresh and retry once; if that fails too, drop
+      // back to an anonymous submission rather than blocking the form,
+      // since it's still meant to work without a session at all.
+      const newAccess = await refreshAccessToken();
+      if (newAccess) {
+        headers['Authorization'] = `Bearer ${newAccess}`;
+      } else {
+        delete headers['Authorization'];
+      }
+      res = await doPost();
+    }
+
     let data = null;
     try { data = await res.json(); } catch { /* empty body */ }
     if (!res.ok) {
