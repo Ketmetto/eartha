@@ -1,6 +1,7 @@
 from django.db.models import Sum
 from rest_framework import generics, permissions
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from .models import PointsLedgerEntry, Benefit, Redemption
 from .serializers import PointsLedgerEntrySerializer, BenefitSerializer, RedemptionSerializer
@@ -39,6 +40,8 @@ class BenefitListView(generics.ListAPIView):
 class RedeemBenefitView(generics.CreateAPIView):
     serializer_class = RedemptionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "redeem"
 
     def perform_create(self, serializer):
         benefit = serializer.validated_data["benefit"]
