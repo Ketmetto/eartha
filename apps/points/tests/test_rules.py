@@ -21,9 +21,8 @@ class TestSuggestedPoints:
         assert suggested_points("shoes", "good") == 55
 
     def test_different_categories_can_have_different_amounts(self):
-        # The whole point of the category axis existing — this used to be
-        # a condition-only static table, so "good shoes" and "good bags"
-        # were always identical.
+        # The whole point of the category axis: "good shoes" and "good
+        # bags" don't have to be worth the same.
         PointsRule.objects.create(category="shoes", condition="good", points=55)
         PointsRule.objects.create(category="bags", condition="good", points=90)
 

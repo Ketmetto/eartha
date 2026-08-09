@@ -211,8 +211,8 @@ class TestCreateItemWithPhotos:
             )
 
     def test_rejects_non_image_bytes_with_spoofed_image_content_type(self, user):
-        # This is the actual regression check: the declared Content-Type
-        # alone used to be enough to pass, regardless of the real bytes.
+        # The declared Content-Type alone isn't enough — the real bytes
+        # have to actually decode as an image.
         spoofed = SimpleUploadedFile(
             "totally-a-photo.jpg", b"<html><script>alert(1)</script></html>",
             content_type="image/jpeg",

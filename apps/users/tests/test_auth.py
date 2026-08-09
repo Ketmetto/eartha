@@ -128,10 +128,8 @@ class TestMeEndpoint:
         user.refresh_from_db()
         assert user.is_staff is False
 
-    # A changed email used to be written straight to the account — see
-    # apps.users.services.request_email_change for why that's unsafe
-    # (mainly: it silently broke the link a Firebase-login account has to
-    # its Google identity, orphaning all of the account's data).
+    # See apps.users.services.request_email_change for why a changed
+    # email doesn't apply until confirmed.
     @patch("apps.users.services.send_transactional_email")
     def test_email_change_does_not_apply_immediately(self, mock_send, api_client, user):
         original_email = user.email
@@ -208,8 +206,8 @@ class TestMeEndpoint:
 
 @pytest.mark.django_db
 class TestPhoneNumber:
-    """Two accounts entering "the same" Lebanese number in different
-    clothing (spaces, a leading 0, a +961) used to both save fine — see
+    """"Same" Lebanese number in different clothing (spaces, a leading 0,
+    a +961) normalizes to one canonical form — see
     apps.users.services.normalize_phone."""
 
     def test_phone_is_normalized_to_e164(self, api_client, user):

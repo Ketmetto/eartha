@@ -645,9 +645,8 @@ const Eartha = (() => {
 
   // Shared inbox card markup — the admin inbox shows up in two places
   // (the queue page's INBOX tab, and swapped in for the form on /contact/
-  // when an admin is logged in — see contact.html), and used to be two
-  // independently hand-written copies. That's exactly how the REPLY BY
-  // EMAIL link below ended up on only one of them the first time around.
+  // when an admin is logged in — see contact.html). Kept as one function
+  // so both stay in sync.
   function contactMessageCardHtml(m) {
     return `
       <div class="card" style="${m.read ? 'opacity:0.65;' : ''}">
@@ -1024,17 +1023,15 @@ const Eartha = (() => {
 
     // Deliberately not IntersectionObserver: it measures each target's
     // *rendered* (transformed) position, and .reveal moves the target via
-    // transform — observing the very element the animation moves means a
-    // section exiting the viewport at the right angle can shift itself back
-    // across the threshold it just crossed and re-trigger indefinitely at
-    // one scroll position, or (worse) drop the real final state when a fast
-    // scroll lands more than one crossing in the same callback batch. Both
-    // happened in production. offsetTop/offsetHeight are layout-only and
-    // never affected by transform, so tracking position by hand this way
-    // can't feed back into its own trigger. Re-measured on load (fonts/
-    // images can reflow the page after first paint) and on resize.
+    // transform — observing the element the animation itself moves can
+    // feed back into its own trigger (re-crossing the threshold it just
+    // crossed, or missing a crossing entirely under a fast scroll).
+    // offsetTop/offsetHeight are layout-only and never affected by
+    // transform, so tracking position by hand avoids that entirely.
+    // Re-measured on load (fonts/images can reflow the page after first
+    // paint) and on resize.
     const THRESHOLD = 0.12;
-    const BOTTOM_MARGIN = 60; // mirrors the previous rootMargin's -60px
+    const BOTTOM_MARGIN = 60; // trigger slightly before a target's bottom edge reaches the viewport bottom
     const layout = new Map(); // target -> { top, height } in document coordinates
 
     const measure = () => {

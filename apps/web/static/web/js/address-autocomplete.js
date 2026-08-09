@@ -6,7 +6,7 @@
    map so the user can nudge it onto their actual entrance — Lebanon
    addressing is often informal enough that the geocoded point alone isn't
    reliably exact. Entirely a no-op with no API key configured — the input
-   just stays a plain text field, same as before this existed.
+   just stays a plain text field.
 
    Uses the classic google.maps.places.Autocomplete widget (bound directly
    to an existing <input>) rather than the newer PlaceAutocompleteElement

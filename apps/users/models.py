@@ -20,15 +20,10 @@ class User(AbstractUser):
         help_text="Manually verified accounts skip email verification on login. Used to grant access to test accounts.",
     )
     # Stable Firebase identity (Google/Apple sign-in), set on first social
-    # login and never changed after. apps.users.services.
-    # get_or_create_user_from_firebase matches on this first — not on
-    # email, which the user can freely edit via MeView. Matching on email
-    # alone meant editing your profile email broke the link to your
-    # Firebase identity: the next social login wouldn't find your account
-    # (its email no longer matched what the provider sent) and silently
-    # created a new, empty one instead, orphaning everything under the old
-    # account — which, for a social-only account, has no password either,
-    # so it becomes unrecoverable without admin intervention.
+    # login and never changed after. get_or_create_user_from_firebase
+    # matches on this, not on email (freely editable via MeView) — a
+    # social-only account has no password, so losing this link would make
+    # the account unrecoverable without admin intervention.
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
     # A requested-but-unconfirmed new email — see apps.users.services.
     # request_email_change/confirm_email_change. The address on `email`
@@ -78,11 +73,9 @@ class Address(BaseModel):
     def as_pickup_text(self):
         """Single-line address for admin display and the driver handoff
         (pickup_address_snapshot, WhatsApp dispatch message) — the one
-        place this formatting lives, so it can't drift out of sync between
-        the two callers the way line1/line2/city/country/postal_code did
-        before this method existed. Doesn't include `instructions` —
-        driver-facing notes are surfaced as their own field so they can't
-        get lost inside a long comma-joined line."""
+        place this formatting lives, shared by both callers. Doesn't
+        include `instructions`: driver-facing notes are surfaced as their
+        own field so they can't get lost inside a long comma-joined line."""
         parts = [self.line1, self.building, self.floor_unit, self.city, self.country, self.postal_code]
         return ", ".join(p for p in parts if p)
 

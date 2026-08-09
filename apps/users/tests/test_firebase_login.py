@@ -71,13 +71,9 @@ class TestFirebaseSocialLogin:
 
     @patch("apps.users.services.verify_firebase_token")
     def test_repeat_login_matches_by_uid_even_after_email_changed(self, mock_verify, api_client):
-        # Regression test: the account's Django email field is mutable
-        # (see request_email_change), but the Firebase identity backing it
+        # The account's Django email field is mutable (see
+        # request_email_change), but the Firebase identity backing it
         # shouldn't care — that's the whole point of matching by uid.
-        # Before this fix, changing the profile email broke the link
-        # entirely: the next Google login's email no longer matched any
-        # user, so a second, empty account got created instead of finding
-        # the real one.
         mock_verify.return_value = (decoded_token(), None)
         api_client.post(URL, {"id_token": "fake-token"}, format="json")
         created = User.objects.get(email="google.user@example.com")
@@ -121,9 +117,8 @@ class TestFirebaseSocialLogin:
 
 @pytest.mark.django_db
 class TestEmailVerifiedSurvivesProfileEdits:
-    """Regression test for the sync_email_address signal: verifying an email
-    (as Firebase login does) must not get silently undone by a later,
-    unrelated profile save."""
+    """sync_email_address: verifying an email (as Firebase login does)
+    must not get silently undone by a later, unrelated profile save."""
 
     @patch("apps.users.services.verify_firebase_token")
     def test_verified_flag_survives_a_me_patch(self, mock_verify, api_client):

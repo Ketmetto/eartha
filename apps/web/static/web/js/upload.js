@@ -112,10 +112,9 @@ if (user) {
       }
       // addressParts (city/country/postal_code) only exists if a real
       // autocomplete suggestion was picked — otherwise fall back to the
-      // plain typed line, same as before this integration existed.
-      // building/floor_unit/instructions are independent manual fields,
-      // not something Places Autocomplete resolves, so they're merged in
-      // either way.
+      // plain typed line. building/floor_unit/instructions are independent
+      // manual fields, not something Places Autocomplete resolves, so
+      // they're merged in either way.
       addressToSave = {
         ...(addressParts || {}),
         line1: (addressParts && addressParts.line1) || typed,

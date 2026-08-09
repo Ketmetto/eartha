@@ -75,18 +75,13 @@ function runAcceptMarquee(el, group) {
   // the user scrolled (swipe, trackpad, keyboard) — take their position as ours
   // and keep wrapping, so swiping past the end loops instead of hitting a wall
   el.addEventListener('scroll', () => {
-    // Exact equality, not a pixel-distance tolerance — a fixed-size
-    // tolerance (this used to be "<= 1") breaks under exactly the
-    // real-world condition it needs to survive: any single slow frame
-    // (main-thread jank, not just tab backgrounding) makes that frame's
-    // write bigger than the tolerance, misreads it as a user scroll, and
-    // pauses the animation for RESUME_DELAY. `applied` is read back from
-    // el.scrollLeft immediately after every write, so it already reflects
-    // whatever the browser actually stored (rounded or not) — by the time
-    // any scroll event fires, applied always matches the *latest* write's
-    // result exactly, however large that write was, unless something
-    // other than us changed scrollLeft since. That's the real thing this
-    // needs to detect, not "close enough".
+    // Exact equality, not a pixel-distance tolerance: a slow frame (main-
+    // thread jank) can make a single write bigger than any fixed
+    // tolerance, misreading it as a user scroll and pausing the animation
+    // for RESUME_DELAY. `applied` is read back from el.scrollLeft right
+    // after every write, so it always matches our latest write exactly,
+    // however large — that's what distinguishes "we moved this" from "the
+    // user did," not proximity.
     if (el.scrollLeft === applied) return; // that was our own frame
     pos = el.scrollLeft;
     const width = groupWidth();
@@ -108,11 +103,9 @@ function runAcceptMarquee(el, group) {
 
   el.addEventListener('pointerdown', (e) => {
     // A non-primary button (right-click, middle-click) isn't a hold
-    // gesture at all — leave it alone entirely. held used to get set
-    // before this check, for every pointerdown regardless of button, but
-    // only primary-mouse/touch pointers reliably get a matching pointerup
-    // routed back here; a right-click's context menu can swallow or
-    // misdirect it, which would leave held stuck true and the marquee
+    // gesture — only primary-mouse/touch pointers reliably get a matching
+    // pointerup routed back here; a right-click's context menu can
+    // swallow or misdirect it, leaving `held` stuck true and the marquee
     // frozen for the rest of the page's life.
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     held = true;

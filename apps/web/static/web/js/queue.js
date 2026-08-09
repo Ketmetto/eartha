@@ -98,8 +98,7 @@ if (admin) {
       </div>`;
   }
 
-  // Correct a wrong driver while the item's still dispatched — the only
-  // way to fix this used to be editing DriverAssignment in Django admin.
+  // Correct a wrong driver while the item's still dispatched.
   function reassignControl(s) {
     if (!open.reassign.has(s.id)) {
       return `
@@ -348,11 +347,9 @@ if (admin) {
         // don't treat it as a blocked popup — the dispatch call below is
         // async, and by the time it resolves the gesture context is gone.
         // Can't pass 'noopener' here: per spec it makes window.open return
-        // null, which silently broke every waWindow.* call below (the tab
-        // opened but never got navigated to WhatsApp or closed on error).
-        // Get a real reference instead, and sever .opener by hand — same
-        // tabnabbing protection 'noopener' gives, without losing the
-        // reference we need to navigate/close it once dispatch resolves.
+        // null, and the waWindow.* calls below need a real reference to
+        // navigate/close once dispatch resolves. Sever .opener by hand
+        // instead — same tabnabbing protection, without losing the reference.
         const waWindow = window.open('', '_blank');
         if (waWindow) waWindow.opener = null;
         try {
@@ -402,13 +399,11 @@ if (admin) {
         await Eartha.collectItem(id);
         Eartha.toast('MARKED COLLECTED');
       } else if (act === 'complete') {
-        // Closing out used to leave points unawarded unless the admin had
-        // separately hit SAVE on the award field first — easy to miss,
-        // since the field always shows a value (the suggested default, or
-        // whatever's already saved). Save whatever's in that field now,
-        // same as a normal award, before closing out — skipped only if
-        // it's unchanged from what's already recorded (the backend
-        // rejects a same-value re-award as a no-op).
+        // The award field always shows a value (the suggested default, or
+        // whatever's already saved), so close-out saves it too rather than
+        // requiring a separate SAVE click first — skipped only if it's
+        // unchanged from what's already recorded (the backend rejects a
+        // same-value re-award as a no-op).
         const awardInput = document.getElementById('award-' + id);
         if (awardInput) {
           const points = Number(awardInput.value);

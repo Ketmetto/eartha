@@ -133,9 +133,7 @@ class DriverDispatchView(generics.GenericAPIView):
 
 class DriverReassignView(generics.GenericAPIView):
     """
-    Admin: correct the driver on an already-dispatched item, from the
-    website — previously the only way to fix a wrong assignment was
-    editing DriverAssignment directly in Django admin.
+    Admin: correct the driver on an already-dispatched item.
 
     POST /admin/<uuid:pk>/reassign-driver/  {"driver_name": "..."}
     Only legal while the item is still DISPATCHED.

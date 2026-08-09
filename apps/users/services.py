@@ -277,11 +277,10 @@ def get_or_create_user_from_firebase(decoded_token, display_name=""):
     Find or create the local User for a verified Firebase identity.
 
     Matches on the Firebase UID first — a stable identifier that never
-    changes — not on email. A user can freely edit their profile email
-    (see request_email_change below), and matching by email alone meant
-    that edit broke the link: the next social login's email no longer
-    matched the account, so a new, empty account got created instead of
-    finding the real one, orphaning everything under the old account.
+    changes — not on email. Users can freely edit their profile email
+    (see request_email_change below); matching by email alone would mean
+    the next social login no longer finds the account once that changes,
+    creating a duplicate, orphaned one instead.
     """
     uid = decoded_token["uid"]
     # Lowercased mainly so generate_unique_username below derives from a
