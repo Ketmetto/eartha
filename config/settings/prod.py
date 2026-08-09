@@ -1,5 +1,21 @@
 from .base import *  # noqa
 
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
+# Blank by default — error tracking is a no-op until SENTRY_DSN is set,
+# same fallback pattern as the S3/Firebase config below. sentry-sdk is a
+# "prod" pyproject.toml extra (not installed in dev), so this import only
+# ever runs where that's guaranteed to be true.
+SENTRY_DSN = config("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+    )
+
 DEBUG = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
