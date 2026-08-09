@@ -1,9 +1,13 @@
 """
 Tests for apps.submissions.services
 """
-import pytest
+import io
 from unittest.mock import patch
+
+import pillow_heif
+import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.submissions.models import Item, DriverAssignment
@@ -189,11 +193,10 @@ class TestCreateItemWithPhotos:
             )
 
     def test_rejects_svg_even_with_image_content_type(self, user):
-        # SVG is XML and can embed <script> that runs if a browser is ever
-        # pointed at the file directly (submission photos are served
-        # publicly with no auth — see nginx/nginx.conf) — excluded
-        # regardless of what Content-Type the client claims.
-        svg_bomb = SimpleUploadedFile(
+        # SVG is XML and can embed <script>, which runs if a browser is
+        # ever pointed at the file directly — excluded regardless of the
+        # declared Content-Type.
+        svg_file = SimpleUploadedFile(
             "test.svg",
             b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
             content_type="image/svg+xml",
@@ -204,15 +207,12 @@ class TestCreateItemWithPhotos:
                 user=user,
                 category=Item.Category.CLOTHING,
                 condition=Item.Condition.GOOD,
-                photos=[svg_bomb],
+                photos=[svg_file],
             )
 
     def test_rejects_non_image_bytes_with_spoofed_image_content_type(self, user):
-        # The Content-Type header is exactly what the client claims —
-        # nothing about a multipart upload requires it to match the bytes
-        # that follow. This is what actually distinguishes the fix from
-        # the old behavior: the string "image/jpeg" alone used to be
-        # enough to pass.
+        # This is the actual regression check: the declared Content-Type
+        # alone used to be enough to pass, regardless of the real bytes.
         spoofed = SimpleUploadedFile(
             "totally-a-photo.jpg", b"<html><script>alert(1)</script></html>",
             content_type="image/jpeg",
@@ -227,10 +227,6 @@ class TestCreateItemWithPhotos:
             )
 
     def test_accepts_heic_the_default_iphone_capture_format(self, user):
-        import io
-        import pillow_heif
-        from PIL import Image
-
         heif_file = pillow_heif.from_pillow(Image.new("RGB", (10, 10), color="blue"))
         buf = io.BytesIO()
         heif_file.save(buf, quality=90)

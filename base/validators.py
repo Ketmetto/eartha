@@ -2,21 +2,18 @@ import pillow_heif
 from django.core.exceptions import ValidationError
 from PIL import Image
 
-# Plain Pillow can't decode HEIC/HEIF at all — this registers a real
-# opener for it, so the verify() below works uniformly across every
-# allowed format instead of HEIC getting a free pass on content-type
-# alone (see ALLOWED_IMAGE_CONTENT_TYPES).
+# Plain Pillow can't decode HEIC/HEIF — this registers a real opener so
+# verify() below works on it too, instead of giving it a free pass on
+# content-type alone.
 pillow_heif.register_heif_opener()
 
 MAX_UPLOAD_SIZE_MB = 10
 
-# Deliberately narrow — these are the formats a phone/camera photo upload
-# actually produces (HEIC/HEIF is the default iPhone capture format unless
-# a user has "Most Compatible" enabled in Camera settings). SVG is
-# excluded on purpose: it's XML, can embed <script>, and that script runs
-# if a browser is ever pointed at the file directly — which anyone can
-# do, since uploaded photos are served publicly with no auth check (see
-# nginx/nginx.conf's /media/ location).
+# What a phone/camera upload actually produces (HEIC/HEIF is the default
+# iPhone capture format unless "Most Compatible" is on). SVG is excluded
+# on purpose — it's XML, can embed <script>, and that runs if a browser
+# is ever pointed at the file directly (uploads are served with no auth
+# check; see nginx/nginx.conf's /media/ location).
 ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 
 
@@ -39,13 +36,11 @@ def validate_image_content_type(file):
         raise ValidationError("File must be a JPEG, PNG, or WEBP image.")
 
     # The check above is on the Content-Type the client *claims* — nothing
-    # about a multipart upload actually requires that to match the bytes
-    # that follow it. Decoding the real content is the only way to know
-    # this is genuinely a photo and not, say, an SVG-with-<script> or an
-    # HTML file wearing a spoofed "image/jpeg" label. Any decode failure —
-    # including Pillow's own DecompressionBombError, which isn't an
-    # OSError — means reject it; there's no legitimate photo upload this
-    # would ever wrongly catch.
+    # requires it to match the bytes that follow. Decoding the real
+    # content is the only way to know this is genuinely a photo and not,
+    # say, an HTML file wearing a spoofed "image/jpeg" label. Broad except:
+    # any decode failure means reject it, including Pillow's
+    # DecompressionBombError, which isn't an OSError.
     try:
         Image.open(file).verify()
     except Exception:

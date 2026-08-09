@@ -6,15 +6,12 @@ SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
-# nginx (see nginx/*.conf) sets X-Forwarded-For with $proxy_add_x_forwarded_for,
-# which *appends* to whatever the client already sent rather than replacing
-# it — so without this, DRF's throttle classes (SimpleRateThrottle.get_ident)
-# trust the entire client-supplied header as the caller's identity. A client
-# sending a different fake X-Forwarded-For on every request gets a fresh
-# rate-limit bucket each time, silently defeating login/register/email-action/
-# contact-form throttling. NUM_PROXIES=1 tells DRF exactly one proxy (nginx)
-# sits in front, so it instead reads the last comma-separated address — the
-# one nginx appended from the real TCP connection, which a client can't spoof.
+# Without this, DRF's throttles trust the client-supplied X-Forwarded-For
+# wholesale — nginx appends to it rather than replacing it (see
+# nginx/nginx.conf), so a client sending a different fake value on every
+# request got a fresh rate-limit bucket each time, silently defeating
+# login/register/email-action/contact throttling. NUM_PROXIES=1 makes DRF
+# read the last (nginx-appended, unspoofable) address instead.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
     "NUM_PROXIES": 1,

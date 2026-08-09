@@ -33,13 +33,11 @@ class ItemUploadView(generics.ListCreateAPIView):
         Override create to use the photo-validated service.
         Accepts multipart/form-data with item fields + photos.
         """
-        # Validate input via the dedicated serializer
         input_serializer = ItemCreateWithPhotosSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
 
         validated = input_serializer.validated_data
 
-        # Extract photos from request.FILES
         photos = request.FILES.getlist("photos")
         if not photos:
             return Response(
@@ -47,7 +45,6 @@ class ItemUploadView(generics.ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create item with photos via the service layer
         item = create_item_with_photos(
             user=request.user,
             category=validated["category"],
@@ -56,6 +53,5 @@ class ItemUploadView(generics.ListCreateAPIView):
             photos=photos,
         )
 
-        # Return the created item via the read serializer
         output_serializer = self.get_serializer(item)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
