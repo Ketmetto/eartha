@@ -24,7 +24,8 @@ these in. Anything not listed here is optional/feature-gated (noted below).
 | `REDIS_URL` | Yes (default ok) | `redis://redis:6379/0`, already correct |
 | `EMAIL_HOST` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` / `EMAIL_PORT` / `DEFAULT_FROM_EMAIL` | **Yes** | All blank right now. Without these, verification emails, password resets, and points/status notifications silently fail to send (dev only falls back to console logging — prod does not). For SendGrid: host = `smtp.sendgrid.net`, user = literal string `apikey`, password = your SendGrid API key, `DEFAULT_FROM_EMAIL` must be a verified sender in SendGrid. |
 | `CORS_ALLOWED_ORIGINS` | **Yes** | Currently `http://localhost:3000` — must be your real frontend origin(s), comma-separated, no trailing slash |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | **Yes** (if using login) | Already populated in your current `.env.prod` — this is the one Firebase credential the code actually reads (see issue #2 below, there's a redundant second delivery mechanism for the same cred) |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | **Yes** (if using login) | Already populated in your current `.env.prod` — the only Firebase credential the code reads (see issue #2 below — used to have a redundant second delivery mechanism, now removed) |
+| `SENTRY_DSN` | Optional | Blank → error tracking is a no-op (see issue #9 below). Get one from sentry.io if you want visibility into prod errors without watching logs directly. |
 | `FIREBASE_API_KEY` / `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` | **Yes** (if using login) | Already populated — these are public client-side config values (safe to expose in HTML), pulled from Firebase console → Project Settings |
 | `GOOGLE_MAPS_API_KEY` | Optional | Already populated. Client-side key (not secret), but restrict it by HTTP referrer in Google Cloud Console. Blank is fine — address fields just become plain text inputs. |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_STORAGE_BUCKET_NAME` / `AWS_S3_ENDPOINT_URL` | Optional | Blank today → media falls back to local disk (fine on KVM1 short-term, but disk-only means no CDN and files live inside the `media_data` volume — budget backups accordingly). Fill these in if/when you want S3/Wasabi/Spaces. |
@@ -35,31 +36,31 @@ these in. Anything not listed here is optional/feature-gated (noted below).
 - **`nginx/nginx.conf`**: replace every `YOURDOMAIN.com` with your real domain (appears in both the `:80` and `:443` `server_name` lines).
 - **`config/settings/prod.py`**: `CSRF_TRUSTED_ORIGINS` has `https://YOURDOMAIN.com` / `https://www.YOURDOMAIN.com` placeholders — replace with the real domain.
 - **`nginx/nginx.conf` TLS certs**: currently points at `selfsigned.crt`/`selfsigned.key` for HTTPS. These need to be swapped for the real Certbot-issued certs after the bootstrap steps in `DEPLOYMENT.md` (the file already has a `# PROD:` comment showing the swap, just commented out).
-- **Firebase Admin SDK file**: `secrets/firebase-adminsdk.json` needs the real service-account JSON downloaded from the Firebase console, placed on the server (not in git — already gitignored correctly).
+- ~~**Firebase Admin SDK file**~~ — resolved: issue #2 below's redundant file-mount was removed. Firebase credentials are delivered solely via `FIREBASE_SERVICE_ACCOUNT_JSON` in `.env.prod` now (see the table above).
 
 ---
 
 ## 2. Issues found in the current uncommitted/untracked changes
 
-1. **Three overlapping, partially-conflicting deployment docs.** `DEPLOYMENT.md`, `DEPLOYMENT-kvm1-addendum.md`, and `hostinger-kvm1-deployment-plan.md` all describe the same deployment but disagree on details: the "plan" doc has Nginx running on the **host** (not in Docker), calls the web service `django` instead of `web`, uses a different repo layout (`/opt/eartha/app/`), and has no containerized Certbot — none of which matches the actual `docker-compose.prod.yml`/`nginx/nginx.conf` you've built. It looks like an earlier draft that was superseded. Recommend deleting `hostinger-kvm1-deployment-plan.md` (or clearly marking it "superseded — do not follow") and folding the addendum's content into `DEPLOYMENT.md` directly so there's one source of truth.
+1. ~~Three overlapping, partially-conflicting deployment docs.~~ **Resolved** — `DEPLOYMENT-kvm1-addendum.md` and `hostinger-kvm1-deployment-plan.md` deleted; the addendum's still-relevant content (resource limits, swap) folded into `DEPLOYMENT.md` directly.
 
-2. **Firebase credentials are wired up twice, redundantly.** `apps/users/apps.py` initializes `firebase_admin` from `FIREBASE_SERVICE_ACCOUNT_JSON` (a JSON string in the env file) — that's the only thing the code actually reads. But `docker-compose.prod.yml` also mounts `secrets/firebase-adminsdk.json` as a file and sets `GOOGLE_APPLICATION_CREDENTIALS` to point at it, which nothing in the code consumes. Harmless as-is, but confusing for the next person — pick one delivery mechanism (the `.env` JSON string, since that's what's live) and drop the unused file mount/env var, or vice versa.
+2. ~~Firebase credentials wired up twice, redundantly.~~ **Resolved** — dropped the unused `secrets/firebase-adminsdk.json` file mount / `GOOGLE_APPLICATION_CREDENTIALS` from `docker-compose.prod.yml`. `FIREBASE_SERVICE_ACCOUNT_JSON` in `.env.prod` is the only delivery mechanism now.
 
-3. **`docker-compose.prod-old.yml` is stale and untracked.** Superseded by `docker-compose.prod.yml` per `DEPLOYMENT.md`'s own "Files in this bundle" section. It's just clutter sitting in the repo root now — safe to delete once you've confirmed the new file is what's actually deployed.
+3. ~~`docker-compose.prod-old.yml` is stale.~~ **Resolved** — deleted.
 
-4. **`LOCAL_TESTING` flag in `config/settings/prod.py` doesn't do anything useful.** `CSRF_TRUSTED_ORIGINS` already unconditionally includes `"https://localhost"` as its first entry; the `if LOCAL_TESTING: CSRF_TRUSTED_ORIGINS.append("https://localhost")` block just adds a duplicate of an entry that's already there. Combined with the fact your current `.env.prod` still has `LOCAL_TESTING=1` (flagged "REMOVE ON DEPLOYMENT" in its own comment), this is dead/confusing logic — remove the flag and the duplicate entry, or decide what it was actually supposed to gate.
+4. ~~`LOCAL_TESTING` flag doesn't do anything useful.~~ Already resolved before this pass — `config/settings/prod.py` has no `LOCAL_TESTING` reference anymore. Still worth removing the leftover `LOCAL_TESTING=1  #REMOVE ON DEPLOYMENT` line from your actual `.env.prod` — nothing reads it, but it's dead clutter.
 
-5. **`DEPLOYMENT.md` names the wrong env var.** Step 4 of "One-time server setup" says to set `SECRET_KEY=` — the actual variable read by `config/settings/base.py` is `DJANGO_SECRET_KEY`. Small thing, but will send someone chasing a Django error the first time they deploy from a fresh checkout.
+5. ~~`DEPLOYMENT.md` names the wrong env var.~~ **Resolved** — fixed to `DJANGO_SECRET_KEY`.
 
-6. **`login.html` demo-credentials hint was removed (in your uncommitted diff) but check for other copies.** The line `DEMO — USER: demo@eartha.co / demo1234 · ADMIN: admin@eartha.co / admin123` is gone from the login page in your working tree — good, that shouldn't ship to prod. Worth double-checking `scripts/seed_data.py` isn't something that gets run against the production database (it looks dev/demo-only, just confirm your deploy flow never calls it).
+6. **`login.html` demo-credentials hint** — confirmed still gone, and confirmed `scripts/seed_data.py` isn't referenced anywhere in the deploy flow (`DEPLOYMENT.md`, `entrypoint.sh`, `docker-compose.prod.yml`, `Dockerfile`). No action needed.
 
-7. **`.env.example` is missing `ALLOWED_HOSTS` entirely.** `DEPLOYMENT.md` tells you to copy `.env.example` to `.env` and set `ALLOWED_HOSTS=...`, but the key isn't in the template at all (it only works in dev because `dev.py` hardcodes `ALLOWED_HOSTS = ["*"]`, bypassing the env var). Add `ALLOWED_HOSTS=` to `.env.example` so the prod copy step doesn't silently miss it — an empty/missing value in prod means Django rejects every request with `DisallowedHost`.
+7. ~~`.env.example` is missing `ALLOWED_HOSTS` entirely.~~ **Resolved** — added.
 
-8. **`staging.py` doesn't set `SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE`/HSTS**, unlike `prod.py`. The comment justifies skipping `SECURE_SSL_REDIRECT` (staging may sit behind a TLS-terminating proxy, redirect loop risk), but that doesn't explain skipping the cookie-security flags — if staging is client-facing over HTTPS (which the comment says it is), cookies should still be marked `Secure`. Worth a quick look if staging is actually used by outside testers.
+8. ~~`staging.py` doesn't set `SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE`/HSTS.~~ **Resolved** — added, `SECURE_HSTS_PRELOAD` deliberately left off (unlike prod) since preload submission is a much harder commitment to reverse and staging environments are more likely to get torn down/repurposed.
 
-9. **`sentry-sdk` is a declared prod dependency but never initialized anywhere in the code.** It's in `pyproject.toml`'s `prod` extra, installed into every prod image, but there's no `sentry_sdk.init(...)` call in any settings file. Either wire it up (recommended — you'll want error visibility once this is live and you're not watching logs directly) or drop it from the dependency list.
+9. ~~`sentry-sdk` declared but never initialized.~~ **Resolved** — wired up in `prod.py`/`staging.py`, gated on an optional `SENTRY_DSN` env var (blank = no-op, same pattern as the S3/Firebase fallbacks elsewhere).
 
-10. **Local `.venv` in this checkout is broken** (no `pip`, mismatched Python 3.14 vs. the `python:3.13-slim` the Dockerfile actually builds with) — the test suite can't run against it right now (`ModuleNotFoundError: No module named 'whitenoise'`). This doesn't affect the Docker-based deploy (the image builds its own clean environment from `pyproject.toml`), but it means nothing has been locally verified against this exact working tree recently. Worth rebuilding the venv (`python3.13 -m venv .venv && .venv/bin/pip install -e ".[dev]"`) and running `pytest` once before you rely on "the tests pass" as a merge gate.
+10. **Local `.venv` in this checkout is broken** — still true, unrelated to the Docker-based deploy (the image builds its own clean environment from `pyproject.toml`), so not a launch blocker. Rebuild with `python3.13 -m venv .venv && .venv/bin/pip install -e ".[dev]"` if you want to run tests outside Docker.
 
 ---
 

@@ -83,9 +83,54 @@ Replace `YOURDOMAIN.com` there too, to match `nginx.conf` and `ALLOWED_HOSTS`.
    Copy `.env.example` to `.env` and set real values for:
    - `DEBUG=False`
    - `ALLOWED_HOSTS=YOURDOMAIN.com,www.YOURDOMAIN.com`
-   - `SECRET_KEY=` — generate a fresh one, don't reuse the dev key
+   - `DJANGO_SECRET_KEY=` — generate a fresh one, don't reuse the dev key
+     (`python -c "import secrets; print(secrets.token_urlsafe(50))"`)
    - `POSTGRES_PASSWORD=` — a real password, not `change-me`
+   - `FIREBASE_SERVICE_ACCOUNT_JSON=` — the service-account key from the
+     Firebase console, minified to a single line (needed for Google/Apple
+     login; delivered as an env var, not a mounted file — see the Firebase
+     note under "Resource limits" below)
    - Any email/SMTP, Celery/Redis, and storage settings the app needs
+
+5. **Set up swap** (one-time, host-level — see "Resource limits" below for
+   why this matters on a 4 GB box):
+   ```bash
+   fallocate -l 2G /swapfile
+   chmod 600 /swapfile
+   mkswap /swapfile
+   swapon /swapfile
+   echo '/swapfile none swap sw 0 0' >> /etc/fstab
+   ```
+   Verify with `free -h` — `Swap:` should show 2.0G total.
+
+---
+
+## Resource limits (KVM1, 4 GB RAM total)
+
+`docker-compose.prod.yml` sets explicit `deploy.resources.limits.memory`
+per service — nothing capped this before, which is fine on a bigger box
+but risky here: an unbounded Postgres or Redis under load can starve
+Gunicorn or Celery, and because every service is `restart: unless-stopped`,
+an OOM kill shows up as a mystery 502 with no obvious cause in the logs,
+not a clean crash.
+
+| Service | Limit | Notes |
+|---|---|---|
+| `web` (Gunicorn, 3 workers) | 1 GB | Watch this first if image uploads grow |
+| `celery` | 300 MB | `--concurrency=2` |
+| `db` (Postgres) | 512 MB | `shared_buffers=256MB`, `max_connections=50` |
+| `redis` | 150 MB | `maxmemory 128mb`, `allkeys-lru` eviction |
+| Nginx + certbot + host OS | ~500 MB | not containerized-limited, informal budget |
+
+Total reserved: **~2.5 GB**, leaving ~1.5 GB headroom for traffic spikes
+and Docker overhead — comfortable at moderate load but not infinite. If a
+service is consistently near its limit, raise that limit (and drop
+headroom elsewhere) or upgrade to KVM2, rather than removing the limit
+entirely — removing it just moves the risk back to "random OOM kill"
+instead of a visible, diagnosable constraint. The swap step above is a
+second line of defense for brief spikes above 4 GB (e.g. a
+`docker compose build` running alongside live traffic), not a substitute
+for right-sizing these limits.
 
 ---
 
@@ -210,4 +255,10 @@ after an old project before assuming data is gone.
 - [ ] `DEBUG=False` confirmed (visit a broken URL — should show a plain
       error page, not a stack trace)
 - [ ] Celery worker logs show it connected to Redis and Postgres
+- [ ] Google/Apple login works (confirms `FIREBASE_SERVICE_ACCOUNT_JSON`
+      parsed correctly — check `web`/`celery` logs for an Admin SDK
+      initialization error otherwise)
+- [ ] Swap is active: `free -h` shows `Swap: 2.0G` total
+- [ ] After first real traffic, `docker stats` for a few minutes and
+      confirm no service is consistently pinned at its memory limit
 - [ ] Cron backup job runs successfully once, and the `.sql.gz` file is valid
