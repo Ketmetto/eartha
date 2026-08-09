@@ -85,7 +85,7 @@ if (admin) {
   // freely editable; 0 is a valid award for a misrepresented item caught
   // on physical inspection.
   function awardControl(s) {
-    const suggested = Eartha.POINTS_CRITERIA[s.condition] ?? 0;
+    const suggested = pointsRulesLookup(s.category, s.condition);
     const already = s.awardedPoints != null;
     const label = already ? `CORRECT AWARD (CURRENTLY ${s.awardedPoints} PTS)` : 'AWARD POINTS';
     return `
@@ -674,6 +674,68 @@ if (admin) {
     }
   });
 
+  // ============ AWARD RULES ============
+  // Suggested-points table (category x condition) that pre-fills the
+  // pipeline's award field (see awardControl above) — loaded once up
+  // front, same as driversList, since awardControl reads it synchronously
+  // while building each card.
+  let pointsRules = [];
+  const CATEGORY_LABELS = { clothing: 'CLOTHING', shoes: 'SHOES', accessories: 'ACCESSORIES', bags: 'BAGS' };
+  const CONDITION_LABELS = { like_new: 'LIKE NEW', good: 'GOOD', worn: 'WORN', damaged: 'DAMAGED' };
+
+  function pointsRulesLookup(category, condition) {
+    const rule = pointsRules.find((r) => r.category === category && r.condition === condition);
+    return rule ? rule.points : 0;
+  }
+
+  async function renderPointsRules() {
+    const body = document.getElementById('pointsRulesBody');
+    try {
+      pointsRules = await Eartha.fetchPointsRules();
+    } catch (err) {
+      body.innerHTML = `<tr><td colspan="5">${Eartha.esc(err.message || 'COULD NOT LOAD AWARD RULES.')}</td></tr>`;
+      return;
+    }
+    body.innerHTML = Object.keys(CONDITION_LABELS)
+      .map(
+        (condition) => `
+      <tr>
+        <td style="text-transform:uppercase;font-weight:700;">${CONDITION_LABELS[condition]}</td>
+        ${Object.keys(CATEGORY_LABELS)
+          .map(
+            (category) => `
+        <td><input type="number" min="0" data-category="${category}" data-condition="${condition}" value="${pointsRulesLookup(category, condition)}" style="width:80px;"></td>`
+          )
+          .join('')}
+      </tr>`
+      )
+      .join('');
+  }
+
+  document.getElementById('pointsRulesForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('pointsRulesMsg');
+    const rows = Array.from(document.querySelectorAll('#pointsRulesBody input')).map((input) => ({
+      category: input.dataset.category,
+      condition: input.dataset.condition,
+      points: Number(input.value),
+    }));
+    if (rows.some((r) => Number.isNaN(r.points) || r.points < 0)) {
+      msg.textContent = 'ENTER A VALID POINTS AMOUNT FOR EVERY CELL.';
+      msg.className = 'form-msg is-error';
+      return;
+    }
+    try {
+      pointsRules = await Eartha.savePointsRules(rows);
+      msg.textContent = 'SAVED.';
+      msg.className = 'form-msg is-ok';
+      renderList(); // any award field currently showing a suggested default should reflect the change
+    } catch (err) {
+      msg.textContent = err.message || 'SOMETHING WENT WRONG.';
+      msg.className = 'form-msg is-error';
+    }
+  });
+
   // ============ INBOX ============
   // Paginated + infinite scroll (same pattern as the pipeline's done tab)
   // — the public contact form has no natural cap on inbox size. The
@@ -709,44 +771,15 @@ if (admin) {
     io.observe(sentinel);
   }
 
-  // Replies go out from the admin's own mail client, not through Eartha's
-  // system email — a contact-form inbox is exactly the kind of free-form,
-  // two-way conversation a transactional-email pipeline shouldn't carry
-  // (deliverability/reputation risk for the sender address, and it'd mean
-  // building storage + a mini email client for what's really just "hand
-  // this off to Gmail/Outlook"). mailto: does that with no backend at all.
-  function mailtoReplyUrl(m) {
-    const subject = `Re: ${m.subject || 'your message to Eartha'}`;
-    const quoted = `\n\n---\nOn ${Eartha.fmtDate(m.date)}, ${m.name} wrote:\n${m.body}`;
-    // The recipient goes in unencoded — encodeURIComponent would %40 the
-    // "@", which most mail clients do decode back correctly, but the
-    // mailto: RFC (6068) treats the to-part as a raw addr-spec, so this is
-    // both simpler and more compatible.
-    return `mailto:${m.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(quoted)}`;
-  }
-
   function renderInboxList() {
     const el = document.getElementById('inboxList');
     if (!inboxItems.length) {
       el.innerHTML = '<div class="empty">INBOX IS EMPTY — CONTACT FORM MESSAGES LAND HERE.</div>';
       return;
     }
-    const cards = inboxItems
-      .map(
-        (m) => `
-      <div class="card" style="${m.read ? 'opacity:0.65;' : ''}">
-        <p class="batch-tag">${Eartha.fmtDate(m.date)} · ${Eartha.esc(m.email)}</p>
-        <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
-          ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
-        </p>
-        <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
-        <div style="display:flex;gap:16px;margin-top:12px;">
-          <a class="link-underline" style="font-size:10px;" href="${Eartha.esc(mailtoReplyUrl(m))}">REPLY BY EMAIL</a>
-          ${m.read ? '' : `<button class="link-underline" style="font-size:10px;" data-read="${m.id}">MARK AS READ</button>`}
-        </div>
-      </div>`
-      )
-      .join('');
+    // Card markup (including the REPLY BY EMAIL link) is shared with the
+    // admin-only inbox view on /contact/ — see Eartha.contactMessageCardHtml.
+    const cards = inboxItems.map(Eartha.contactMessageCardHtml).join('');
     const sentinel = inboxHasMore ? '<div id="inboxSentinel" class="empty">LOADING MORE…</div>' : '';
     el.innerHTML = cards + sentinel;
     if (inboxHasMore) wireInboxSentinel();
@@ -787,12 +820,13 @@ if (admin) {
     }
   });
 
-  // Drivers load first and are awaited — the pipeline's dispatch dropdown
-  // (see actionArea's 'accepted' case) reads driversList synchronously
-  // while building each card, so it needs to be populated before the
-  // first pipeline render, not just eventually.
+  // Drivers and award rules load first and are awaited — the pipeline's
+  // dispatch dropdown and award field (see actionArea/awardControl above)
+  // read driversList/pointsRules synchronously while building each card,
+  // so both need to be populated before the first pipeline render, not
+  // just eventually.
   (async () => {
-    await renderDrivers();
+    await Promise.all([renderDrivers(), renderPointsRules()]);
     render();
   })();
   renderBenefits();

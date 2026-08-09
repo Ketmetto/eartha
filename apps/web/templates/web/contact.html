@@ -151,15 +151,9 @@
           inbox.innerHTML = '<div class="empty">INBOX IS EMPTY — MESSAGES FROM THIS FORM LAND HERE.</div>';
           return;
         }
-        const cards = inboxItems.map((m) => `
-          <div class="card" style="${m.read ? 'opacity:0.6;' : ''}">
-            <p class="batch-tag">${Eartha.fmtDate(m.date)} · ${Eartha.esc(m.email)}</p>
-            <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
-              ${Eartha.esc(m.subject || '(NO SUBJECT)')} — ${Eartha.esc(m.name)}
-            </p>
-            <p class="muted" style="font-size:12px;margin-top:8px;">${Eartha.esc(m.body)}</p>
-            ${m.read ? '' : `<button class="link-underline" style="font-size:10px;margin-top:12px;" data-read="${m.id}">MARK AS READ</button>`}
-          </div>`).join('');
+        // Shared with the queue page's own INBOX tab — see
+        // Eartha.contactMessageCardHtml in store.js.
+        const cards = inboxItems.map(Eartha.contactMessageCardHtml).join('');
         const sentinel = inboxHasMore ? '<div id="inboxSentinel" class="empty">LOADING MORE…</div>' : '';
         inbox.innerHTML = cards + sentinel;
         if (inboxHasMore) wireInboxSentinel();

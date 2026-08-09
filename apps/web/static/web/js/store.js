@@ -39,16 +39,6 @@ const Eartha = (() => {
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
   // ---------- seed ----------
-  // Suggested default only, per condition — points are awarded at admin
-  // discretion any time from collection onward (see queue.js's award
-  // control), the admin can type a different amount. Not a guarantee.
-  const POINTS_CRITERIA = {
-    'like_new': 100,
-    'good': 70,
-    'worn': 40,
-    'damaged': 15,
-  };
-
   // current partner catalog — bump BENEFITS_VERSION whenever this list
   // changes so returning visitors' stale localStorage picks up the update
   const BENEFITS_VERSION = 2;
@@ -591,6 +581,20 @@ const Eartha = (() => {
     await apiFetch('/points/admin/benefits/reorder/', { method: 'POST', body: { ids: orderedIds } });
   }
 
+  // ---------- points: award rules (category x condition suggested points) ----------
+  async function fetchPointsRules() {
+    const rows = await apiFetch('/points/admin/rules/');
+    return rows.map((r) => ({ category: r.category, condition: r.condition, points: r.points }));
+  }
+
+  async function savePointsRules(rows) {
+    const saved = await apiFetch('/points/admin/rules/save/', {
+      method: 'POST',
+      body: rows.map((r) => ({ category: r.category, condition: r.condition, points: r.points })),
+    });
+    return saved.map((r) => ({ category: r.category, condition: r.condition, points: r.points }));
+  }
+
   // ---------- points: balance / redemptions ----------
   async function fetchBalance() {
     const data = await apiFetch('/points/balance/');
@@ -623,6 +627,42 @@ const Eartha = (() => {
   }
 
   // ---------- contact form (public — no auth) ----------
+  // Replies go out from the admin's own mail client, not through Eartha's
+  // system email — a contact-form inbox is exactly the kind of free-form,
+  // two-way conversation a transactional-email pipeline shouldn't carry
+  // (deliverability/reputation risk for the sender address, and it'd mean
+  // building storage + a mini email client for what's really just "hand
+  // this off to Gmail/Outlook"). mailto: does that with no backend at all.
+  function mailtoReplyUrl(m) {
+    const subject = `Re: ${m.subject || 'your message to Eartha'}`;
+    const quoted = `\n\n---\nOn ${fmtDate(m.date)}, ${m.name} wrote:\n${m.body}`;
+    // The recipient goes in unencoded — encodeURIComponent would %40 the
+    // "@", which most mail clients do decode back correctly, but the
+    // mailto: RFC (6068) treats the to-part as a raw addr-spec, so this is
+    // both simpler and more compatible.
+    return `mailto:${m.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(quoted)}`;
+  }
+
+  // Shared inbox card markup — the admin inbox shows up in two places
+  // (the queue page's INBOX tab, and swapped in for the form on /contact/
+  // when an admin is logged in — see contact.html), and used to be two
+  // independently hand-written copies. That's exactly how the REPLY BY
+  // EMAIL link below ended up on only one of them the first time around.
+  function contactMessageCardHtml(m) {
+    return `
+      <div class="card" style="${m.read ? 'opacity:0.65;' : ''}">
+        <p class="batch-tag">${fmtDate(m.date)} · ${esc(m.email)}</p>
+        <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:4px;">
+          ${esc(m.subject || '(NO SUBJECT)')} — ${esc(m.name)}
+        </p>
+        <p class="muted" style="font-size:12px;margin-top:8px;">${esc(m.body)}</p>
+        <div style="display:flex;gap:16px;margin-top:12px;">
+          <a class="link-underline" style="font-size:10px;" href="${esc(mailtoReplyUrl(m))}">REPLY BY EMAIL</a>
+          ${m.read ? '' : `<button class="link-underline" style="font-size:10px;" data-read="${m.id}">MARK AS READ</button>`}
+        </div>
+      </div>`;
+  }
+
   async function submitContactMessage({ name, email, subject, body }) {
     const headers = { 'Content-Type': 'application/json' };
     const csrfToken = getCookie('csrftoken');
@@ -1024,14 +1064,14 @@ const Eartha = (() => {
   seed();
 
   return {
-    POINTS_CRITERIA,
     currentUser, register, login, socialLogin, verifyEmail, confirmEmailChange, logout, requireAuth, requireAdmin,
     fetchMySubmissions, createSubmission,
     fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, reassignDriver, collectItem, completeItem, awardItemPoints,
     fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
+    fetchPointsRules, savePointsRules,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
-    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage,
+    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml,
     fetchDashboardStats,
     fetchMe, updateMe, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
