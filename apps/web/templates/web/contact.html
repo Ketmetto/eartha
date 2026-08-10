@@ -19,11 +19,15 @@
   <main>
 
     <!-- ============ CONTACT HERO ============ -->
+    {% if site_images.contact_hero_bg %}
+    <section class="hero contact-hero-bg" style="background: linear-gradient(to bottom, rgba(23, 20, 15, 0.14), rgba(23, 20, 15, 0) 30%), url('{{ site_images.contact_hero_bg }}') center / cover no-repeat;">
+    {% else %}
     <section class="hero contact-hero-bg">
+    {% endif %}
       <div class="hero-copy">
         <p class="hero-eyebrow" id="contactEyebrow">CONTACT</p>
-        <h1 class="hero-title">EVERY GREAT IDEA STARTS WITH A CONVERSATION.</h1>
-        <p class="hero-sub">Whether you have a question, a partnership, or an idea for a more circular future, we'd love to hear from you.</p>
+        <h1 class="hero-title">{{ site_texts.contact_hero_title }}</h1>
+        <p class="hero-sub">{{ site_texts.contact_hero_sub }}</p>
         <div class="hero-actions">
           <a href="mailto:hello@eartha.co" class="link-underline">Email Us</a>
           <a href="https://wa.me/96179188823" class="link-underline" target="_blank" rel="noopener">WhatsApp Us</a>

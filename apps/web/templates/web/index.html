@@ -23,8 +23,8 @@
     <section class="hero" id="donate">
       <div class="hero-copy">
         <p class="hero-eyebrow">CIRCULAR FASHION &nbsp;|&nbsp; EST. 2026</p>
-        <h1 class="hero-title">THE HOME OF CIRCULAR FASHION.</h1>
-        <p class="hero-sub">Where brands, creators, and communities make sustainability part of everyday fashion.</p>
+        <h1 class="hero-title">{{ site_texts.index_hero_title }}</h1>
+        <p class="hero-sub">{{ site_texts.index_hero_sub }}</p>
         <div class="hero-actions">
           <a href="#how" class="link-underline">Explore Eartha</a>
           <a href="{% url 'web:login' %}" class="link-underline js-donate">Join the Community</a>
@@ -42,11 +42,19 @@
           <a href="{% url 'web:about' %}" class="link-underline">HOW IT WORKS</a>
         </div>
         <figure class="img-card">
+          {% if site_images.index_second_shape_1 %}
+          <img src="{{ site_images.index_second_shape_1 }}" alt="Two figures in beige and rust linen, arms linked" loading="lazy">
+          {% else %}
           <img src="{% static 'web/images/image-1.jpg' %}" alt="Two figures in beige and rust linen, arms linked" loading="lazy">
+          {% endif %}
           <figcaption class="img-label">CIRCULAR ACTION</figcaption>
         </figure>
         <figure class="img-card">
+          {% if site_images.index_second_shape_2 %}
+          <img src="{{ site_images.index_second_shape_2 }}" alt="Close-up of soft cream woven fabric in sunlight" loading="lazy">
+          {% else %}
           <img src="{% static 'web/images/image-2.jpg' %}" alt="Close-up of soft cream woven fabric in sunlight" loading="lazy">
+          {% endif %}
           <figcaption class="img-label">SYSTEM INNOVATION</figcaption>
         </figure>
       </div>

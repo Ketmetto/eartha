@@ -145,3 +145,46 @@ class ChangePasswordSerializer(serializers.Serializer):
         if attrs["new_password"] != attrs.pop("new_password_confirm"):
             raise serializers.ValidationError({"new_password_confirm": "Passwords do not match."})
         return attrs
+
+
+class UserAdminSerializer(serializers.ModelSerializer):
+    """Admin: the Users page listing — profile fields plus the per-user
+    stats batched in by apps.users.services.get_user_stats (see
+    UserStatsListMixin), not computed per-row here."""
+    name = serializers.SerializerMethodField()
+    submissions_count = serializers.SerializerMethodField()
+    redemptions_count = serializers.SerializerMethodField()
+    points_balance = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "email", "name", "phone", "date_joined", "is_staff",
+            "is_active", "ban_reason", "banned_at",
+            "submissions_count", "redemptions_count", "points_balance",
+        ]
+        read_only_fields = fields
+
+    def get_name(self, obj):
+        name = f"{obj.first_name} {obj.last_name}".strip()
+        return name or obj.email
+
+    def _stats(self, obj):
+        stats = self.context.get("user_stats")
+        if stats is not None:
+            return stats.get(obj.id, {"submissions_count": 0, "redemptions_count": 0, "points_balance": 0})
+        from . import services
+        return services.get_user_stats([obj])[obj.id]
+
+    def get_submissions_count(self, obj):
+        return self._stats(obj)["submissions_count"]
+
+    def get_redemptions_count(self, obj):
+        return self._stats(obj)["redemptions_count"]
+
+    def get_points_balance(self, obj):
+        return self._stats(obj)["points_balance"]
+
+
+class BanUserSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, default="")

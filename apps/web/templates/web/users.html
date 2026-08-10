@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{% static 'web/images/favicon.svg' %}" type="image/svg+xml">
+  <title>Users — EARTHA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow muted" id="usersSummary"></p>
+        <h1 class="page-title" style="margin-top:6px;">USERS</h1>
+      </div>
+    </div>
+
+    <div class="field" style="max-width:360px;margin-bottom:clamp(24px,4vw,36px);">
+      <label for="usersSearch">SEARCH BY NAME OR EMAIL</label>
+      <input type="text" id="usersSearch" placeholder="e.g. jane@example.com">
+    </div>
+
+    <div id="usersList"></div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script src="{% static 'web/js/users.js' %}"></script>
+</body>
+</html>

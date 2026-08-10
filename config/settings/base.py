@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.submissions",
     "apps.points",
     "apps.engagement",
+    "apps.content",
     "apps.web",
 ]
 

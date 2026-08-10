@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/v1/submissions/", include("apps.submissions.urls")),
     path("api/v1/points/", include("apps.points.urls")),
     path("api/v1/engagement/", include("apps.engagement.urls")),
+    path("api/v1/content/", include("apps.content.urls")),
     path("", include("apps.web.urls")),
 ]
 

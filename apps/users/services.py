@@ -256,6 +256,40 @@ def unban_user(user):
     user.save(update_fields=["is_active", "ban_reason", "banned_at"])
 
 
+def get_user_stats(users):
+    """Submission/redemption counts + points balance for a page of users,
+    one grouped query per metric instead of one per user — annotating all
+    three onto the User queryset directly would fan out (each reverse FK
+    join multiplies the others), so they're computed separately and
+    matched up by user id instead, same batching idea as
+    apps.submissions.mixins.AwardedTotalsListMixin."""
+    from django.db.models import Count, Sum
+    from apps.submissions.models import Item
+    from apps.points.models import PointsLedgerEntry, Redemption
+
+    user_ids = [u.id for u in users]
+    submissions = dict(
+        Item.objects.filter(user_id__in=user_ids)
+        .values("user_id").annotate(n=Count("id")).values_list("user_id", "n")
+    )
+    redemptions = dict(
+        Redemption.objects.filter(user_id__in=user_ids)
+        .values("user_id").annotate(n=Count("id")).values_list("user_id", "n")
+    )
+    balances = dict(
+        PointsLedgerEntry.objects.filter(user_id__in=user_ids)
+        .values("user_id").annotate(total=Sum("points")).values_list("user_id", "total")
+    )
+    return {
+        uid: {
+            "submissions_count": submissions.get(uid, 0),
+            "redemptions_count": redemptions.get(uid, 0),
+            "points_balance": balances.get(uid, 0) or 0,
+        }
+        for uid in user_ids
+    }
+
+
 def verify_firebase_token(id_token):
     """Validate a Firebase ID token (Google/Apple sign-in). Returns (decoded_token, error_message)."""
     import firebase_admin

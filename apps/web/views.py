@@ -1,12 +1,25 @@
 from decouple import config
 from django.views.generic import TemplateView
+from apps.content.services import get_site_texts, get_site_image_urls
 
 
-class IndexView(TemplateView):
+class SiteContentMixin:
+    """Adds site_texts/site_images to the template context — see
+    apps.content.services. Only the marketing pages (index/about/contact)
+    use this; every other page's copy/images are still hardcoded."""
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["site_texts"] = get_site_texts()
+        context["site_images"] = get_site_image_urls()
+        return context
+
+
+class IndexView(SiteContentMixin, TemplateView):
     template_name = "web/index.html"
 
 
-class AboutView(TemplateView):
+class AboutView(SiteContentMixin, TemplateView):
     template_name = "web/about.html"
 
 
@@ -14,7 +27,7 @@ class BenefitsView(TemplateView):
     template_name = "web/benefits.html"
 
 
-class ContactView(TemplateView):
+class ContactView(SiteContentMixin, TemplateView):
     template_name = "web/contact.html"
 
 
@@ -55,6 +68,14 @@ class ProfileView(TemplateView):
 
 class QueueView(TemplateView):
     template_name = "web/queue.html"
+
+
+class UsersView(TemplateView):
+    template_name = "web/users.html"
+
+
+class ContentView(TemplateView):
+    template_name = "web/content.html"
 
 
 class UploadView(TemplateView):

@@ -743,6 +743,73 @@ const Eartha = (() => {
     };
   }
 
+  // ---------- admin: site content (marketing page copy/images) ----------
+  async function fetchSiteTexts() {
+    const rows = await apiFetch('/content/admin/texts/');
+    return rows.map((r) => ({ key: r.key, label: r.label, value: r.value }));
+  }
+
+  async function updateSiteText(key, value) {
+    return apiFetch(`/content/admin/texts/${key}/`, { method: 'PATCH', body: { value } });
+  }
+
+  async function fetchSiteImages() {
+    const rows = await apiFetch('/content/admin/images/');
+    return rows.map((r) => ({ key: r.key, label: r.label, image: r.image }));
+  }
+
+  // dataUrl: from Eartha.compressImage — converted to a Blob here so it
+  // can ride along in the same multipart PATCH the rest of the app uses
+  // for image uploads (see benefitFormData above).
+  async function updateSiteImage(key, dataUrl) {
+    const blob = await dataUrlToBlob(dataUrl);
+    const form = new FormData();
+    form.append('image', blob, 'image.jpg');
+    return apiFetch(`/content/admin/images/${key}/`, { method: 'PATCH', body: form, isFormData: true });
+  }
+
+  async function clearSiteImage(key) {
+    return apiFetch(`/content/admin/images/${key}/clear/`, { method: 'POST' });
+  }
+
+  // ---------- admin: users ----------
+  function mapAdminUser(u) {
+    return {
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      joinedAt: new Date(u.date_joined).getTime(),
+      isStaff: u.is_staff,
+      isActive: u.is_active,
+      banReason: u.ban_reason,
+      bannedAt: u.banned_at ? new Date(u.banned_at).getTime() : null,
+      submissionsCount: u.submissions_count,
+      redemptionsCount: u.redemptions_count,
+      pointsBalance: u.points_balance,
+    };
+  }
+
+  async function fetchAdminUsers(page = 1, search = '') {
+    const q = search ? `&search=${encodeURIComponent(search)}` : '';
+    const data = await apiFetch(`/auth/admin/users/?page=${page}${q}`);
+    return {
+      items: data.results.map(mapAdminUser),
+      hasMore: !!data.next,
+      count: data.count,
+    };
+  }
+
+  async function banUser(id, reason) {
+    const u = await apiFetch(`/auth/admin/users/${id}/ban/`, { method: 'POST', body: { reason: reason || '' } });
+    return mapAdminUser(u);
+  }
+
+  async function unbanUser(id) {
+    const u = await apiFetch(`/auth/admin/users/${id}/unban/`, { method: 'POST' });
+    return mapAdminUser(u);
+  }
+
   // ---------- account: profile / address / notifications / password ----------
   async function fetchMe() {
     return apiFetch('/auth/me/');
@@ -947,7 +1014,9 @@ const Eartha = (() => {
       return;
     }
     const adminLink = user.isAdmin
-      ? `<a href="/queue/" class="${current === 'queue' ? 'is-current' : ''}">QUEUE</a>`
+      ? `<a href="/queue/" class="${current === 'queue' ? 'is-current' : ''}">QUEUE</a>
+         <a href="/users/" class="${current === 'users' ? 'is-current' : ''}">USERS</a>
+         <a href="/content/" class="${current === 'content' ? 'is-current' : ''}">CONTENT</a>`
       : '';
     const profileLink = user.isAdmin
       ? ''
@@ -1069,6 +1138,8 @@ const Eartha = (() => {
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
     submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml,
     fetchDashboardStats,
+    fetchAdminUsers, banUser, unbanUser,
+    fetchSiteTexts, updateSiteText, fetchSiteImages, updateSiteImage, clearSiteImage,
     fetchMe, updateMe, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
     redemptions, redeemBenefit,

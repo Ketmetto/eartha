@@ -14,6 +14,7 @@ from .views import (
     FirebaseSocialLoginView,
     EmailVerifiedTokenObtainPairView,
 )
+from .admin_views import UserAdminListView, UserBanView, UserUnbanView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
@@ -29,4 +30,7 @@ urlpatterns = [
     path("password-reset/", PasswordResetRequestView.as_view(), name="password-reset-request"),
     path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
     path("social/firebase/", FirebaseSocialLoginView.as_view(), name="firebase-login"),
+    path("admin/users/", UserAdminListView.as_view(), name="admin-users"),
+    path("admin/users/<int:pk>/ban/", UserBanView.as_view(), name="admin-users-ban"),
+    path("admin/users/<int:pk>/unban/", UserUnbanView.as_view(), name="admin-users-unban"),
 ]

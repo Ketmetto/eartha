@@ -23,14 +23,22 @@
       <div class="about-hero-grid">
         <div class="about-hero-text">
           <p class="eyebrow">CIRCULAR FASHION &nbsp;|&nbsp; EST. 2026</p>
-          <h1 class="heading-sm">WE IMAGINE A WORLD WHERE NOTHING VALUABLE IS LEFT BEHIND.</h1>
+          <h1 class="heading-sm">{{ site_texts.about_hero_title }}</h1>
         </div>
         <figure class="img-card">
+          {% if site_images.about_hero_1 %}
+          <img src="{{ site_images.about_hero_1 }}" alt="Denim jacket covered in vintage pin badges, upcycled" loading="lazy">
+          {% else %}
           <img src="{% static 'web/images/image-13.jpg' %}" alt="Denim jacket covered in vintage pin badges, upcycled" loading="lazy">
+          {% endif %}
           <figcaption class="img-label">MINDSET</figcaption>
         </figure>
         <figure class="img-card">
+          {% if site_images.about_hero_2 %}
+          <img src="{{ site_images.about_hero_2 }}" alt="Two figures in beige and rust linen, arms linked" loading="lazy">
+          {% else %}
           <img src="{% static 'web/images/image-16.jpg' %}" alt="Two figures in beige and rust linen, arms linked" loading="lazy">
+          {% endif %}
           <figcaption class="img-label">ECOLOGICAL WORLD VIEW</figcaption>
         </figure>
       </div>
@@ -49,11 +57,7 @@
         </figure>
         <div class="about-mission-text">
           <p class="eyebrow">WHY EARTHA EXISTS</p>
-          <p class="body-justified">
-            The future of fashion isn't about making more — it's about making what already exists
-            last longer. Eartha brings together people, brands, and circular solutions to extend the
-            life of clothing, reduce waste, and reward the choices that create lasting impact.
-          </p>
+          <p class="body-justified">{{ site_texts.about_mission_body }}</p>
         </div>
       </div>
     </section>
