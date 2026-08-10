@@ -40,11 +40,11 @@ using Docker for just the data stores).
 docker compose exec web python manage.py createsuperuser
 ```
 
-## Open decision
+## Deploying
 
-Points-per-condition criteria currently ships as a static table
-(`apps/points/rules.py`). If a configurable rules engine is needed
-instead, that's the only file that changes.
+See `DEPLOYMENT.md` for the Hostinger VPS / Docker Compose production
+setup, and `DEPLOYMENT-KEYS-AND-ISSUES.md` for the required `.env.prod`
+values.
 
 ## Structure
 

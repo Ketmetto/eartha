@@ -56,9 +56,9 @@ yourself before running `pytest`.
 
 | App | Files | Covers |
 |---|---|---|
-| `users` | `test_auth.py`, `test_profile.py`, `test_firebase_login.py` | register, email-verified login/refresh, `/me/`, RBAC on a protected endpoint, address/notification-prefs CRUD, change password, Firebase social login, email-verified-flag survives profile edits |
-| `submissions` | `test_state_machine.py`, `test_services.py`, `test_views.py` | every status transition (parametrized), photo-validated item creation, driver dispatch, the review/decision/dispatch admin endpoints |
-| `points` | `test_services.py`, `test_views.py` | ledger balance math, points-per-condition award, redemption (success/insufficient-balance/unique codes), benefit list + category filter, admin benefit CRUD/reorder |
+| `users` | `test_auth.py`, `test_profile.py`, `test_firebase_login.py`, `test_email_change.py` | register, email-verified login/refresh, `/me/`, RBAC on a protected endpoint, address/notification-prefs CRUD, change password, Firebase social login, email-verified-flag survives profile edits, phone/email normalization + uniqueness, pending email change confirm flow |
+| `submissions` | `test_state_machine.py`, `test_services.py`, `test_views.py` | every status transition (parametrized), photo-validated item creation (including SVG/spoofed-content-type rejection and HEIC acceptance), driver dispatch, the review/decision/dispatch admin endpoints |
+| `points` | `test_rules.py`, `test_services.py`, `test_views.py` | ledger balance math, admin-configurable category/condition award rules, redemption (success/insufficient-balance/unique codes), benefit list + category filter, admin benefit CRUD/reorder |
 | `engagement` | `test_views.py` | public contact form + partner-inquiry flag, public impact stats, admin inbox + resolve, admin dashboard aggregate stats |
 
 ## Shared fixtures

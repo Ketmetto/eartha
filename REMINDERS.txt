@@ -1,19 +1,9 @@
 ================================================================================
-EARTHA BACKEND — OPEN ITEMS
+EARTHA BACKEND — OPEN DECISIONS
 ================================================================================
-Generated after implementing the gaps found when auditing the backend
-against eartha_proposal_v3.html. Two kinds of entries below:
-
-  (A) Decisions that need your input before the work can proceed.
-  (B) Features that are fully built in code but need a real credential/API
-      key dropped into .env before they actually work in staging/prod.
-
-Everything else from that audit (notification stubs, benefits filtering,
-password reset, rate limiting, baseline security headers) has been
-implemented — see the commit/diff for details.
-
-================================================================================
-(A) DECISIONS NEEDED
+Things that need your input before the work can proceed. For which .env
+values are still needed before prod/staging actually works end to end,
+see DEPLOYMENT-KEYS-AND-ISSUES.md instead — that's the current list.
 ================================================================================
 
 1. PUBLIC IMPACT STATS — partially deferred
@@ -57,47 +47,5 @@ implemented — see the commit/diff for details.
         recommended), or
      b) Skipping CSP for now and relying on the baseline headers above.
    Not added yet — say the word and I'll add whichever you prefer.
-
-================================================================================
-(B) BUILT, BUT NEEDS A CREDENTIAL IN .env TO ACTUALLY WORK
-================================================================================
-
-4. TRANSACTIONAL EMAIL (real sending)
-   EMAIL_HOST / EMAIL_HOST_USER / EMAIL_HOST_PASSWORD / EMAIL_PORT are
-   all blank by default. Dev falls back to printing emails to the
-   console; staging/prod need a real SMTP provider (SendGrid, Postmark,
-   SES, etc.) or nothing will actually send — verification emails,
-   password reset emails, and the newly-implemented points/status
-   notifications all go through this.
-   Note: for SendGrid specifically, EMAIL_HOST_USER is literally the
-   string "apikey" — the real secret goes in EMAIL_HOST_PASSWORD.
-
-5. SOCIAL LOGIN (Google / Apple via Firebase)
-   FIREBASE_SERVICE_ACCOUNT_JSON is blank by default. Without it,
-   apps/users/apps.py never calls firebase_admin.initialize_app(), and
-   every Firebase-based social login attempt returns "Social login is
-   not configured." Need the Firebase service account JSON (from the
-   Firebase console) pasted into that env var as a single-line string.
-
-   Separately: config/settings/base.py also has GOOGLE_CLIENT_ID /
-   GOOGLE_CLIENT_SECRET / APPLE_CLIENT_ID / APPLE_CLIENT_SECRET /
-   APPLE_KEY_ID wired into SOCIALACCOUNT_PROVIDERS (django-allauth), but
-   no allauth URLs are actually included in config/urls.py — the only
-   working social login path is the Firebase one above. These settings
-   are currently dead config. Flag if you actually want the allauth
-   flow running in parallel; otherwise they can be deleted.
-
-6. MEDIA STORAGE (S3-compatible) for staging/prod
-   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_STORAGE_BUCKET_NAME /
-   AWS_S3_ENDPOINT_URL are blank by default. Local dev now falls back to
-   filesystem storage automatically (config/settings/dev.py) when these
-   are unset, but staging.py and prod.py have no such fallback — benefit
-   logos and submission photos need a real bucket to upload to once
-   this runs anywhere but local dev.
-
-7. STANDARD PROD ENV VARS (obvious, but flagging so nothing's missed)
-   DJANGO_SECRET_KEY, POSTGRES_* (host/db/user/password), CORS_ALLOWED_
-   ORIGINS, and ALLOWED_HOSTS all need real production values — they
-   default to blank/permissive for local dev only.
 
 ================================================================================

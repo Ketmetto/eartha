@@ -22,6 +22,8 @@ because we hit each of these for real.
 | Named volumes defaulted to root ownership | `Dockerfile` now pre-creates `/app/staticfiles` and `/app/media` before `chown`, so fresh volumes inherit correct permissions |
 | No backup plan for Postgres | Documented below (cron + `pg_dump`) |
 | CSRF blocked HTTPS admin logins | Added `CSRF_TRUSTED_ORIGINS` and `SECURE_PROXY_SSL_HEADER` in prod settings |
+| Unbounded per-service memory on a 4 GB box | Added `deploy.resources.limits.memory` per service (KVM1-sized, see below) |
+| No swap, so a brief memory spike could OOM-kill a container | One-time swapfile setup, see below |
 
 The app code and entrypoint script were already solid — migrations,
 `collectstatic`, the non-root user, and the Postgres-readiness wait loop all
@@ -79,17 +81,21 @@ Replace `YOURDOMAIN.com` there too, to match `nginx.conf` and `ALLOWED_HOSTS`.
    sudo firewall-cmd --reload
    ```
 
-4. **Clone the repo and create production `.env`.** Never commit this file.
-   Copy `.env.example` to `.env` and set real values for:
+4. **Clone the repo and create production `.env.prod`** (the file
+   `docker-compose.prod.yml` actually reads — not `.env`, that's the dev
+   compose file's). Never commit it. Copy `.env.example` to `.env.prod`
+   and set real values for:
    - `DEBUG=False`
    - `ALLOWED_HOSTS=YOURDOMAIN.com,www.YOURDOMAIN.com`
    - `DJANGO_SECRET_KEY=` — generate a fresh one, don't reuse the dev key
      (`python -c "import secrets; print(secrets.token_urlsafe(50))"`)
-   - `POSTGRES_PASSWORD=` — a real password, not `change-me`
+   - `POSTGRES_PASSWORD=` — a real password, not `change-me`. Only takes
+     effect the first time Postgres initializes its data volume, so set
+     it correctly *before* the first `docker compose up` — changing it
+     afterward needs `ALTER USER` inside the running container too
    - `FIREBASE_SERVICE_ACCOUNT_JSON=` — the service-account key from the
      Firebase console, minified to a single line (needed for Google/Apple
-     login; delivered as an env var, not a mounted file — see the Firebase
-     note under "Resource limits" below)
+     login; read directly from this env var, no file mount involved)
    - Any email/SMTP, Celery/Redis, and storage settings the app needs
 
 5. **Set up swap** (one-time, host-level — see "Resource limits" below for
@@ -167,27 +173,26 @@ automatically every 12 hours (checking, renewing only when due).
 
 ---
 
-## ⚠️ Gotcha: restart `nginx` after rebuilding `web` or `celery`
+## Nginx and redeploys: usually no restart needed
 
-Nginx resolves `web`'s address once and caches it for the life of the
-process. If you rebuild or restart `web` (a new deploy, for example),
-Docker assigns it a new internal IP — but Nginx keeps trying the *old* one
-until it's restarted, producing a `502 Bad Gateway` with a
-`connect() failed (111: Connection refused)` error in its logs pointing at
-a stale IP.
+A bare `proxy_pass http://web:8000` would resolve `web`'s address once, at
+config load, and cache it — so a redeployed `web` (new internal IP) would
+get `502 Bad Gateway`s until Nginx was restarted. `nginx/nginx.conf`
+avoids this by routing through a variable with `resolver 127.0.0.11
+valid=10s` (Docker's embedded DNS), forcing Nginx to re-resolve `web`
+every 10 seconds instead of once at startup — verified by repeatedly
+recreating `web` and `celery` together and confirming Nginx picked up each
+new IP within ~10s, no manual restart, across several runs.
 
-**Whenever you redeploy, restart nginx too:**
+**If a 502 ever outlives ~30 seconds after a deploy** (a rare Docker DNS
+inconsistency during container churn, seen once in testing), it's the same
+old symptom — reload Nginx and it clears immediately:
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml restart nginx
-```
-Or just restart everything at once to avoid thinking about it:
-```bash
-docker compose -f docker-compose.prod.yml restart
+docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
 
-This bit us twice during testing — once between `celery` and `redis`, once
-between `nginx` and `web` — same root cause both times.
+If you edit `nginx/nginx.conf` itself (not just redeploy `web`), you still
+need that same reload for the config change to take effect.
 
 ---
 
@@ -212,11 +217,10 @@ files or uploads.
 ```bash
 git pull
 docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml restart nginx
 ```
 
-Migrations and `collectstatic` run automatically via the entrypoint script
-before Gunicorn starts — no manual step needed.
+No Nginx restart needed (see above). Migrations and `collectstatic` run
+automatically via the entrypoint script before Gunicorn starts.
 
 ---
 
