@@ -16,12 +16,13 @@ from .serializers import (
     PasswordResetConfirmSerializer,
     EmailVerifiedTokenObtainPairSerializer,
 )
+from .throttles import LoginAccountRateThrottle
 from . import services
 
 
 class EmailVerifiedTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailVerifiedTokenObtainPairSerializer
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [ScopedRateThrottle, LoginAccountRateThrottle]
     throttle_scope = "login"
 
 

@@ -98,6 +98,31 @@ class TestLoginAndTokens:
         )
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    def test_account_throttle_blocks_guesses_spread_across_ips(self, api_client, user):
+        # The "login" scope throttles per-IP, so an attacker rotating IPs
+        # would never trip it on its own — this checks the per-account
+        # throttle (apps.users.throttles.LoginAccountRateThrottle) catches
+        # that case regardless of which IP each guess comes from.
+        from django.core.cache import cache
+        cache.clear()
+        try:
+            for i in range(10):
+                api_client.post(
+                    "/api/v1/auth/login/",
+                    {"email": user.email, "password": "wrong"},
+                    format="json",
+                    REMOTE_ADDR=f"10.0.{i // 250}.{i % 250 + 1}",
+                )
+            response = api_client.post(
+                "/api/v1/auth/login/",
+                {"email": user.email, "password": "wrong"},
+                format="json",
+                REMOTE_ADDR="10.0.9.9",
+            )
+            assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+        finally:
+            cache.clear()
+
     def test_refresh_returns_new_access_token(self, api_client, user):
         login = api_client.post(
             "/api/v1/auth/login/", {"email": user.email, "password": "testpass123"}, format="json"

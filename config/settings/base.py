@@ -224,6 +224,9 @@ REST_FRAMEWORK = {
         "user": "1000/hour",
         "register": "10/hour",
         "login": "20/hour",
+        # Per-account, on top of "login"'s per-IP cap — stops a distributed
+        # (many-IPs) attacker from getting unlimited guesses at one account.
+        "login_account": "10/hour",
         "email_action": "5/hour",
         # Public and fires a real email to the admin on every submission —
         # the generic "anon" rate is too loose for that combination.
