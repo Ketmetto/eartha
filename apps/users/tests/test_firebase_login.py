@@ -70,6 +70,20 @@ class TestFirebaseSocialLogin:
         assert user.firebase_uid == "firebase-uid-1"
 
     @patch("apps.users.services.verify_firebase_token")
+    def test_banned_user_cannot_log_in(self, mock_verify, api_client, user):
+        # RefreshToken.for_user (used here) doesn't go through authenticate(),
+        # unlike the password-login path — this is what actually enforces
+        # the ban on this endpoint, not something DRF/SimpleJWT gives for free.
+        from apps.users import services
+        services.ban_user(user, reason="testing")
+        mock_verify.return_value = (decoded_token(email=user.email), None)
+
+        response = api_client.post(URL, {"id_token": "fake-token"}, format="json")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert "access" not in response.data
+
+    @patch("apps.users.services.verify_firebase_token")
     def test_repeat_login_matches_by_uid_even_after_email_changed(self, mock_verify, api_client):
         # The account's Django email field is mutable (see
         # request_email_change), but the Firebase identity backing it

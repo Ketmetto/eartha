@@ -232,5 +232,13 @@ class FirebaseSocialLoginView(APIView):
         user = services.get_or_create_user_from_firebase(
             decoded_token, request.data.get("display_name", "")
         )
+        # RefreshToken.for_user issues a token unconditionally — unlike the
+        # password-login path, it doesn't go through authenticate(), which
+        # is what actually enforces is_active there. Check it explicitly so
+        # a banned account can't get in through social login instead.
+        if not user.is_active:
+            return Response(
+                {"detail": "This account is not active."}, status=status.HTTP_401_UNAUTHORIZED
+            )
         refresh = RefreshToken.for_user(user)
         return Response({"refresh": str(refresh), "access": str(refresh.access_token)})

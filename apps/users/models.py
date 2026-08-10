@@ -23,6 +23,12 @@ class User(AbstractUser):
     # Unconfirmed pending email change — see apps.users.services.
     # request_email_change. `email` itself only updates once confirmed.
     pending_email = models.EmailField(null=True, blank=True)
+    # Banning reuses is_active (already blocks both new logins via
+    # authenticate() and existing JWTs via JWTAuthentication.get_user's
+    # CHECK_USER_IS_ACTIVE) rather than a separate flag — this just records
+    # why, for admins looking at the account later.
+    ban_reason = models.TextField(blank=True)
+    banned_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]

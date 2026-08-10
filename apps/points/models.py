@@ -11,7 +11,12 @@ class PointsLedgerEntry(BaseModel):
         REDEEM = "redeem", "Redeem"
         ADJUSTMENT = "adjustment", "Adjustment"
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="points_entries")
+    # PROTECT, not CASCADE: this is an audit ledger, and Django admin's
+    # default "delete selected users" action would otherwise silently wipe
+    # a user's whole points history along with the account. Deleting a
+    # user with ledger history needs an explicit decision (anonymize/export
+    # the entries first), not a side effect of one admin click.
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="points_entries")
     entry_type = models.CharField(max_length=20, choices=EntryType.choices)
     points = models.IntegerField()  # positive for award, negative for redeem
     reference_item = models.ForeignKey("submissions.Item", null=True, blank=True, on_delete=models.SET_NULL)
@@ -68,7 +73,10 @@ class Benefit(BaseModel):
 
 
 class Redemption(BaseModel):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="redemptions")
+    # PROTECT for the same reason as PointsLedgerEntry.user above — this is
+    # redemption/audit history, not something that should vanish as a side
+    # effect of deleting the account.
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="redemptions")
     benefit = models.ForeignKey(Benefit, on_delete=models.PROTECT)
     points_spent = models.PositiveIntegerField()
     code = models.CharField(max_length=40, unique=True, editable=False)

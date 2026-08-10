@@ -98,28 +98,76 @@ class TestLoginAndTokens:
         )
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    def test_banned_user_cannot_log_in(self, api_client, user):
+        from apps.users import services
+        services.ban_user(user, reason="testing")
+
+        response = api_client.post(
+            "/api/v1/auth/login/", {"email": user.email, "password": "testpass123"}, format="json"
+        )
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_banning_invalidates_an_already_issued_access_token(self, api_client, user):
+        # JWTAuthentication.get_user checks is_active on every request, not
+        # just at login — so a token issued before the ban stops working too.
+        login = api_client.post(
+            "/api/v1/auth/login/", {"email": user.email, "password": "testpass123"}, format="json"
+        )
+        access = login.data["access"]
+
+        from apps.users import services
+        services.ban_user(user, reason="testing")
+
+        response = api_client.get("/api/v1/auth/me/", HTTP_AUTHORIZATION=f"Bearer {access}")
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_unban_restores_login(self, api_client, user):
+        from apps.users import services
+        services.ban_user(user, reason="testing")
+        services.unban_user(user)
+
+        response = api_client.post(
+            "/api/v1/auth/login/", {"email": user.email, "password": "testpass123"}, format="json"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        user.refresh_from_db()
+        assert user.ban_reason == ""
+        assert user.banned_at is None
+
     def test_account_throttle_blocks_guesses_spread_across_ips(self, api_client, user):
         # The "login" scope throttles per-IP, so an attacker rotating IPs
         # would never trip it on its own — this checks the per-account
         # throttle (apps.users.throttles.LoginAccountRateThrottle) catches
         # that case regardless of which IP each guess comes from.
+        #
+        # config.settings.test deliberately gives every scope an
+        # effectively-unlimited rate. Patching the class's `rate` directly
+        # (rather than @override_settings(REST_FRAMEWORK=...)) because
+        # SimpleRateThrottle.THROTTLE_RATES is a plain class attribute
+        # copied from api_settings once at import time — it doesn't listen
+        # for setting_changed, so overriding the setting after that first
+        # import silently does nothing.
+        from unittest.mock import patch
         from django.core.cache import cache
+        from apps.users.throttles import LoginAccountRateThrottle
+
         cache.clear()
         try:
-            for i in range(10):
-                api_client.post(
+            with patch.object(LoginAccountRateThrottle, "rate", "10/hour", create=True):
+                for i in range(10):
+                    api_client.post(
+                        "/api/v1/auth/login/",
+                        {"email": user.email, "password": "wrong"},
+                        format="json",
+                        REMOTE_ADDR=f"10.0.{i // 250}.{i % 250 + 1}",
+                    )
+                response = api_client.post(
                     "/api/v1/auth/login/",
                     {"email": user.email, "password": "wrong"},
                     format="json",
-                    REMOTE_ADDR=f"10.0.{i // 250}.{i % 250 + 1}",
+                    REMOTE_ADDR="10.0.9.9",
                 )
-            response = api_client.post(
-                "/api/v1/auth/login/",
-                {"email": user.email, "password": "wrong"},
-                format="json",
-                REMOTE_ADDR="10.0.9.9",
-            )
-            assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+                assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
         finally:
             cache.clear()
 

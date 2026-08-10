@@ -6,6 +6,7 @@ import phonenumbers
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import PasswordResetTokenGenerator, default_token_generator
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.contrib.auth import get_user_model
@@ -235,6 +236,24 @@ def change_password(user, new_password):
     validate_password(new_password, user)
     user.set_password(new_password)
     user.save()
+
+
+def ban_user(user, reason=""):
+    """Blocks all login — both new password/social logins (authenticate()
+    checks is_active) and already-issued JWTs (JWTAuthentication.get_user
+    checks it too, on every request) — without touching submissions,
+    points, or any other account data."""
+    user.is_active = False
+    user.ban_reason = reason
+    user.banned_at = timezone.now()
+    user.save(update_fields=["is_active", "ban_reason", "banned_at"])
+
+
+def unban_user(user):
+    user.is_active = True
+    user.ban_reason = ""
+    user.banned_at = None
+    user.save(update_fields=["is_active", "ban_reason", "banned_at"])
 
 
 def verify_firebase_token(id_token):

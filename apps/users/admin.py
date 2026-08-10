@@ -1,16 +1,45 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
+from django.utils import timezone
 from unfold.admin import ModelAdmin
 from .models import User, Address, NotificationPreference
+from . import services
 
 
 class UserAdmin(BaseUserAdmin, ModelAdmin):
-    list_display = ("username", "email", "first_name", "last_name", "is_staff", "verified")
+    list_display = ("username", "email", "first_name", "last_name", "is_staff", "verified", "is_active")
     list_editable = ("verified",)
+    actions = ["ban_users", "unban_users"]
     fieldsets = BaseUserAdmin.fieldsets + (
         ("Test access", {"fields": ("verified",)}),
+        ("Ban", {"fields": ("ban_reason", "banned_at")}),
     )
+    readonly_fields = BaseUserAdmin.readonly_fields + ("banned_at",)
+
+    def save_model(self, request, obj, form, change):
+        # Editing "Active" directly on the change form keeps banned_at/
+        # ban_reason in sync too — set on `obj` here (not via
+        # services.ban_user/unban_user's own partial save, which would
+        # drop any other field edited in the same submit) so the single
+        # super().save_model() call below persists everything together.
+        if change and "is_active" in form.changed_data:
+            if obj.is_active:
+                obj.ban_reason = ""
+                obj.banned_at = None
+            else:
+                obj.banned_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
+    @admin.action(description="Ban selected users (blocks login)")
+    def ban_users(self, request, queryset):
+        for user in queryset:
+            services.ban_user(user)
+
+    @admin.action(description="Unban selected users")
+    def unban_users(self, request, queryset):
+        for user in queryset:
+            services.unban_user(user)
 
 
 @admin.register(Address)

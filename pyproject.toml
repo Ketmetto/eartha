@@ -31,7 +31,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
-    "pytest-django>=4.8",
+    # pytest-django 4.13 requires a Django internal
+    # (TestCase._pre_setup_ran_eagerly) that doesn't exist before Django
+    # 5.1 — this project pins django<5.1, so cap below the break.
+    "pytest-django>=4.8,<4.13",
     "factory-boy>=3.3",
     "django-debug-toolbar>=4.4",
     "ruff>=0.5",
