@@ -30,8 +30,8 @@ REST_FRAMEWORK = {
 
 CSRF_TRUSTED_ORIGINS = [
     "https://localhost",
-    "https://YOURDOMAIN.com",
-    "https://www.YOURDOMAIN.com",
+    "https://eartha.me",
+    "https://www.eartha.me",
 ]
 
 # Baseline hardening — see REMINDERS.txt for the CSP header, which
