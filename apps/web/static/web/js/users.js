@@ -119,7 +119,11 @@ if (admin) {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.dataset.act;
-    const id = btn.dataset.id;
+    // Number(), not the raw dataset string — u.id (compared against below
+    // via open.ban.has(u.id)) is a number from the API response, and
+    // Set.has() uses strict equality, so a string/number mismatch here
+    // would silently never match.
+    const id = Number(btn.dataset.id);
 
     if (act === 'ban') {
       open.ban.add(id);
