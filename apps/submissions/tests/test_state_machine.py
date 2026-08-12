@@ -7,7 +7,6 @@ from apps.submissions.state_machine import can_transition
 
 
 class TestCanTransition:
-    """Test the state machine transition rules."""
 
     @pytest.mark.parametrize("current,target,expected", [
         # From PENDING

@@ -94,17 +94,14 @@ def assign_driver(*, item: Item, driver_name: str, pickup_address_snapshot: str 
             pickup_address_snapshot += f"\nInstructions: {address.instructions}"
 
     with transaction.atomic():
-        # Create the driver assignment
         assignment = DriverAssignment.objects.create(
             item=item,
             driver_name=driver_name,
             pickup_address_snapshot=pickup_address_snapshot,
         )
 
-        # Transition the item through the state machine
         transition_item_status(item, Item.Status.DISPATCHED)
 
-        # Update assignment status to dispatched
         assignment.status = DriverAssignment.DispatchStatus.DISPATCHED
         assignment.save(update_fields=["status", "updated_at"])
 

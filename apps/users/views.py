@@ -35,7 +35,6 @@ class RegisterView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = serializer.save()
-        # Send verification email after registration
         services.send_verification_email(user, self.request)
         return user
 
@@ -100,7 +99,6 @@ class ResendVerificationView(APIView):
         if email:
             try:
                 user = User.objects.get(email=email)
-                # Only resend if not already verified
                 from allauth.account.models import EmailAddress
                 if not EmailAddress.objects.filter(user=user, verified=True).exists():
                     services.send_verification_email(user, request)

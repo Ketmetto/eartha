@@ -30,19 +30,17 @@ def send_transactional_email(to_email: str, subject: str, message: str = "", tem
     user-facing HTML page and would reopen it to XSS.
     """
     if template_name and context is not None:
-        # Try to render HTML version
         html_message = None
         try:
             html_message = render_to_string(f"{template_name}.html", context)
         except Exception:
             logger.warning("No HTML template for %r, sending text-only", template_name)
 
-        # Try to render text version
         try:
             text_message = render_to_string(f"{template_name}.txt", context)
         except Exception:
             logger.exception("Failed to render text template %r, falling back to plain message", template_name)
-            text_message = message or ""  # fallback to plain message
+            text_message = message or ""
 
         send_mail(
             subject=subject,
@@ -52,7 +50,6 @@ def send_transactional_email(to_email: str, subject: str, message: str = "", tem
             html_message=html_message,
         )
     else:
-        # Legacy plain-text path
         send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [to_email])
 
 

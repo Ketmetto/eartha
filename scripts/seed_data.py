@@ -2,7 +2,7 @@
 Run with: python manage.py shell < scripts/seed_data.py
 Populates enough data (users, sample submissions, benefits, an impact
 stat row) that QA and frontend integration aren't working against an
-empty DB. Matches the proposal's "seed & test-data scripts" inclusion.
+empty DB.
 """
 from apps.users.models import User
 from apps.points.models import Benefit
