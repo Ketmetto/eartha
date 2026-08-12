@@ -43,7 +43,8 @@ docker compose exec web python manage.py createsuperuser
 ## Deploying
 
 See `DEPLOYMENT.md` for the Hostinger VPS / Docker Compose production
-setup, including the required `.env.prod` values.
+setup, and `DEPLOYMENT-KEYS-AND-ISSUES.md` for the required `.env.prod`
+values plus known issues/open items.
 
 ## Structure
 
