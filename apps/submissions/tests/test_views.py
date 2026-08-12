@@ -15,7 +15,6 @@ from apps.submissions.models import Item, Driver
 # ---------------------------------------------------------------------------
 
 class TestItemUploadView:
-    """Test photo-validated item creation through the API."""
 
     def test_create_item_with_photos(self, auth_client, make_image_bytes):
         photo = SimpleUploadedFile(
@@ -138,7 +137,6 @@ class TestItemUploadView:
 # ---------------------------------------------------------------------------
 
 class TestSubmissionReviewQueueView:
-    """Test admin review queue."""
 
     def test_admin_sees_pending_items(self, admin_client, pending_item, accepted_item):
         response = admin_client.get(reverse("submissions-admin-queue"))
@@ -232,7 +230,6 @@ class TestSubmissionAdminDoneListView:
 # ---------------------------------------------------------------------------
 
 class TestSubmissionDecisionView:
-    """Test admin decision endpoint driving the state machine."""
 
     def test_admin_can_accept_pending_item(self, admin_client, pending_item):
         with patch("apps.submissions.services.notify_submission_status_changed"):
@@ -322,7 +319,6 @@ class TestSubmissionDecisionView:
 # ---------------------------------------------------------------------------
 
 class TestDriverAdminViews:
-    """Test the driver roster the pipeline's dispatch dropdown reads from."""
 
     def test_admin_can_list_and_create(self, admin_client):
         Driver.objects.create(name="Existing Driver", phone_number="9613000000")
@@ -365,7 +361,6 @@ class TestDriverAdminViews:
 # ---------------------------------------------------------------------------
 
 class TestDriverDispatchView:
-    """Test driver assignment endpoint."""
 
     def test_admin_can_dispatch_accepted_item(self, admin_client, accepted_item):
         with patch("apps.submissions.services.notify_submission_status_changed"):
@@ -445,7 +440,6 @@ class TestDriverDispatchView:
 # ---------------------------------------------------------------------------
 
 class TestDriverReassignView:
-    """Test correcting a wrong driver on an already-dispatched item."""
 
     def test_admin_can_reassign_driver(self, admin_client, dispatched_item):
         response = admin_client.post(

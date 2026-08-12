@@ -28,10 +28,7 @@ class ItemUploadView(AwardedTotalsListMixin, generics.ListCreateAPIView):
         return super().get_throttles()
 
     def create(self, request, *args, **kwargs):
-        """
-        Override create to use the photo-validated service.
-        Accepts multipart/form-data with item fields + photos.
-        """
+        """Accepts multipart/form-data with item fields + photos."""
         input_serializer = ItemCreateWithPhotosSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
 

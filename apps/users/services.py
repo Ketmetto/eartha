@@ -71,7 +71,6 @@ def send_verification_email(user, request=None):
     """Queue a verification email via Celery."""
     url = get_verification_url(user, request)
 
-    # Build absolute URL if request is provided
     if request is not None:
         absolute_url = request.build_absolute_uri(url)
     else:
@@ -98,7 +97,6 @@ def verify_email_token(uidb64, token):
         return False, "Invalid verification link."
 
     if email_verification_token.check_token(user, token):
-        # Mark as verified
         EmailAddress.objects.filter(user=user, email=user.email).update(verified=True)
         return True, "Email verified successfully."
     else:

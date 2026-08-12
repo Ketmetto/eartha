@@ -98,10 +98,6 @@ class DriverAssignmentSerializer(serializers.ModelSerializer):
         fields = ["id", "item", "driver_name", "status", "pickup_address_snapshot"]
 
 
-# ---------------------------------------------------------------------------
-# New serializers for admin actions
-# ---------------------------------------------------------------------------
-
 class ItemCreateWithPhotosSerializer(serializers.Serializer):
     """
     Handles item creation with photo upload validation.

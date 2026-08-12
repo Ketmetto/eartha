@@ -26,7 +26,6 @@ from apps.points.services import get_balance
 # ---------------------------------------------------------------------------
 
 class TestTransitionItemStatus:
-    """Test the state machine transition logic."""
 
     def test_pending_to_accepted(self, pending_item):
         with patch("apps.submissions.services.notify_submission_status_changed") as mock_notify:
@@ -131,7 +130,6 @@ class TestTransitionItemStatus:
 # ---------------------------------------------------------------------------
 
 class TestCreateItemWithPhotos:
-    """Test photo-validated item creation."""
 
     def test_creates_item_with_single_photo(self, user, make_image_bytes):
         photo = SimpleUploadedFile(
@@ -247,7 +245,6 @@ class TestCreateItemWithPhotos:
 # ---------------------------------------------------------------------------
 
 class TestAssignDriver:
-    """Test driver assignment and dispatch transition."""
 
     def test_creates_assignment_and_transitions_to_dispatched(self, accepted_item):
         assignment = assign_driver(

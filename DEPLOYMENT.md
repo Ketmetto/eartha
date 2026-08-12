@@ -1,105 +1,60 @@
 # Eartha — Production Deployment Guide
 
-This covers what changed in `docker-compose.prod.yml`, why, and the steps to
-actually go live on a Hostinger VPS. No CI/CD is set up yet — deploys are
-manual (`git pull` + `docker compose up -d --build`). That's fine for launch;
-revisit CI/CD later if deploys become frequent enough to be error-prone.
-
-This guide assumes whoever is deploying is **not** the original developer —
-every step below has been tested end-to-end and the gotchas section exists
-because we hit each of these for real.
+Docker Compose stack on a Hostinger VPS. No CI/CD — deploys are manual
+(`git pull` + `docker compose up -d --build`).
 
 ---
 
-## What was missing before, and what changed
+## Required `.env.prod` values
 
-| Gap | Fix |
+Copy `.env.example` → `.env.prod` on the server (never commit it).
+
+| Variable | Notes |
 |---|---|
-| No TLS / HTTPS | Added `nginx` + `certbot` services |
-| Gunicorn exposed directly on `:8000` | Changed `ports` → `expose`; only Nginx is reachable from the internet now |
-| No persistent media storage | Added `media_data` volume, mounted into `web` and `celery` |
-| No persistent static file serving | Added `static_data` volume, `collectstatic` writes here, Nginx serves it directly |
-| Named volumes defaulted to root ownership | `Dockerfile` now pre-creates `/app/staticfiles` and `/app/media` before `chown`, so fresh volumes inherit correct permissions |
-| No backup plan for Postgres | Documented below (cron + `pg_dump`) |
-| CSRF blocked HTTPS admin logins | Added `CSRF_TRUSTED_ORIGINS` and `SECURE_PROXY_SSL_HEADER` in prod settings |
-| Unbounded per-service memory on a 4 GB box | Added `deploy.resources.limits.memory` per service (KVM1-sized, see below) |
-| No swap, so a brief memory spike could OOM-kill a container | One-time swapfile setup, see below |
+| `DJANGO_SECRET_KEY` | Fresh value, don't reuse the dev key: `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `DEBUG` | Must be `False` |
+| `ALLOWED_HOSTS` | Real domain(s), e.g. `yourdomain.com,www.yourdomain.com` |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Real password, not `change-me`. Only takes effect the first time the Postgres volume initializes — set it correctly before the first `up`, or you'll need `ALTER USER` inside the running container to change it after |
+| `POSTGRES_HOST` / `POSTGRES_PORT` | `db` / `5432` (Docker network defaults, already correct) |
+| `REDIS_URL` | `redis://redis:6379/0` (already correct) |
+| `EMAIL_HOST` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` / `EMAIL_PORT` / `DEFAULT_FROM_EMAIL` | Verification emails, password resets, and points/status notifications silently fail to send without these — prod has no console-log fallback. For SendGrid: host `smtp.sendgrid.net`, user is the literal string `apikey`, password is your SendGrid API key, `DEFAULT_FROM_EMAIL` must be a verified sender in SendGrid |
+| `CORS_ALLOWED_ORIGINS` | Real frontend origin(s), comma-separated, no trailing slash |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Needed for Google/Apple login. Minify the service-account JSON to one line: `python -c "import json;print(json.dumps(json.load(open('key.json'))))"` |
+| `FIREBASE_API_KEY` / `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` | Public client-side Firebase config, from Firebase console → Project Settings |
+| `GOOGLE_MAPS_API_KEY` | Optional — blank means pickup-address fields stay plain text inputs. Restrict by HTTP referrer in Google Cloud Console if set |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_STORAGE_BUCKET_NAME` / `AWS_S3_ENDPOINT_URL` | Optional — blank falls back to local disk (fine short-term, but no CDN and files live in the `media_data` volume) |
+| `SENTRY_DSN` | Optional — blank means error tracking is a no-op |
 
-The app code and entrypoint script were already solid — migrations,
-`collectstatic`, the non-root user, and the Postgres-readiness wait loop all
-needed no changes.
-
----
-
-## Files in this bundle
-
-- `docker-compose.prod.yml` — replaces the existing one
-- `nginx/nginx.conf` — reverse proxy + TLS termination + static/media serving
-
-Copy both into the project root (keeping the `nginx/` subfolder), then edit
-`nginx/nginx.conf` and replace every `YOURDOMAIN.com` with the real domain.
-
-Also confirm `config/settings/prod.py` has these two blocks (they should
-already be committed, but verify before first deploy):
-
-```python
-CSRF_TRUSTED_ORIGINS = [
-    "https://YOURDOMAIN.com",
-    "https://www.YOURDOMAIN.com",
-]
-
-# Nginx terminates TLS and proxies to Gunicorn over plain HTTP internally —
-# this tells Django to trust Nginx's X-Forwarded-Proto header instead of
-# treating every request as insecure.
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-```
-
-Replace `YOURDOMAIN.com` there too, to match `nginx.conf` and `ALLOWED_HOSTS`.
+Also replace the domain placeholder in two places:
+- `nginx/nginx.conf` — `server_name` lines in both the `:80` and `:443` blocks
+- `config/settings/prod.py` — `CSRF_TRUSTED_ORIGINS`
 
 ---
 
 ## One-time server setup (Hostinger VPS)
 
-1. **Point DNS at the server.** In Hostinger's DNS panel (or wherever the
-   domain is registered), create an `A` record for `YOURDOMAIN.com` and
-   `www.YOURDOMAIN.com` pointing at the VPS's public IP. Wait for
-   propagation (`dig YOURDOMAIN.com` should return the right IP) before
-   continuing — Certbot will fail otherwise.
+1. **Point DNS at the server.** Create an `A` record for the domain and
+   `www` subdomain pointing at the VPS's public IP. Wait for propagation
+   (`dig yourdomain.com` returns the right IP) before continuing —
+   Certbot fails otherwise.
 
-2. **Install Docker + Compose** on the VPS if not already present:
+2. **Install Docker + Compose:**
    ```bash
    curl -fsSL https://get.docker.com | sh
    sudo usermod -aG docker $USER
    # log out and back in for the group change to apply
    ```
 
-3. **Open firewall ports 80 and 443** (Hostinger VPS firewall panel, or
-   `ufw`/`firewalld` on the box itself):
+3. **Open firewall ports 80 and 443:**
    ```bash
    sudo firewall-cmd --permanent --add-port=80/tcp
    sudo firewall-cmd --permanent --add-port=443/tcp
    sudo firewall-cmd --reload
    ```
 
-4. **Clone the repo and create production `.env.prod`** (the file
-   `docker-compose.prod.yml` actually reads — not `.env`, that's the dev
-   compose file's). Never commit it. Copy `.env.example` to `.env.prod`
-   and set real values for:
-   - `DEBUG=False`
-   - `ALLOWED_HOSTS=YOURDOMAIN.com,www.YOURDOMAIN.com`
-   - `DJANGO_SECRET_KEY=` — generate a fresh one, don't reuse the dev key
-     (`python -c "import secrets; print(secrets.token_urlsafe(50))"`)
-   - `POSTGRES_PASSWORD=` — a real password, not `change-me`. Only takes
-     effect the first time Postgres initializes its data volume, so set
-     it correctly *before* the first `docker compose up` — changing it
-     afterward needs `ALTER USER` inside the running container too
-   - `FIREBASE_SERVICE_ACCOUNT_JSON=` — the service-account key from the
-     Firebase console, minified to a single line (needed for Google/Apple
-     login; read directly from this env var, no file mount involved)
-   - Any email/SMTP, Celery/Redis, and storage settings the app needs
+4. **Clone the repo, create `.env.prod`** with the values above.
 
-5. **Set up swap** (one-time, host-level — see "Resource limits" below for
-   why this matters on a 4 GB box):
+5. **Set up swap** (one-time, host-level — see Resource limits below):
    ```bash
    fallocate -l 2G /swapfile
    chmod 600 /swapfile
@@ -114,11 +69,10 @@ Replace `YOURDOMAIN.com` there too, to match `nginx.conf` and `ALLOWED_HOSTS`.
 ## Resource limits (KVM1, 4 GB RAM total)
 
 `docker-compose.prod.yml` sets explicit `deploy.resources.limits.memory`
-per service — nothing capped this before, which is fine on a bigger box
-but risky here: an unbounded Postgres or Redis under load can starve
-Gunicorn or Celery, and because every service is `restart: unless-stopped`,
-an OOM kill shows up as a mystery 502 with no obvious cause in the logs,
-not a clean crash.
+per service — without it, an unbounded Postgres or Redis under load can
+starve Gunicorn or Celery, and because every service is
+`restart: unless-stopped`, an OOM kill shows up as a mystery 502 with no
+obvious cause in the logs.
 
 | Service | Limit | Notes |
 |---|---|---|
@@ -128,27 +82,23 @@ not a clean crash.
 | `redis` | 150 MB | `maxmemory 128mb`, `allkeys-lru` eviction |
 | Nginx + certbot + host OS | ~500 MB | not containerized-limited, informal budget |
 
-Total reserved: **~2.5 GB**, leaving ~1.5 GB headroom for traffic spikes
-and Docker overhead — comfortable at moderate load but not infinite. If a
-service is consistently near its limit, raise that limit (and drop
-headroom elsewhere) or upgrade to KVM2, rather than removing the limit
-entirely — removing it just moves the risk back to "random OOM kill"
-instead of a visible, diagnosable constraint. The swap step above is a
-second line of defense for brief spikes above 4 GB (e.g. a
-`docker compose build` running alongside live traffic), not a substitute
-for right-sizing these limits.
+Total reserved ~2.5 GB, leaving ~1.5 GB headroom. If a service is
+consistently near its limit, raise that limit (and drop headroom
+elsewhere) or upgrade to KVM2 — don't just remove the limit, since that
+turns a visible constraint back into a random OOM kill. The swap step
+above is a second line of defense for brief spikes, not a substitute for
+right-sizing these limits.
 
 ---
 
 ## First deploy — bootstrapping the TLS certificate
 
-Certbot can't issue a certificate until Nginx is running and reachable on
-port 80, but Nginx's HTTPS block in `nginx.conf` won't start without a
-certificate that doesn't exist yet. Two-step bootstrap:
+Certbot can't issue a certificate until Nginx is running on port 80, but
+Nginx's HTTPS block won't start without a certificate that doesn't exist
+yet.
 
 **Step 1 — comment out the `server { listen 443 ... }` block** in
-`nginx/nginx.conf` temporarily (or just don't paste it in yet), so only the
-port-80 block exists. Then:
+`nginx/nginx.conf` temporarily, so only the port-80 block exists. Then:
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
@@ -158,57 +108,48 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```bash
 docker compose -f docker-compose.prod.yml run --rm certbot certonly \
   --webroot -w /var/www/certbot \
-  -d YOURDOMAIN.com -d www.YOURDOMAIN.com \
+  -d yourdomain.com -d www.yourdomain.com \
   --email you@youremail.com --agree-tos --no-eff-email
 ```
 
-**Step 3 — restore the full `nginx.conf`** (with the 443 block back in),
-then restart nginx so it picks up the new config:
+**Step 3 — restore the full `nginx.conf`** (443 block back in), then:
 ```bash
 docker compose -f docker-compose.prod.yml restart nginx
 ```
 
-From here on, the `certbot` service's background loop handles renewal
-automatically every 12 hours (checking, renewing only when due).
+From here on, the `certbot` service's background loop renews
+automatically every 12 hours.
 
 ---
 
 ## Nginx and redeploys: usually no restart needed
 
-A bare `proxy_pass http://web:8000` would resolve `web`'s address once, at
-config load, and cache it — so a redeployed `web` (new internal IP) would
-get `502 Bad Gateway`s until Nginx was restarted. `nginx/nginx.conf`
-avoids this by routing through a variable with `resolver 127.0.0.11
-valid=10s` (Docker's embedded DNS), forcing Nginx to re-resolve `web`
-every 10 seconds instead of once at startup — verified by repeatedly
-recreating `web` and `celery` together and confirming Nginx picked up each
-new IP within ~10s, no manual restart, across several runs.
+A bare `proxy_pass http://web:8000` would resolve `web`'s address once,
+at config load, and cache it — so a redeployed `web` (new internal IP)
+would get `502`s until Nginx was restarted. `nginx/nginx.conf` avoids
+this by routing through a variable with `resolver 127.0.0.11 valid=10s`
+(Docker's embedded DNS), forcing Nginx to re-resolve `web` every 10
+seconds instead of once at startup.
 
-**If a 502 ever outlives ~30 seconds after a deploy** (a rare Docker DNS
-inconsistency during container churn, seen once in testing), it's the same
-old symptom — reload Nginx and it clears immediately:
+If a 502 ever outlives ~30 seconds after a deploy, reload Nginx:
 ```bash
 docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
 
-If you edit `nginx/nginx.conf` itself (not just redeploy `web`), you still
-need that same reload for the config change to take effect.
+Editing `nginx/nginx.conf` itself (not just redeploying `web`) always
+needs that same reload to take effect.
 
 ---
 
-## ⚠️ Gotcha: don't delete/recreate the static or media volumes casually
+## Gotcha: don't delete/recreate the static or media volumes casually
 
 The `static_data` and `media_data` named volumes only get correct
-permissions because the `Dockerfile` pre-creates those directories with the
-right owner *before* the volume is first created and populated. If you ever
-run `docker volume rm eartha_static_data eartha_media_data` and recreate
-them, that's fine — the fix is baked into the image now, permissions will
-be correct again on the next `up`. But don't "clean up" that
-`RUN mkdir -p /app/staticfiles /app/media` line in the Dockerfile thinking
-it's redundant — without it, fresh volumes get created as `root`-owned and
-the non-root `app` user inside the container gets a
-`PermissionError: [Errno 13] Permission denied` trying to write static
-files or uploads.
+permissions because `Dockerfile` pre-creates those directories with the
+right owner *before* the volume is first created and populated. Don't
+remove the `RUN mkdir -p /app/staticfiles /app/media` line thinking it's
+redundant — without it, fresh volumes get created as `root`-owned and
+the non-root `app` user gets `PermissionError: [Errno 13]` writing
+static files or uploads.
 
 ---
 
@@ -219,7 +160,7 @@ git pull
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-No Nginx restart needed (see above). Migrations and `collectstatic` run
+No Nginx restart needed. Migrations and `collectstatic` run
 automatically via the entrypoint script before Gunicorn starts.
 
 ---
@@ -234,35 +175,32 @@ A volume is not a backup. Add a nightly cron job on the host:
   pg_dump -U eartha eartha | gzip > /home/YOURUSER/backups/eartha-$(date +\%F).sql.gz
 ```
 
-Keep at least 7 days of rotation, and periodically copy backups off the VPS
-(rsync to another machine, or upload to object storage) — a backup that
-only lives on the same disk as the database doesn't protect against disk
-failure.
+Keep at least 7 days of rotation, and periodically copy backups off the
+VPS (rsync to another machine, or object storage) — a backup on the same
+disk as the database doesn't protect against disk failure.
 
-If you ever need to recover from an old volume after a mistaken
-`docker volume rm`, note that Docker won't actually delete a volume that's
-still referenced by a running or stopped container under a *different*
-compose project name — check `docker volume ls` for orphaned volumes named
-after an old project before assuming data is gone.
+Docker won't delete a volume still referenced by a container under a
+*different* compose project name — check `docker volume ls` for orphaned
+volumes before assuming data from an old `docker volume rm` is gone.
 
 ---
 
 ## Post-deploy checklist
 
-- [ ] `https://YOURDOMAIN.com` loads with a valid padlock, no mixed content
-- [ ] `http://YOURDOMAIN.com` redirects to `https://`
-- [ ] Static files (CSS/JS/admin styling) load correctly — if the page looks
-      unstyled, check the static volume permissions gotcha above
+- [ ] `https://yourdomain.com` loads with a valid padlock, no mixed content
+- [ ] `http://yourdomain.com` redirects to `https://`
+- [ ] Static files (CSS/JS/admin styling) load correctly — if unstyled,
+      check the static volume permissions gotcha above
 - [ ] Uploaded images (e.g. benefit logos) load correctly from `/media/`
 - [ ] Django admin login works without a CSRF error (confirms
       `CSRF_TRUSTED_ORIGINS` matches the real domain)
-- [ ] `DEBUG=False` confirmed (visit a broken URL — should show a plain
-      error page, not a stack trace)
+- [ ] `DEBUG=False` confirmed (a broken URL shows a plain error page, not
+      a stack trace)
 - [ ] Celery worker logs show it connected to Redis and Postgres
 - [ ] Google/Apple login works (confirms `FIREBASE_SERVICE_ACCOUNT_JSON`
-      parsed correctly — check `web`/`celery` logs for an Admin SDK
-      initialization error otherwise)
+      parsed — check `web`/`celery` logs for an Admin SDK init error
+      otherwise)
 - [ ] Swap is active: `free -h` shows `Swap: 2.0G` total
 - [ ] After first real traffic, `docker stats` for a few minutes and
-      confirm no service is consistently pinned at its memory limit
+      confirm no service is pinned at its memory limit
 - [ ] Cron backup job runs successfully once, and the `.sql.gz` file is valid
