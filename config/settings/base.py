@@ -228,7 +228,11 @@ REST_FRAMEWORK = {
         # Per-account, on top of "login"'s per-IP cap — stops a distributed
         # (many-IPs) attacker from getting unlimited guesses at one account.
         "login_account": "10/hour",
-        "email_action": "5/hour",
+        # Shared across resend-verification, password-reset-request, and
+        # password-reset-confirm — a single reset already costs 2 of these
+        # (request + confirm), so 5 was too tight for legit retry behavior
+        # (e.g. fumbling the new password once and needing another attempt).
+        "email_action": "10/hour",
         # Public and fires a real email to the admin on every submission —
         # the generic "anon" rate is too loose for that combination.
         "contact": "5/hour",
