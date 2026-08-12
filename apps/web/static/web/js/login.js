@@ -95,9 +95,50 @@ registerForm.addEventListener('submit', async (e) => {
   location.href = '/';
 });
 
+// ---------- forgot password ----------
+const forgotForm = document.getElementById('forgotForm');
+const authSwitch = document.getElementById('authSwitch');
+const socialLoginBlock = document.getElementById('socialLoginBlock');
+
+function showForgotForm(show) {
+  forgotForm.hidden = !show;
+  loginForm.hidden = show;
+  authSwitch.hidden = show;
+  socialLoginBlock.hidden = show;
+  registerForm.hidden = true;
+}
+
 document.getElementById('forgotLink').addEventListener('click', (e) => {
   e.preventDefault();
-  Eartha.toast('PASSWORD RESET COMING SOON — CONTACT US MEANWHILE');
+  showForgotForm(true);
+});
+
+document.getElementById('backToLoginLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  showForgotForm(false);
+  switchTab(true);
+});
+
+forgotForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('forgotMsg');
+  const submitBtn = forgotForm.querySelector('button[type="submit"]');
+  msg.textContent = '';
+  submitBtn.disabled = true;
+  const res = await Eartha.requestPasswordReset(document.getElementById('forgotEmail').value);
+  submitBtn.disabled = false;
+  if (res.error) {
+    msg.textContent = res.error.toUpperCase();
+    msg.className = 'form-msg is-error';
+    return;
+  }
+  // Backend always returns the same generic message regardless of whether
+  // the email matched an account — see PasswordResetRequestView, prevents
+  // this form from being used to enumerate registered addresses.
+  msg.textContent = res.detail.toUpperCase();
+  msg.className = 'form-msg is-ok';
+  forgotForm.querySelector('input').disabled = true;
+  submitBtn.disabled = true;
 });
 
 // ---------- Firebase Sign-In (Google + Apple) ----------

@@ -237,6 +237,33 @@ const Eartha = (() => {
     }
   }
 
+  async function requestPasswordReset(email) {
+    try {
+      const res = await authRequest('/password-reset/', { method: 'POST', body: { email } });
+      return { detail: res.detail };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  // uid/token come from the query string of the emailed password-reset
+  // link (see apps.users.services.get_password_reset_url).
+  async function confirmPasswordReset(uid, token, newPassword, newPasswordConfirm) {
+    try {
+      const res = await authRequest('/password-reset/confirm/', {
+        method: 'POST',
+        body: {
+          uid, token,
+          new_password: newPassword,
+          new_password_confirm: newPasswordConfirm,
+        },
+      });
+      return { detail: res.detail };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   // uid/token come from the query string of the emailed email-change
   // confirmation link (see MeView / request_email_change).
   async function confirmEmailChange(uid, token) {
@@ -1129,7 +1156,7 @@ const Eartha = (() => {
   seed();
 
   return {
-    currentUser, register, login, socialLogin, verifyEmail, confirmEmailChange, logout, requireAuth, requireAdmin,
+    currentUser, register, login, socialLogin, verifyEmail, confirmEmailChange, requestPasswordReset, confirmPasswordReset, logout, requireAuth, requireAdmin,
     fetchMySubmissions, createSubmission,
     fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, reassignDriver, collectItem, completeItem, awardItemPoints,
     fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,

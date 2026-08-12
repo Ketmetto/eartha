@@ -23,14 +23,16 @@
     <div class="auth-visual" role="img" aria-label="Two figures in linen, arms linked"></div>
 
     <div class="auth-panel">
-      <div class="auth-switch" role="tablist">
+      <div class="auth-switch" role="tablist" id="authSwitch">
         <button class="tab is-active" id="tabLogin" role="tab" aria-selected="true">SIGN IN</button>
         <button class="tab" id="tabRegister" role="tab" aria-selected="false">CREATE ACCOUNT</button>
       </div>
 
-      <button type="button" class="btn btn-ghost btn-block" id="googleSignInBtn">CONTINUE WITH GOOGLE</button>
-      <button type="button" class="btn btn-ghost btn-block" id="appleSignInBtn" style="margin-top:12px;">CONTINUE WITH APPLE</button>
-      <p class="hint muted" style="text-align:center;margin:18px 0;">OR</p>
+      <div id="socialLoginBlock">
+        <button type="button" class="btn btn-ghost btn-block" id="googleSignInBtn">CONTINUE WITH GOOGLE</button>
+        <button type="button" class="btn btn-ghost btn-block" id="appleSignInBtn" style="margin-top:12px;">CONTINUE WITH APPLE</button>
+        <p class="hint muted" style="text-align:center;margin:18px 0;">OR</p>
+      </div>
 
       <!-- LOGIN -->
       <form id="loginForm" novalidate>
@@ -45,6 +47,18 @@
         </div>
         <button type="submit" class="btn btn-block">SIGN IN</button>
         <p class="form-msg" id="loginMsg" role="status"></p>
+      </form>
+
+      <!-- FORGOT PASSWORD -->
+      <form id="forgotForm" hidden novalidate>
+        <p class="hint" style="margin-bottom:14px;">ENTER YOUR EMAIL AND WE'LL SEND YOU A RESET LINK.</p>
+        <div class="field">
+          <label for="forgotEmail">EMAIL ADDRESS</label>
+          <input type="email" id="forgotEmail" autocomplete="email" required>
+        </div>
+        <button type="submit" class="btn btn-block">SEND RESET LINK</button>
+        <p class="form-msg" id="forgotMsg" role="status"></p>
+        <p class="hint" style="text-align:center;margin-top:14px;"><a href="#" class="link-underline" id="backToLoginLink" style="font-size:10px;">BACK TO SIGN IN</a></p>
       </form>
 
       <!-- REGISTER -->

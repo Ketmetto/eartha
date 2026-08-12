@@ -13,6 +13,7 @@ from .views import (
     UploadView,
     VerifyEmailPageView,
     ConfirmEmailChangePageView,
+    ResetPasswordPageView,
 )
 
 app_name = "web"
@@ -31,4 +32,5 @@ urlpatterns = [
     path("upload/", UploadView.as_view(), name="upload"),
     path("verify-email/", VerifyEmailPageView.as_view(), name="verify-email"),
     path("confirm-email-change/", ConfirmEmailChangePageView.as_view(), name="confirm-email-change"),
+    path("reset-password/", ResetPasswordPageView.as_view(), name="reset-password"),
 ]
