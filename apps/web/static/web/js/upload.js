@@ -90,6 +90,14 @@ if (user) {
     .then((me) => { if (!me.phone) phoneField.hidden = false; })
     .catch(() => { phoneField.hidden = false; });
 
+  const phoneVerifyHint = document.getElementById('uploaderPhoneVerifyHint');
+  const phoneVerifyLink = document.getElementById('uploaderPhoneVerify');
+  phoneInput.addEventListener('input', () => {
+    const url = Eartha.whatsappVerifyUrl(phoneInput.value);
+    phoneVerifyHint.hidden = !url;
+    if (url) phoneVerifyLink.href = url;
+  });
+
   // ---------- submit ----------
   document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     e.preventDefault();
