@@ -4,13 +4,16 @@ from django.contrib.auth.models import Group
 from django.utils import timezone
 from unfold.admin import ModelAdmin
 from .models import User, Address, NotificationPreference
-from . import services
 
 
 class UserAdmin(BaseUserAdmin, ModelAdmin):
+    # No custom bulk actions here — django-unfold's action dropdown is
+    # Alpine.js-driven (x-model, not a native <select>), and ban/unban as
+    # bulk actions weren't reliably submitting in testing. Individual
+    # ban/unban already works both here (via the "Active" checkbox below)
+    # and on the site's own /users/ admin page, which is the reliable path
+    # for this.
     list_display = ("username", "email", "first_name", "last_name", "is_staff", "verified", "is_active")
-    list_editable = ("verified",)
-    actions = ["ban_users", "unban_users"]
     fieldsets = BaseUserAdmin.fieldsets + (
         ("Test access", {"fields": ("verified",)}),
         ("Ban", {"fields": ("ban_reason", "banned_at")}),
@@ -30,16 +33,6 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
             else:
                 obj.banned_at = timezone.now()
         super().save_model(request, obj, form, change)
-
-    @admin.action(description="Ban selected users (blocks login)")
-    def ban_users(self, request, queryset):
-        for user in queryset:
-            services.ban_user(user)
-
-    @admin.action(description="Unban selected users")
-    def unban_users(self, request, queryset):
-        for user in queryset:
-            services.unban_user(user)
 
 
 @admin.register(Address)
