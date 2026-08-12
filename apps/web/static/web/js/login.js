@@ -141,27 +141,24 @@ forgotForm.addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
 });
 
-// ---------- Firebase Sign-In (Google + Apple) ----------
-// Same buttons drive both sign-in and sign-up — the backend creates the
-// account on first social login, so there's nothing to disambiguate here.
+// ---------- Firebase Sign-In (Google) ----------
+// Apple removed — Sign in with Apple needs a paid Apple Developer Program
+// membership to configure at all, not something set up here. Same button
+// drives both sign-in and sign-up — the backend creates the account on
+// first social login, so there's nothing to disambiguate here.
 const firebaseConfig = JSON.parse(document.getElementById('firebase-config').textContent);
 const googleBtn = document.getElementById('googleSignInBtn');
-const appleBtn = document.getElementById('appleSignInBtn');
 
 if (!firebaseConfig.apiKey) {
   googleBtn.disabled = true;
   googleBtn.title = 'Google sign-in is not configured yet.';
-  appleBtn.disabled = true;
-  appleBtn.title = 'Apple sign-in is not configured yet.';
 } else {
   firebase.initializeApp(firebaseConfig);
 
-  async function firebaseSignIn(btn, providerName) {
-    btn.disabled = true;
+  googleBtn.addEventListener('click', async () => {
+    googleBtn.disabled = true;
     try {
-      const provider = providerName === 'google'
-        ? new firebase.auth.GoogleAuthProvider()
-        : new firebase.auth.OAuthProvider('apple.com');
+      const provider = new firebase.auth.GoogleAuthProvider();
       const result = await firebase.auth().signInWithPopup(provider);
       const idToken = await result.user.getIdToken();
       const res = await Eartha.socialLogin({
@@ -177,10 +174,7 @@ if (!firebaseConfig.apiKey) {
       console.error('Firebase sign-in error:', err.code, err.message);
       Eartha.toast('SIGN-IN FAILED — PLEASE TRY AGAIN.');
     } finally {
-      btn.disabled = false;
+      googleBtn.disabled = false;
     }
-  }
-
-  googleBtn.addEventListener('click', () => firebaseSignIn(googleBtn, 'google'));
-  appleBtn.addEventListener('click', () => firebaseSignIn(appleBtn, 'apple'));
+  });
 }
