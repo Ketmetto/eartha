@@ -88,8 +88,13 @@
           <label for="setAddress">PICKUP ADDRESS</label>
           <input type="text" id="setAddress" autocomplete="street-address" placeholder="Street, building, city">
           <button type="button" id="setLocate" class="btn btn-ghost btn-sm" style="margin-top:8px;" hidden>USE MY CURRENT LOCATION</button>
-          <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);" hidden></div>
-          <p class="hint">USED BY OUR DRIVER WHEN COLLECTING YOUR ITEMS. DRAG THE PIN IF IT'S NOT EXACTLY ON YOUR ENTRANCE, OR TAP "USE MY CURRENT LOCATION" IF YOU'RE THERE NOW. THE PIN IS OPTIONAL — WE CAN STILL DISPATCH A DRIVER FROM THE ADDRESS ALONE.</p>
+          <button type="button" id="setManualToggle" class="btn btn-ghost btn-sm" style="margin-top:8px;margin-left:8px;">ENTER MANUALLY</button>
+          <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);"></div>
+          <div id="setManualFields" style="margin-top:10px;" hidden>
+            <input type="text" id="setManualCity" placeholder="City" aria-label="City" style="margin-bottom:10px;">
+            <input type="text" id="setManualStreet" placeholder="Street name" aria-label="Street name">
+          </div>
+          <p class="hint">USED BY OUR DRIVER WHEN COLLECTING YOUR ITEMS.</p>
         </div>
         <div class="field">
           <label for="setBuilding">BUILDING NAME / NUMBER <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>

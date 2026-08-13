@@ -65,9 +65,22 @@ if (user) {
   // ---------- pickup address (asked once, saved to profile) ----------
   const addressField = document.getElementById('addressField');
   const pickupInput = document.getElementById('pickupAddress');
+  const addressToggleWrap = document.getElementById('addressToggleWrap');
+  const addAddressBtn = document.getElementById('addAddressBtn');
   Eartha.fetchAddress()
-    .then((address) => { if (!address.line1) addressField.hidden = false; })
+    .then((address) => {
+      // already have one on file — offer a way to swap it for this pickup
+      // only (e.g. uploading while away from home), instead of showing the
+      // full address form unprompted every time.
+      if (!address.line1) addressField.hidden = false;
+      else addressToggleWrap.hidden = false;
+    })
     .catch(() => { addressField.hidden = false; });
+  addAddressBtn.addEventListener('click', () => {
+    addressToggleWrap.hidden = true;
+    addressField.hidden = false;
+    pickupInput.focus();
+  });
 
   // Set together when a real autocomplete suggestion is picked; cleared on
   // further manual typing so a stale structured address never gets sent
@@ -79,6 +92,32 @@ if (user) {
     (parts) => { addressParts = parts; }, document.getElementById('pickupLocate')
   );
   pickupInput.addEventListener('input', () => { addressParts = null; });
+
+  // ---------- pickup address, entered manually instead of via the map ----------
+  // One-way into manual mode; the way back out is geolocating instead,
+  // not a second toggle — "use my current location" always means "on
+  // the map", so clicking it re-opens the map if manual fields are showing.
+  const pickupManualToggle = document.getElementById('pickupManualToggle');
+  const pickupManualFields = document.getElementById('pickupManualFields');
+  const pickupManualCity = document.getElementById('pickupManualCity');
+  const pickupManualStreet = document.getElementById('pickupManualStreet');
+  const pickupMapEl = document.getElementById('pickupMap');
+  const pickupLocateBtn = document.getElementById('pickupLocate');
+  let manualMode = false;
+  pickupManualToggle.addEventListener('click', () => {
+    manualMode = true;
+    pickupManualFields.hidden = false;
+    pickupMapEl.hidden = true;
+    pickupManualToggle.hidden = true;
+    addressParts = null;
+  });
+  pickupLocateBtn.addEventListener('click', () => {
+    if (!manualMode) return;
+    manualMode = false;
+    pickupManualFields.hidden = true;
+    pickupMapEl.hidden = false;
+    pickupManualToggle.hidden = false;
+  });
   const buildingInput = document.getElementById('pickupBuilding');
   const floorUnitInput = document.getElementById('pickupFloorUnit');
   const instructionsInput = document.getElementById('pickupInstructions');
@@ -111,7 +150,23 @@ if (user) {
     }
 
     let addressToSave = null;
-    if (!addressField.hidden) {
+    if (!addressField.hidden && manualMode) {
+      const city = pickupManualCity.value.trim();
+      const street = pickupManualStreet.value.trim();
+      if (!street || !city) {
+        msg.textContent = 'ADD A CITY AND STREET NAME — OUR DRIVER NEEDS SOMEWHERE TO GO.';
+        msg.className = 'form-msg is-error';
+        return;
+      }
+      addressToSave = {
+        line1: street,
+        city,
+        country: 'Lebanon',
+        building: buildingInput.value.trim(),
+        floor_unit: floorUnitInput.value.trim(),
+        instructions: instructionsInput.value.trim(),
+      };
+    } else if (!addressField.hidden) {
       const typed = pickupInput.value.trim();
       if (!typed) {
         msg.textContent = 'ADD A PICKUP ADDRESS — OUR DRIVER NEEDS SOMEWHERE TO GO.';

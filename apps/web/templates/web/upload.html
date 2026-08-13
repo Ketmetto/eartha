@@ -60,13 +60,22 @@
           <p class="hint">REQUIRED FOR REVIEW · MAX 5 IMAGES</p>
         </div>
 
+        <div class="field" id="addressToggleWrap" hidden>
+          <button type="button" id="addAddressBtn" class="btn btn-ghost btn-sm">NOT PICKING UP FROM HOME? ADD A DIFFERENT ADDRESS</button>
+        </div>
+
         <div id="addressField" hidden>
           <div class="field">
             <label for="pickupAddress">PICKUP ADDRESS</label>
             <input type="text" id="pickupAddress" autocomplete="street-address" placeholder="Street, building, city">
             <button type="button" id="pickupLocate" class="btn btn-ghost btn-sm" style="margin-top:8px;" hidden>USE MY CURRENT LOCATION</button>
-            <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);" hidden></div>
-            <p class="hint">WE NEED THIS ONCE — OUR DRIVER USES IT TO COLLECT YOUR ITEMS. SAVED TO YOUR PROFILE. DRAG THE PIN IF IT'S NOT EXACTLY ON YOUR ENTRANCE, OR TAP "USE MY CURRENT LOCATION" IF YOU'RE THERE NOW. THE PIN IS OPTIONAL.</p>
+            <button type="button" id="pickupManualToggle" class="btn btn-ghost btn-sm" style="margin-top:8px;margin-left:8px;">ENTER MANUALLY</button>
+            <div id="pickupMap" style="height:220px;margin-top:10px;border:1px solid var(--line);"></div>
+            <div id="pickupManualFields" style="margin-top:10px;" hidden>
+              <input type="text" id="pickupManualCity" placeholder="City" aria-label="City" style="margin-bottom:10px;">
+              <input type="text" id="pickupManualStreet" placeholder="Street name" aria-label="Street name">
+            </div>
+            <p class="hint">WE NEED THIS ONCE — OUR DRIVER USES IT TO COLLECT YOUR ITEMS. SAVED TO YOUR PROFILE.</p>
           </div>
           <div class="field">
             <label for="pickupBuilding">BUILDING NAME / NUMBER <span class="muted" style="font-weight:400;">(OPTIONAL)</span></label>

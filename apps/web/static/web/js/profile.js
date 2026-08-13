@@ -23,6 +23,32 @@ if (user && !user.isAdmin) {
   const floorUnitInput = document.getElementById('setFloorUnit');
   const instructionsInput = document.getElementById('setInstructions');
 
+  // ---------- pickup address, entered manually instead of via the map ----------
+  // One-way into manual mode; the way back out is geolocating instead,
+  // not a second toggle — "use my current location" always means "on
+  // the map", so clicking it re-opens the map if manual fields are showing.
+  const manualToggle = document.getElementById('setManualToggle');
+  const manualFields = document.getElementById('setManualFields');
+  const manualCity = document.getElementById('setManualCity');
+  const manualStreet = document.getElementById('setManualStreet');
+  const pickupMapEl = document.getElementById('pickupMap');
+  const locateBtn = document.getElementById('setLocate');
+  let manualMode = false;
+  manualToggle.addEventListener('click', () => {
+    manualMode = true;
+    manualFields.hidden = false;
+    pickupMapEl.hidden = true;
+    manualToggle.hidden = true;
+    addressParts = null;
+  });
+  locateBtn.addEventListener('click', () => {
+    if (!manualMode) return;
+    manualMode = false;
+    manualFields.hidden = true;
+    pickupMapEl.hidden = false;
+    manualToggle.hidden = false;
+  });
+
   // ---------- phone WhatsApp sanity check ----------
   const phoneInput = document.getElementById('setPhone');
   const phoneVerifyHint = document.getElementById('setPhoneVerifyHint');
@@ -224,6 +250,8 @@ if (user && !user.isAdmin) {
       document.getElementById('setPhone').value = me.phone || '';
       updatePhoneVerifyLink();
       document.getElementById('setAddress').value = address.line1 || '';
+      manualCity.value = address.city || '';
+      manualStreet.value = address.line1 || '';
       buildingInput.value = address.building || '';
       floorUnitInput.value = address.floor_unit || '';
       instructionsInput.value = address.instructions || '';
@@ -244,14 +272,24 @@ if (user && !user.isAdmin) {
     const typedAddress = addressInput.value.trim();
     // addressParts only exists if a real suggestion was picked;
     // building/floor_unit/instructions are separate manual fields
-    // either way.
-    const address = {
-      ...(addressParts || {}),
-      line1: (addressParts && addressParts.line1) || typedAddress,
-      building: buildingInput.value.trim(),
-      floor_unit: floorUnitInput.value.trim(),
-      instructions: instructionsInput.value.trim(),
-    };
+    // either way. In manual mode there's no map/pin at all, so city and
+    // country come from the plain city field instead of a picked place.
+    const address = manualMode
+      ? {
+          line1: manualStreet.value.trim(),
+          city: manualCity.value.trim(),
+          country: 'Lebanon',
+          building: buildingInput.value.trim(),
+          floor_unit: floorUnitInput.value.trim(),
+          instructions: instructionsInput.value.trim(),
+        }
+      : {
+          ...(addressParts || {}),
+          line1: (addressParts && addressParts.line1) || typedAddress,
+          building: buildingInput.value.trim(),
+          floor_unit: floorUnitInput.value.trim(),
+          instructions: instructionsInput.value.trim(),
+        };
     const currentPassword = document.getElementById('setCurrentPassword').value;
     const newPassword = document.getElementById('setPassword').value;
     const notify = document.getElementById('setNotify').checked;

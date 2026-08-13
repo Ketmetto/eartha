@@ -361,6 +361,67 @@ img:not([src*="logo"]),
 
 .field select { appearance: none; cursor: pointer; }
 
+.map-search-box {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  z-index: 2;
+}
+/* #pickupMap prefix outweighs ".field input[type=text]" (the relocated
+   input is still a descendant of a .field) so this doesn't lose the
+   background/border to it and end up unreadable over the map tiles. */
+#pickupMap .map-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--cream-card);
+  border: 1px solid var(--line-strong);
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: var(--track);
+  outline: none;
+  border-radius: 0;
+  box-shadow: 0 1px 4px rgba(23, 20, 15, 0.25);
+}
+
+.map-pin-fixed {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  margin-top: -24px;
+  pointer-events: none;
+  z-index: 1;
+}
+.map-pin-fixed::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  background: var(--bad);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 3px rgba(23, 20, 15, 0.4);
+}
+.map-pin-fixed::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 6px;
+  height: 2px;
+  margin-left: -3px;
+  background: rgba(23, 20, 15, 0.35);
+  border-radius: 50%;
+  filter: blur(0.5px);
+}
+
 .select-wrap { position: relative; }
 .select-wrap::after {
   content: "▾";
@@ -435,6 +496,10 @@ img:not([src*="logo"]),
 .btn-sm { padding: 8px 16px; font-size: 11px; }
 
 .btn[disabled] { opacity: 0.4; pointer-events: none; }
+/* .btn's own `display: inline-block` ties the UA [hidden] rule on
+   specificity, and author styles win ties — so a hidden .btn rendered
+   anyway until this overrides it explicitly. */
+.btn[hidden] { display: none; }
 
 .btn-block { display: block; width: 100%; }
 
@@ -620,12 +685,15 @@ td {
 .progress-bar { height: 100%; background: var(--ink); transition: width 0.5s ease; }
 
 /* tabs */
+/* wrap instead of an unsigned horizontal scroll — the tab bar has no
+   fade/affordance, so overflow just reads as clipped text */
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: clamp(12px, 2vw, 28px);
+  row-gap: 12px;
   border-bottom: 1px solid var(--line-strong);
   margin-bottom: clamp(24px, 4vw, 40px);
-  overflow-x: auto;
 }
 
 .tab {
@@ -1412,8 +1480,4 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 
   .site-footer { grid-template-columns: 1fr; }
   .footer-cols { grid-template-columns: 1fr 1fr; }
-
-  /* wrap instead of relying on an unsigned horizontal scroll — the tab
-     bar has no fade/affordance, so overflow just reads as clipped text */
-  .tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 12px; }
 }
