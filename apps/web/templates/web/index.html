@@ -71,42 +71,66 @@
           <div class="accept-group">
             <article class="accept-card">
               <div class="accept-img">
+                {% if site_images.accept_outerwear %}
+                <img src="{{ site_images.accept_outerwear }}" alt="Cream jacket hanging from a bare tree in a green valley" loading="lazy">
+                {% else %}
                 <img src="{% static 'web/images/image-3.jpg' %}" alt="Cream jacket hanging from a bare tree in a green valley" loading="lazy">
+                {% endif %}
               </div>
               <h3 class="card-title">OUTERWEAR</h3>
               <p class="card-sub">BECOMES: INSULATION, NEW LININGS</p>
             </article>
             <article class="accept-card">
               <div class="accept-img">
+                {% if site_images.accept_denim_cotton %}
+                <img src="{{ site_images.accept_denim_cotton }}" alt="Back pocket detail of light-wash denim jeans" loading="lazy">
+                {% else %}
                 <img src="{% static 'web/images/image-4.jpg' %}" alt="Back pocket detail of light-wash denim jeans" loading="lazy">
+                {% endif %}
               </div>
               <h3 class="card-title">DENIM &amp; COTTON</h3>
               <p class="card-sub">BECOMES: WOVEN PANELS, TOTES</p>
             </article>
             <article class="accept-card">
               <div class="accept-img">
+                {% if site_images.accept_knitwear %}
+                <img src="{{ site_images.accept_knitwear }}" alt="Woman in an oversized grey knit sweater standing among sheep" loading="lazy">
+                {% else %}
                 <img src="{% static 'web/images/image-5.jpg' %}" alt="Woman in an oversized grey knit sweater standing among sheep" loading="lazy">
+                {% endif %}
               </div>
               <h3 class="card-title">KNITWEAR</h3>
               <p class="card-sub">BECOMES: REKNIT YARN, BLANKETS</p>
             </article>
             <article class="accept-card">
               <div class="accept-img">
+                {% if site_images.accept_dresses %}
+                <img src="{{ site_images.accept_dresses }}" alt="Denim shirtdress worn walking through a garden of pink roses" loading="lazy">
+                {% else %}
                 <img src="{% static 'web/images/image-10.jpg' %}" alt="Denim shirtdress worn walking through a garden of pink roses" loading="lazy">
+                {% endif %}
               </div>
               <h3 class="card-title">DRESSES</h3>
               <p class="card-sub">BECOMES: PATCHWORK, NEW SILHOUETTES</p>
             </article>
             <article class="accept-card">
               <div class="accept-img">
+                {% if site_images.accept_accessories %}
+                <img src="{{ site_images.accept_accessories }}" alt="Cropped top and gingham skirt with a green leather tote bag" loading="lazy">
+                {% else %}
                 <img src="{% static 'web/images/image-15.jpg' %}" alt="Cropped top and gingham skirt with a green leather tote bag" loading="lazy">
+                {% endif %}
               </div>
               <h3 class="card-title">ACCESSORIES</h3>
               <p class="card-sub">BECOMES: REFURBISHED LEATHER GOODS</p>
             </article>
             <article class="accept-card">
               <div class="accept-img">
+                {% if site_images.accept_shoes_bags %}
+                <img src="{{ site_images.accept_shoes_bags }}" alt="Shoes and bags accepted for donation" loading="lazy">
+                {% else %}
                 <img src="{% static 'web/images/shoes-bags.jpg' %}" alt="Shoes and bags accepted for donation" loading="lazy">
+                {% endif %}
               </div>
               <h3 class="card-title">SHOES &amp; BAGS</h3>
               <p class="card-sub">BECOMES: RESOLED PAIRS, RECUT LEATHER</p>

@@ -31,6 +31,12 @@ class SiteImage(BaseModel):
         ABOUT_HERO_1 = "about_hero_1", "About — Hero image 1"
         ABOUT_HERO_2 = "about_hero_2", "About — Hero image 2"
         CONTACT_HERO_BG = "contact_hero_bg", "Contact — Hero background"
+        ACCEPT_OUTERWEAR = "accept_outerwear", "Home — What we accept: Outerwear"
+        ACCEPT_DENIM_COTTON = "accept_denim_cotton", "Home — What we accept: Denim & cotton"
+        ACCEPT_KNITWEAR = "accept_knitwear", "Home — What we accept: Knitwear"
+        ACCEPT_DRESSES = "accept_dresses", "Home — What we accept: Dresses"
+        ACCEPT_ACCESSORIES = "accept_accessories", "Home — What we accept: Accessories"
+        ACCEPT_SHOES_BAGS = "accept_shoes_bags", "Home — What we accept: Shoes & bags"
 
     key = models.CharField(max_length=40, choices=Key.choices, unique=True)
     image = models.ImageField(upload_to="site_content/", blank=True)

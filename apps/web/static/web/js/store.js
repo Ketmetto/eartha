@@ -1066,12 +1066,17 @@ const Eartha = (() => {
     const profileLink = user.isAdmin
       ? ''
       : `<a href="/profile/" class="${current === 'profile' ? 'is-current' : ''}">PROFILE (<strong id="headerPts">${user.points || 0}</strong> PTS)</a>`;
-    const logoHref = user.isAdmin ? '/dashboard/' : '/';
+    // Admins land on /dashboard/ first (see login.js), but from then on the
+    // logo always means "home" — the dashboard stays reachable via its own
+    // nav link instead, in upload's usual first slot (admins don't upload).
+    const firstLink = user.isAdmin
+      ? `<a href="/dashboard/" class="${current === 'dashboard' ? 'is-current' : ''}">DASHBOARD</a>`
+      : `<a href="/upload/" class="${current === 'upload' ? 'is-current' : ''}">UPLOAD</a>`;
     el.innerHTML = `
-      <a href="${logoHref}" class="logo"><img src="/static/web/images/logo-dark.svg" alt="EARTHA"></a>
+      <a href="/" class="logo"><img src="/static/web/images/logo-dark.svg" alt="EARTHA"></a>
       ${MENU_TOGGLE_HTML}
       <nav class="app-nav" id="appNav" aria-label="App">
-        <a href="/upload/" class="${current === 'upload' ? 'is-current' : ''}">UPLOAD</a>
+        ${firstLink}
         <a href="/benefits/" class="${current === 'benefits' ? 'is-current' : ''}">BENEFITS</a>
         <a href="/contact/" class="${current === 'contact' ? 'is-current' : ''}">CONTACT</a>
         ${profileLink}
