@@ -2,13 +2,35 @@
 Transition logic lives here, not in views/serializers, so it's testable
 and reusable from the admin views, the API, and management commands.
 """
+import io
+import os
+
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.base import ContentFile
+from PIL import Image
 from rest_framework.exceptions import ValidationError
 from django.db import transaction
 from base.validators import validate_image_size, validate_image_content_type
 from .models import Item, ItemPhoto, DriverAssignment
 from .state_machine import can_transition
 from notifications.tasks import notify_submission_status_changed
+
+# HEIC/HEIF is the default iPhone capture format, but browsers other than
+# Safari can't render it in an <img> tag — the queue, the admin thumbnail,
+# and the submitter's own history all use plain <img src>. Convert to JPEG
+# at upload time so whatever gets stored is displayable everywhere.
+HEIC_CONTENT_TYPES = {"image/heic", "image/heif"}
+
+
+def _make_browser_displayable(photo_file):
+    if getattr(photo_file, "content_type", None) not in HEIC_CONTENT_TYPES:
+        return photo_file
+
+    image = Image.open(photo_file).convert("RGB")
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=90)
+    name = os.path.splitext(photo_file.name)[0] + ".jpg"
+    return ContentFile(buffer.getvalue(), name=name)
 
 
 def transition_item_status(item: Item, target_status: str, *, reason: str = "") -> Item:
@@ -63,7 +85,7 @@ def create_item_with_photos(*, user, category: str, condition: str, description:
                 validate_image_content_type(photo_file)
             except DjangoValidationError as exc:
                 raise ValidationError({"photos": exc.messages})
-            ItemPhoto.objects.create(item=item, image=photo_file)
+            ItemPhoto.objects.create(item=item, image=_make_browser_displayable(photo_file))
 
     return item
 
