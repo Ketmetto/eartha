@@ -29,7 +29,7 @@
         <h1 class="hero-title">{{ site_texts.contact_hero_title }}</h1>
         <p class="hero-sub">{{ site_texts.contact_hero_sub }}</p>
         <div class="hero-actions">
-          <a href="mailto:hello@eartha.co" class="link-underline">Email Us</a>
+          <a href="mailto:info@eartha.me" class="link-underline">Email Us</a>
           <a href="https://wa.me/971589307048" class="link-underline" target="_blank" rel="noopener">WhatsApp Us</a>
           <a href="#contactForm" class="link-underline">Send A Message</a>
         </div>
@@ -64,10 +64,10 @@
         <aside class="contact-aside">
           <div class="card">
             <p class="eyebrow">DIRECT</p>
-            <p class="contact-link-row"><a href="mailto:hello@eartha.co" class="link-underline">HELLO@EARTHA.CO</a></p>
+            <p class="contact-link-row"><a href="mailto:info@eartha.me" class="link-underline">INFO@EARTHA.ME</a></p>
             <p class="eyebrow">FOLLOW</p>
             <p class="contact-link-row">
-              <a href="#" class="link-underline">INSTAGRAM</a>
+              <a href="https://instagram.com/eartha.design" class="link-underline" target="_blank" rel="noopener">INSTAGRAM</a>
               <a href="#" class="link-underline">LINKEDIN</a>
             </p>
           </div>
@@ -202,10 +202,6 @@
       cEmailEl.value = adminUser.email || '';
       cNameEl.disabled = true;
       cEmailEl.disabled = true;
-      const lockedHint = document.createElement('p');
-      lockedHint.className = 'hint';
-      lockedHint.textContent = "SENDING AS YOUR ACCOUNT — CAN'T BE CHANGED HERE.";
-      cEmailEl.insertAdjacentElement('afterend', lockedHint);
     }
     if (contactFormEl) contactFormEl.addEventListener('submit', async (e) => {
       e.preventDefault();

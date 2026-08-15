@@ -358,6 +358,12 @@ img:not([src*="logo"]),
   border-radius: 0;
   transition: border-color 0.25s ease;
 }
+.field input:disabled,
+.field textarea:disabled {
+  color: var(--text-muted);
+  border-bottom-style: dotted;
+  cursor: not-allowed;
+}
 
 .field select { appearance: none; cursor: pointer; }
 
