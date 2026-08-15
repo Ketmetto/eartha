@@ -10,7 +10,9 @@ ALLOWED_TRANSITIONS = {
     # ACCEPTED <-> REJECTED corrects a wrong admin decision, only allowed
     # this early (not once a driver's dispatched). No points implication
     # either way — awarding only starts from COLLECTED onward.
-    Item.Status.ACCEPTED: {Item.Status.DISPATCHED, Item.Status.REJECTED},
+    # ACCEPTED -> COLLECTED skips DISPATCHED entirely — the customer drop-off
+    # path, no driver ever assigned.
+    Item.Status.ACCEPTED: {Item.Status.DISPATCHED, Item.Status.REJECTED, Item.Status.COLLECTED},
     Item.Status.DISPATCHED: {Item.Status.COLLECTED},
     Item.Status.COLLECTED: {Item.Status.COMPLETED},
     Item.Status.REJECTED: {Item.Status.ACCEPTED},

@@ -161,6 +161,7 @@ if (admin) {
               </div>
             </div>
             <button class="btn btn-sm" data-act="dispatch" data-id="${s.id}" ${noAddress || noDrivers ? `disabled title="${disabledReason}"` : ''}>DISPATCH</button>
+            <button class="btn btn-ghost btn-sm" data-act="collect" data-id="${s.id}" title="Customer is dropping it off themselves">NO DRIVER — DROPPING OFF</button>
             <button class="btn btn-ghost btn-sm" data-act="reject" data-id="${s.id}" title="Correct a mistaken accept">UNDO — REJECT</button>
           </div>`;
       }
