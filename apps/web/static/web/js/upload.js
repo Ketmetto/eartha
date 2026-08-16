@@ -9,16 +9,17 @@ if (user) {
   const input = document.getElementById('photos');
   const previews = document.getElementById('photoPreviews');
   const MAX_PHOTOS = 5;
-  // { file: File, preview: dataURL } — the original File is what actually
-  // gets uploaded; the compressed dataURL is only for the on-page thumbnail.
+  // { file: File, preview: dataURL|null } — the original File is what
+  // actually gets uploaded; the compressed dataURL is only for the
+  // on-page thumbnail, and can be null (see addFiles below).
   let photos = [];
 
   const renderPreviews = () => {
     previews.innerHTML = photos
       .map(
         (p, i) => `
-        <div class="ph">
-          <img src="${p.preview}" alt="Photo ${i + 1}">
+        <div class="ph${p.preview ? '' : ' no-preview'}">
+          ${p.preview ? `<img src="${p.preview}" alt="Photo ${i + 1}">` : `PHOTO ${i + 1}`}
           <button type="button" class="rm" data-i="${i}" aria-label="Remove photo ${i + 1}">×</button>
         </div>`
       )
@@ -39,11 +40,17 @@ if (user) {
         Eartha.toast('MAX 5 PHOTOS PER ITEM');
         break;
       }
+      // Some iPhone HEIC photos (e.g. HDR shots with a gain map) can't be
+      // decoded into a canvas by this browser for a thumbnail — the
+      // server converts HEIC to JPEG on upload regardless, so still
+      // accept the file and just skip the on-page preview.
+      let preview = null;
       try {
-        photos.push({ file, preview: await Eartha.compressImage(file) });
+        preview = await Eartha.compressImage(file);
       } catch {
-        Eartha.toast('COULD NOT READ ONE OF THE IMAGES');
+        /* no preview available — file is still uploaded as-is */
       }
+      photos.push({ file, preview });
     }
     renderPreviews();
   }
