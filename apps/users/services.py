@@ -254,6 +254,37 @@ def unban_user(user):
     user.save(update_fields=["is_active", "ban_reason", "banned_at"])
 
 
+def delete_account(user):
+    """Self-serve account deletion. Anonymizes PII and deactivates via the
+    same is_active mechanism as ban_user, rather than a real DELETE —
+    PointsLedgerEntry and Redemption both PROTECT their `user` FK
+    specifically to keep that history intact (see their model comments),
+    so a hard delete would fail for any user who's ever earned or redeemed
+    points. Submissions/points/redemption history all survive, just no
+    longer traceable to identifying info. Reuses ban_reason/banned_at
+    rather than a separate field, same reasoning as ban_user — it's still
+    just "why is this account deactivated," and shows up clearly enough
+    in the admin users list either way.
+    """
+    from .models import Address
+
+    user.email = f"deleted-{user.pk}@eartha.deleted"
+    user.username = f"deleted-{user.pk}"
+    user.first_name = ""
+    user.last_name = ""
+    user.phone = None
+    user.firebase_uid = None
+    user.pending_email = None
+    user.is_active = False
+    user.ban_reason = "Account deleted by user"
+    user.banned_at = timezone.now()
+    user.save(update_fields=[
+        "email", "username", "first_name", "last_name", "phone",
+        "firebase_uid", "pending_email", "is_active", "ban_reason", "banned_at",
+    ])
+    Address.objects.filter(user=user).delete()
+
+
 def get_user_stats(users):
     """Submission/redemption counts + points balance for a page of users,
     one grouped query per metric instead of one per user — annotating all

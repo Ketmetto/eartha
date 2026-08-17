@@ -332,6 +332,22 @@ if (user && !user.isAdmin) {
     }
   });
 
+  document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+    const msg = document.getElementById('deleteAccountMsg');
+    if (!confirm('DELETE YOUR ACCOUNT? THIS CAN\'T BE UNDONE.')) return;
+
+    const btn = document.getElementById('deleteAccountBtn');
+    btn.disabled = true;
+    try {
+      await Eartha.deleteAccount();
+      Eartha.logout('YOUR ACCOUNT HAS BEEN DELETED.');
+    } catch (err) {
+      msg.textContent = err.message || 'COULD NOT DELETE YOUR ACCOUNT.';
+      msg.className = 'form-msg is-error';
+      btn.disabled = false;
+    }
+  });
+
   renderBalance();
   renderSubs();
   renderReds();

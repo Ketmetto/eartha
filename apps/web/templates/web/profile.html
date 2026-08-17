@@ -125,6 +125,17 @@
         <button type="submit" class="btn">SAVE CHANGES</button>
         <p class="form-msg" id="settingsMsg" role="status"></p>
       </form>
+
+      <div style="max-width:480px;margin-top:clamp(36px,5vw,56px);padding-top:24px;border-top:1px solid var(--line);">
+        <p class="eyebrow" style="color:var(--bad);margin-bottom:10px;">DANGER ZONE</p>
+        <p class="hint" style="margin-bottom:14px;">
+          Deleting your account removes your personal info (name, email, phone, address) and signs you out
+          everywhere. Your submission and points history stays on record for our own bookkeeping, but is no
+          longer tied to anything identifying you. This can't be undone.
+        </p>
+        <button type="button" id="deleteAccountBtn" class="btn btn-ghost btn-sm" style="border-color:var(--bad);color:var(--bad);">DELETE MY ACCOUNT</button>
+        <p class="form-msg" id="deleteAccountMsg" role="status"></p>
+      </div>
     </div>
   </main>
 

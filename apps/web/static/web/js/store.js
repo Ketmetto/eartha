@@ -849,6 +849,14 @@ const Eartha = (() => {
     return apiFetch('/auth/me/');
   }
 
+  // Anonymizes + deactivates server-side (see apps.users.services.
+  // delete_account) — not a real DELETE. Caller is responsible for
+  // logging out client-side afterward, same as any other session-ending
+  // action.
+  async function deleteAccount() {
+    return apiFetch('/auth/me/', { method: 'DELETE' });
+  }
+
   async function updateMe({ name, email, phone }) {
     const [first_name, ...rest] = name.trim().split(' ');
     const body = { email, first_name, last_name: rest.join(' ') };
@@ -1197,7 +1205,7 @@ const Eartha = (() => {
     fetchDashboardStats,
     fetchAdminUsers, banUser, unbanUser,
     fetchSiteTexts, updateSiteText, fetchSiteImages, updateSiteImage, clearSiteImage,
-    fetchMe, updateMe, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
+    fetchMe, updateMe, deleteAccount, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
     redemptions, redeemBenefit,
     compressImage, toast, fmtDate, esc, badge, whatsappVerifyUrl, renderHeader, refreshHeaderPts,

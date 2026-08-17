@@ -110,12 +110,16 @@ class ResendVerificationView(APIView):
         )
 
 
-class MeView(generics.RetrieveUpdateAPIView):
+class MeView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
         return self.request.user
+
+    def perform_destroy(self, instance):
+        # Not a real delete — see services.delete_account for why.
+        services.delete_account(instance)
 
     def perform_update(self, serializer):
         # Email routes through request_email_change instead of being
