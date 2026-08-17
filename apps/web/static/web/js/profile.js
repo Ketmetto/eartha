@@ -49,16 +49,7 @@ if (user && !user.isAdmin) {
     manualToggle.hidden = false;
   });
 
-  // ---------- phone WhatsApp sanity check ----------
   const phoneInput = document.getElementById('setPhone');
-  const phoneVerifyHint = document.getElementById('setPhoneVerifyHint');
-  const phoneVerifyLink = document.getElementById('setPhoneVerify');
-  function updatePhoneVerifyLink() {
-    const url = Eartha.whatsappVerifyUrl(phoneInput.value);
-    phoneVerifyHint.hidden = !url;
-    if (url) phoneVerifyLink.href = url;
-  }
-  phoneInput.addEventListener('input', updatePhoneVerifyLink);
 
   // ---------- balance ----------
   async function renderBalance() {
@@ -248,7 +239,6 @@ if (user && !user.isAdmin) {
       document.getElementById('setName').value = [me.first_name, me.last_name].filter(Boolean).join(' ');
       document.getElementById('setEmail').value = me.email;
       document.getElementById('setPhone').value = me.phone || '';
-      updatePhoneVerifyLink();
       document.getElementById('setAddress').value = address.line1 || '';
       manualCity.value = address.city || '';
       manualStreet.value = address.line1 || '';

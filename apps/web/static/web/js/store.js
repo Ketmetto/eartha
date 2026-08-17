@@ -1011,24 +1011,6 @@ const Eartha = (() => {
   const badge = (status) =>
     `<span class="badge badge-${status}">${status.toUpperCase()}</span>`;
 
-  // Free "sanity check" for a phone number someone just typed: opens it in
-  // WhatsApp so they can see for themselves whether it's a real, reachable
-  // number (wrong name/photo, or WhatsApp not finding it, means a typo) —
-  // not real SMS verification, just a free nudge using the same wa.me
-  // links already used for driver dispatch. Mirrors normalize_phone's LB
-  // default-region assumption (bare local numbers start with a 0 and have
-  // no country code), simplified for client-side use — the real
-  // validation still happens server-side via that function.
-  function whatsappVerifyUrl(rawPhone) {
-    let digits = (rawPhone || '').replace(/\D/g, '');
-    if (!digits) return null;
-    if (!digits.startsWith('961')) {
-      if (digits.startsWith('0')) digits = digits.slice(1);
-      digits = '961' + digits;
-    }
-    return `https://wa.me/${digits}`;
-  }
-
   const MENU_TOGGLE_HTML = `
     <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="appNav" aria-label="Toggle menu">
       <span class="menu-toggle-bars" aria-hidden="true"></span>
@@ -1208,6 +1190,6 @@ const Eartha = (() => {
     fetchMe, updateMe, deleteAccount, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
     redemptions, redeemBenefit,
-    compressImage, toast, fmtDate, esc, badge, whatsappVerifyUrl, renderHeader, refreshHeaderPts,
+    compressImage, toast, fmtDate, esc, badge, renderHeader, refreshHeaderPts,
   };
 })();
