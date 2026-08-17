@@ -1,7 +1,17 @@
 from .base import *  # noqa
 
 import sentry_sdk
+from csp.constants import NONCE, NONE, SELF, UNSAFE_INLINE
 from sentry_sdk.integrations.django import DjangoIntegration
+
+# CSPMiddleware just adds a response header — safe to slot in right after
+# SecurityMiddleware, which handles the other security headers.
+# AdminCSPMiddleware must come after CSPMiddleware — see its docstring —
+# so it's inserted one further down.
+MIDDLEWARE = MIDDLEWARE.copy()
+security_index = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+MIDDLEWARE.insert(security_index + 1, "csp.middleware.CSPMiddleware")
+MIDDLEWARE.insert(security_index + 2, "base.middleware.AdminCSPMiddleware")
 
 # No-op until SENTRY_DSN is set (sentry-sdk is a "prod"-only dependency,
 # so this import is safe here but not in dev.py).
@@ -34,14 +44,39 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.eartha.me",
 ]
 
-# Baseline hardening — see REMINDERS.txt for the CSP header, which
-# needs a dependency decision before it's added on top of this.
+# Baseline hardening
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+
+# Every page's inline <script> blocks (see apps/web templates) carry
+# nonce="{{ request.csp_nonce }}", which CSPMiddleware fills in per-request
+# — that's what NONCE below wires up. Firebase (Google sign-in) and Google
+# Maps (address autocomplete) are the only third-party script/XHR origins
+# the frontend actually uses; everything else is same-origin.
+# style-src stays on UNSAFE_INLINE rather than nonces: the templates lean
+# on plain style="..." attributes throughout (not just <style> blocks), and
+# nonces don't cover the attribute form. CSS injection is a much lower-severity
+# risk than script injection, so this is an accepted tradeoff, not an oversight.
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": [SELF],
+        "script-src": [SELF, NONCE, "https://www.gstatic.com", "https://maps.googleapis.com"],
+        "style-src": [SELF, UNSAFE_INLINE, "https://fonts.googleapis.com"],
+        "font-src": [SELF, "https://fonts.gstatic.com"],
+        # TODO: once AWS_STORAGE_BUCKET_NAME is set for real (see
+        # DEPLOYMENT-KEYS-AND-ISSUES.md), add that bucket's domain here —
+        # until then media is same-origin, so this is all that's needed.
+        "img-src": [SELF, "data:", "https://*.googleapis.com", "https://*.gstatic.com"],
+        "connect-src": [SELF, "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com", "https://maps.googleapis.com"],
+        "object-src": [NONE],
+        "base-uri": [SELF],
+        "frame-ancestors": [NONE],
+    },
+}
 
 # WhiteNoiseMiddleware serves /static/; this hashed-filename storage lets
 # it be cached forever without stale-asset risk. Dev keeps the plain

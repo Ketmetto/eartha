@@ -107,8 +107,8 @@
   </footer>
 
   <script src="{% static 'web/js/store.js' %}"></script>
-  <script>Eartha.renderHeader(Eartha.currentUser(), 'contact');</script>
-  <script>
+  <script nonce="{{ request.csp_nonce }}">Eartha.renderHeader(Eartha.currentUser(), 'contact');</script>
+  <script nonce="{{ request.csp_nonce }}">
     // admins see the inbox where the form would be — messages live where they're sent
     const adminUser = Eartha.currentUser();
     if (adminUser && adminUser.isAdmin) {

@@ -20,6 +20,7 @@ dependencies = [
     "firebase-admin>=6.5",
     "whitenoise>=6.7",
     "django-unfold>=0.38",
+    "django-csp>=4.0",
     "phonenumbers>=8.13",
     # HEIC/HEIF decode support for Pillow — the default capture format on
     # iPhones (unless a user has "Most Compatible" enabled), which plain

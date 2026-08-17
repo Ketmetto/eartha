@@ -26,7 +26,7 @@
   </div>
 
   <script src="{% static 'web/js/store.js' %}"></script>
-  <script>Eartha.renderHeader(Eartha.currentUser(), 'confirm-email-change');</script>
+  <script nonce="{{ request.csp_nonce }}">Eartha.renderHeader(Eartha.currentUser(), 'confirm-email-change');</script>
   <script src="{% static 'web/js/confirm-email-change.js' %}"></script>
 </body>
 </html>

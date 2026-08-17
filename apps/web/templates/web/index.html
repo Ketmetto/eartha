@@ -220,7 +220,7 @@
 
   <script src="{% static 'web/js/store.js' %}"></script>
   <script src="{% static 'web/js/main.js' %}"></script>
-  <script>
+  <script nonce="{{ request.csp_nonce }}">
     Eartha.renderHeader(Eartha.currentUser(), 'index');
     // if signed in, "donate" goes straight to the upload flow
     if (Eartha.currentUser()) {
