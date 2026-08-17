@@ -106,7 +106,7 @@
         <p class="stat-label">KG CO₂ SAVED</p>
       </div>
       <div>
-        <p class="stat-num" data-count="6">0</p>
+        <p class="stat-num" data-count="6" id="statPartnerBrands">0</p>
         <p class="stat-label">PARTNER BRANDS</p>
       </div>
     </section>
@@ -149,13 +149,21 @@
   </footer>
 
   <script src="{% static 'web/js/store.js' %}"></script>
-  <script>Eartha.renderHeader(Eartha.currentUser(), 'about');</script>
-  <script>
-    // partner logos pulled live from the benefits directory
-    document.getElementById('partnerLogos').innerHTML = Eartha.benefits()
-      .filter((b) => b.active)
-      .map((b) => `<span>${Eartha.esc(b.brand)}</span>`)
-      .join('');
+  <script nonce="{{ request.csp_nonce }}">Eartha.renderHeader(Eartha.currentUser(), 'about');</script>
+  <script nonce="{{ request.csp_nonce }}">
+    // Both the logos and the PARTNER BRANDS number come from the same live,
+    // unauthenticated fetch — previously the logos read Eartha.benefits(),
+    // a localStorage catalog that goes stale the moment a benefit's active
+    // state changes in the database (e.g. a deactivated brand kept showing
+    // here). Items collected and kg CO2 saved stay as the hardcoded numbers
+    // above, untouched.
+    Eartha.fetchImpactStats().then((stats) => {
+      if (!stats) return;
+      document.getElementById('partnerLogos').innerHTML = stats.partner_brand_names
+        .map((name) => `<span>${Eartha.esc(name)}</span>`)
+        .join('');
+      document.getElementById('statPartnerBrands').dataset.count = stats.partner_brands_count;
+    });
 
     // count-up impact numbers on scroll
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;

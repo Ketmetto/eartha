@@ -12,7 +12,9 @@ class ContactMessage(BaseModel):
 
 
 class ImpactStat(BaseModel):
-    """Single row, admin-editable, powers the public 'About us' impact numbers."""
+    """Single row, admin-editable, powers the public 'About us' impact numbers.
+    partner_brands_count isn't a field here — it's computed live from active
+    Benefit rows in ImpactStatSerializer, so it can't drift from what the
+    Benefits page actually shows."""
     items_collected = models.PositiveIntegerField(default=0)
     co2_saved_kg = models.PositiveIntegerField(default=0)
-    partner_brands_count = models.PositiveIntegerField(default=0)

@@ -7,6 +7,7 @@ from django.urls import reverse
 from rest_framework import status
 
 from apps.engagement.models import ContactMessage, ImpactStat
+from apps.points.models import Benefit
 
 
 @pytest.mark.django_db
@@ -85,12 +86,20 @@ class TestImpactStatsView:
     url = reverse("impact-stats")
 
     def test_does_not_require_authentication(self, api_client):
-        ImpactStat.objects.create(items_collected=120, co2_saved_kg=340, partner_brands_count=8)
+        ImpactStat.objects.create(items_collected=120, co2_saved_kg=340)
+        # Two benefits for the same brand should count once, and an
+        # inactive benefit shouldn't count at all.
+        Benefit.objects.create(brand_name="Brio Bags", discount_percent=10, points_required=100)
+        Benefit.objects.create(brand_name="Brio Bags", discount_percent=20, points_required=200)
+        Benefit.objects.create(brand_name="Neam's", discount_percent=15, points_required=150)
+        Benefit.objects.create(brand_name="Retired Co", discount_percent=5, points_required=50, is_active=False)
+
         response = api_client.get(self.url)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["items_collected"] == 120
         assert response.data["co2_saved_kg"] == 340
-        assert response.data["partner_brands_count"] == 8
+        assert response.data["partner_brands_count"] == 2
+        assert response.data["partner_brand_names"] == ["Brio Bags", "Neam's"]
 
 
 @pytest.mark.django_db

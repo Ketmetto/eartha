@@ -678,6 +678,13 @@ const Eartha = (() => {
       </div>`;
   }
 
+  // Public endpoint, no auth — powers the About page's impact-numbers band.
+  async function fetchImpactStats() {
+    const res = await fetch(`${API_ROOT}/engagement/impact-stats/`, { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    return res.json();
+  }
+
   async function submitContactMessage({ name, email, subject, body }) {
     const headers = { 'Content-Type': 'application/json' };
     const csrfToken = getCookie('csrftoken');
@@ -1186,7 +1193,7 @@ const Eartha = (() => {
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchPointsRules, savePointsRules,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi,
-    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml,
+    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats,
     fetchDashboardStats,
     fetchAdminUsers, banUser, unbanUser,
     fetchSiteTexts, updateSiteText, fetchSiteImages, updateSiteImage, clearSiteImage,

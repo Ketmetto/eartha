@@ -26,4 +26,7 @@ class ImpactStatsView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_object(self):
-        return ImpactStat.objects.first()
+        # Singleton row, admin-edited — self-heals on a fresh DB (no
+        # fixture/seed run yet) instead of returning None, which the
+        # serializer would otherwise silently turn into null fields.
+        return ImpactStat.objects.first() or ImpactStat.objects.create()

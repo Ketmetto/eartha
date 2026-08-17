@@ -18,6 +18,6 @@ Benefit.objects.get_or_create(
     brand_name="Sample Brand", discount_percent=15, points_required=200, is_active=True
 )
 
-ImpactStat.objects.get_or_create(items_collected=0, co2_saved_kg=0, partner_brands_count=1)
+ImpactStat.objects.get_or_create(items_collected=0, co2_saved_kg=0)
 
 print("Seed data created.")
