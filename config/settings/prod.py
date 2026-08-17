@@ -64,7 +64,7 @@ X_FRAME_OPTIONS = "DENY"
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": [SELF],
-        "script-src": [SELF, NONCE, "https://www.gstatic.com", "https://maps.googleapis.com"],
+        "script-src": [SELF, NONCE, "https://www.gstatic.com", "https://maps.googleapis.com", "https://apis.google.com"],
         "style-src": [SELF, UNSAFE_INLINE, "https://fonts.googleapis.com"],
         "font-src": [SELF, "https://fonts.gstatic.com"],
         # TODO: once AWS_STORAGE_BUCKET_NAME is set for real (see
@@ -72,6 +72,9 @@ CONTENT_SECURITY_POLICY = {
         # until then media is same-origin, so this is all that's needed.
         "img-src": [SELF, "data:", "https://*.googleapis.com", "https://*.gstatic.com"],
         "connect-src": [SELF, "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com", "https://maps.googleapis.com"],
+        # Firebase's signInWithPopup loads a relay iframe from the auth
+        # helper (apis.google.com) and from the project's authDomain.
+        "frame-src": [SELF, "https://apis.google.com", "https://eartha-d3fcb.firebaseapp.com", "https://accounts.google.com"],
         "object-src": [NONE],
         "base-uri": [SELF],
         "frame-ancestors": [NONE],
