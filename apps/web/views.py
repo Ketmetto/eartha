@@ -82,6 +82,10 @@ class ContentView(TemplateView):
     template_name = "web/content.html"
 
 
+class TermsView(TemplateView):
+    template_name = "web/terms.html"
+
+
 class UploadView(TemplateView):
     template_name = "web/upload.html"
 

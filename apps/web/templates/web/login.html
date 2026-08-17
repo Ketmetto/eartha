@@ -84,7 +84,7 @@
         <div class="field checkbox-row">
           <input type="checkbox" id="regTerms" required>
           <label for="regTerms" style="font-weight:400;text-transform:none;letter-spacing:var(--track);font-size:12px;margin:0;">
-            I agree to the <a href="#" class="link-underline" style="font-size:10px;">TERMS &amp; PRIVACY POLICY</a>
+            I agree to the <a href="{% url 'web:terms' %}" target="_blank" class="link-underline" style="font-size:10px;">TERMS &amp; PRIVACY POLICY</a>
           </label>
         </div>
         <button type="submit" class="btn btn-block">CREATE ACCOUNT</button>

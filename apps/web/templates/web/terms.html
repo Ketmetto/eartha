@@ -1,0 +1,95 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{% static 'web/images/favicon.svg' %}" type="image/svg+xml">
+  <title>Terms &amp; Privacy Policy — EARTHA</title>
+  <meta name="description" content="Eartha's Terms of Service and Privacy Policy.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow muted">LEGAL</p>
+        <h1 class="page-title" style="margin-top:6px;">TERMS &amp; PRIVACY POLICY</h1>
+      </div>
+    </div>
+    <p class="muted" style="font-size:12px;margin-bottom:clamp(28px,4vw,40px);">Last updated: 17 August 2026</p>
+
+    <section class="section-gap" style="max-width:720px;">
+      <p class="eyebrow" style="font-weight:700;margin-bottom:16px;">TERMS OF SERVICE</p>
+
+      <p class="body-justified"><strong>1. What Eartha does.</strong> Eartha lets you submit used clothing, shoes, accessories, and bags for collection, in exchange for points redeemable toward benefits from partner brands. Items are reviewed by our team, then either collected by a dispatched driver or dropped off, depending on the option you choose.</p>
+
+      <p class="body-justified"><strong>2. Your account.</strong> You must provide accurate information when registering and keep your login credentials secure. You're responsible for activity under your account. Accounts may be banned for fraud, abuse, or violating these terms.</p>
+
+      <p class="body-justified"><strong>3. Submitting items.</strong> You confirm you own each item you submit and have the right to give it away. Photos you upload must accurately represent the item's condition and category. We may accept or reject any submission at our discretion (e.g. damaged, prohibited, or misrepresented items), with a reason provided. Points are awarded only for accepted/completed submissions, at rates we set and may change.</p>
+
+      <p class="body-justified"><strong>4. Pickup and drop-off.</strong> If you choose driver pickup, you authorize us to share your address and contact details with the assigned driver solely to complete collection. You're responsible for the accuracy of the pickup address and availability at the scheduled time.</p>
+
+      <p class="body-justified"><strong>5. Points and benefits.</strong> Points have no cash value, aren't transferable, and may expire or be forfeited if your account is banned. Benefits are provided by third-party partner brands — availability, terms, and fulfillment of redeemed benefits are subject to that partner's own terms, not just ours.</p>
+
+      <p class="body-justified"><strong>6. Prohibited conduct.</strong> No fraudulent submissions, abuse of the referral/points system, harassment of drivers or staff, or attempts to circumvent review.</p>
+
+      <p class="body-justified"><strong>7. Disclaimers &amp; liability.</strong> The service is provided "as is." To the maximum extent permitted by law, Eartha isn't liable for indirect or incidental damages, delays in pickup, or issues with a partner's fulfillment of a redeemed benefit.</p>
+
+      <p class="body-justified"><strong>8. Changes.</strong> We may update these terms from time to time; continued use of Eartha after changes take effect means you accept them. Material changes will be flagged on this page.</p>
+
+      <p class="body-justified"><strong>9. Governing law.</strong> These terms are governed by the laws of Lebanon.</p>
+    </section>
+
+    <section class="section-gap" style="max-width:720px;">
+      <p class="eyebrow" style="font-weight:700;margin-bottom:16px;">PRIVACY POLICY</p>
+
+      <p class="body-justified"><strong>1. What we collect.</strong> Account details (name, email, phone if provided, and your Google/Apple sign-in identity if you use it); your pickup address and, optionally, a map pin location; photos and details of items you submit; and your points balance, submission, and redemption history.</p>
+
+      <p class="body-justified"><strong>2. How we use it.</strong> To operate the service — process submissions, dispatch drivers, award and redeem points, send transactional emails (verification, password reset, status updates), and provide customer support.</p>
+
+      <p class="body-justified"><strong>3. Who we share it with.</strong> Drivers, for items you schedule pickup for (pickup address and contact info only). Partner brands, only when you redeem one of their benefits, limited to what's needed to fulfill it. Service providers that help us run Eartha — including Firebase for Google/Apple sign-in, our transactional email provider, and our hosting provider. We don't sell your data, and we don't currently share data with any SMS provider.</p>
+
+      <p class="body-justified"><strong>4. Photos.</strong> Item photos are stored to process your submission and may be used internally for quality review. We do not use your photos in public marketing without asking you directly first.</p>
+
+      <p class="body-justified"><strong>5. Your choices.</strong> You can update your profile and address at any time, opt out of email notifications in your settings, and request account deletion by contacting us — we'll remove your personal data except what we're required to retain.</p>
+
+      <p class="body-justified"><strong>6. Data retention.</strong> We keep account and submission data while your account is active, and for up to 12 months after account deletion for fraud prevention, dispute resolution, and legal compliance, after which it's permanently deleted.</p>
+
+      <p class="body-justified"><strong>7. Security.</strong> We use industry-standard measures — encrypted connections and hashed passwords among them — but no system is 100% secure.</p>
+
+      <p class="body-justified"><strong>8. Contact.</strong> Questions about these terms or your data: <a href="mailto:info@eartha.me" class="link-underline">info@eartha.me</a>. Eartha is based in Lebanon.</p>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script nonce="{{ request.csp_nonce }}">Eartha.renderHeader(Eartha.currentUser(), 'terms');</script>
+</body>
+</html>
