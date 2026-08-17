@@ -22,4 +22,9 @@ class BenefitAdmin(ModelAdmin):
 
 @admin.register(Redemption)
 class RedemptionAdmin(ModelAdmin):
-    pass
+    # search_fields is what makes this actually useful for the "is this
+    # code real?" phone call from a partner store — list_display alongside
+    # it since Redemption has no __str__, so the list would otherwise just
+    # show unhelpful "Redemption object (<uuid>)" rows.
+    search_fields = ("code",)
+    list_display = ("code", "user", "benefit", "points_spent", "created_at")
