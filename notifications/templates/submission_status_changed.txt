@@ -4,4 +4,6 @@ Your submission ({{ category }}, submitted {{ created_at }}) is now: {{ status_l
 {% if rejection_reason %}
 Reason: {{ rejection_reason }}
 {% endif %}
-Log in to view details.
+View details:
+
+{{ profile_url }}

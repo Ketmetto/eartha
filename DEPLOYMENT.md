@@ -19,6 +19,7 @@ Copy `.env.example` → `.env.prod` on the server (never commit it).
 | `REDIS_URL` | `redis://redis:6379/0` (already correct) |
 | `EMAIL_HOST` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` / `EMAIL_PORT` / `DEFAULT_FROM_EMAIL` | Verification emails, password resets, and points/status notifications silently fail to send without these — prod has no console-log fallback. Uses Brevo: `EMAIL_HOST=smtp-relay.brevo.com`, `EMAIL_PORT=587`, `EMAIL_HOST_USER` is the generated SMTP login Brevo shows you, `EMAIL_HOST_PASSWORD` is the SMTP key from Brevo's SMTP & API settings, `DEFAULT_FROM_EMAIL` must be a verified sender in Brevo |
 | `CORS_ALLOWED_ORIGINS` | Real frontend origin(s), comma-separated, no trailing slash |
+| `SITE_URL` | Base URL (no trailing slash) used to build links inside emails sent from Celery tasks, e.g. `https://yourdomain.com` |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Needed for Google/Apple login. Minify the service-account JSON to one line: `python -c "import json;print(json.dumps(json.load(open('key.json'))))"` |
 | `FIREBASE_API_KEY` / `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` | Public client-side Firebase config, from Firebase console → Project Settings |
 | `GOOGLE_MAPS_API_KEY` | Optional — blank means pickup-address fields stay plain text inputs. Restrict by HTTP referrer in Google Cloud Console if set |

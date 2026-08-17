@@ -89,6 +89,7 @@ def notify_points_awarded(user_id, points: int):
             "balance": balance,
             "category": getattr(entry.reference_item, "category", "") if entry else "",
             "condition": getattr(entry.reference_item, "condition", "") if entry else "",
+            "profile_url": f"{settings.SITE_URL}/profile/",
         },
     )
 
@@ -120,5 +121,6 @@ def notify_submission_status_changed(submission_id, new_status: str):
             "created_at": item.created_at,
             "status_label": item.get_status_display(),
             "rejection_reason": item.rejection_reason,
+            "profile_url": f"{settings.SITE_URL}/profile/",
         },
     )

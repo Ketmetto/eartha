@@ -298,6 +298,11 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
 # --- Email ---
+# Absolute base URL for links inside emails sent from Celery tasks (e.g.
+# notify_points_awarded), which have no request object to build one from
+# the way apps/users/services.py's auth-flow emails do.
+SITE_URL = config("SITE_URL", default="http://localhost:8000").rstrip("/")
+
 # EMAIL_BACKEND defaults to real SMTP; dev.py overrides to console unless
 # EMAIL_HOST is configured (e.g. for testing against a real provider).
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")

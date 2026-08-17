@@ -7,6 +7,6 @@
 {% if rejection_reason %}
 <p><strong>Reason:</strong> {{ rejection_reason }}</p>
 {% endif %}
-<p>Log in to view details.</p>
+<a href="{{ profile_url }}" class="btn">View Submission</a>
 <p class="muted">This is an automated message from Eartha.</p>
 {% endblock %}

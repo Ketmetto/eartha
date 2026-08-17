@@ -5,6 +5,7 @@
 <p>Hi {{ first_name|default:email }},</p>
 <p class="points-num">+{{ points }} points</p>
 <p>Your item ({{ category }}, {{ condition }} condition) was accepted.</p>
-<p>Your new balance is <strong>{{ balance }} points</strong>. Log in to see what you can redeem them for.</p>
+<p>Your new balance is <strong>{{ balance }} points</strong>.</p>
+<a href="{{ profile_url }}" class="btn">View Your Points</a>
 <p class="muted">This is an automated message from Eartha.</p>
 {% endblock %}
