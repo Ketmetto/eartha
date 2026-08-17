@@ -43,8 +43,10 @@ docker compose exec web python manage.py createsuperuser
 ## Deploying
 
 See `DEPLOYMENT.md` for the Hostinger VPS / Docker Compose production
-setup, and `DEPLOYMENT-KEYS-AND-ISSUES.md` for the required `.env.prod`
-values plus known issues/open items.
+setup, `DEPLOYMENT-KEYS-AND-ISSUES.md` for the required `.env.prod`
+values plus known issues/open items, and `EXTERNAL-SERVICES.md` for what
+every third-party service (Firebase, Brevo, Google Maps, Backblaze, ...)
+is for and where to manage it.
 
 ## Structure
 

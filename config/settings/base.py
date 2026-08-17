@@ -302,8 +302,10 @@ CELERY_TASK_SERIALIZER = "json"
 # EMAIL_HOST is configured (e.g. for testing against a real provider).
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = config("EMAIL_HOST", default="")
-# SMTP auth username — for SendGrid this is literally the string "apikey",
-# not an email address. Use DEFAULT_FROM_EMAIL below for the visible sender.
+# SMTP auth username — provider-specific, not necessarily an email address
+# (e.g. Brevo issues a generated xxxxxx001@smtp-brevo.com login, SendGrid
+# uses the literal string "apikey"). Use DEFAULT_FROM_EMAIL below for the
+# visible sender.
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)

@@ -17,7 +17,7 @@ Copy `.env.example` → `.env.prod` on the server (never commit it).
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Real password, not `change-me`. Only takes effect the first time the Postgres volume initializes — set it correctly before the first `up`, or you'll need `ALTER USER` inside the running container to change it after |
 | `POSTGRES_HOST` / `POSTGRES_PORT` | `db` / `5432` (Docker network defaults, already correct) |
 | `REDIS_URL` | `redis://redis:6379/0` (already correct) |
-| `EMAIL_HOST` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` / `EMAIL_PORT` / `DEFAULT_FROM_EMAIL` | Verification emails, password resets, and points/status notifications silently fail to send without these — prod has no console-log fallback. For SendGrid: host `smtp.sendgrid.net`, user is the literal string `apikey`, password is your SendGrid API key, `DEFAULT_FROM_EMAIL` must be a verified sender in SendGrid |
+| `EMAIL_HOST` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` / `EMAIL_PORT` / `DEFAULT_FROM_EMAIL` | Verification emails, password resets, and points/status notifications silently fail to send without these — prod has no console-log fallback. Uses Brevo: `EMAIL_HOST=smtp-relay.brevo.com`, `EMAIL_PORT=587`, `EMAIL_HOST_USER` is the generated SMTP login Brevo shows you, `EMAIL_HOST_PASSWORD` is the SMTP key from Brevo's SMTP & API settings, `DEFAULT_FROM_EMAIL` must be a verified sender in Brevo |
 | `CORS_ALLOWED_ORIGINS` | Real frontend origin(s), comma-separated, no trailing slash |
 | `FIREBASE_SERVICE_ACCOUNT_JSON` | Needed for Google/Apple login. Minify the service-account JSON to one line: `python -c "import json;print(json.dumps(json.load(open('key.json'))))"` |
 | `FIREBASE_API_KEY` / `FIREBASE_AUTH_DOMAIN` / `FIREBASE_PROJECT_ID` / `FIREBASE_APP_ID` | Public client-side Firebase config, from Firebase console → Project Settings |
@@ -165,19 +165,31 @@ automatically via the entrypoint script before Gunicorn starts.
 
 ---
 
-## Postgres backups
+## Backups
 
-A volume is not a backup. Add a nightly cron job on the host:
+A volume is not a backup. `~/backup.sh` on the VPS runs nightly via cron
+(`0 3 * * * /home/akrm/backup.sh >> /home/akrm/backups/backup.log 2>&1`)
+and does all of this:
 
+1. `pg_dump`s the database, gzips it to `~/backups/eartha-<date>.sql.gz`.
+2. Tars the `media_data` volume (item photos, benefit logos, Site Content
+   images) to `~/backups/eartha-media-<date>.tar.gz` — via
+   `docker compose run --entrypoint tar ... web`, which reuses the `web`
+   service's own `/app/media` mount instead of hardcoding the
+   compose-prefixed volume name (e.g. `eartha_media_data`).
+3. Pushes both files to a Backblaze B2 bucket (`s3://eartha`, S3-compatible
+   endpoint, `aws` CLI with a `backblaze` named profile) — real offsite
+   storage, not just another copy on the same disk.
+4. Deletes local copies older than 7 days (`find ... -mtime +7 -delete`).
+   The B2 copies aren't rotated by this script — set a lifecycle rule on
+   the bucket if you want them to expire too.
+
+To verify it's actually working (not just installed):
 ```bash
-# crontab -e
-0 3 * * * docker exec $(docker compose -f /path/to/eartha/docker-compose.prod.yml ps -q db) \
-  pg_dump -U eartha eartha | gzip > /home/YOURUSER/backups/eartha-$(date +\%F).sql.gz
+cat ~/backups/backup.log
+aws s3 ls s3://eartha/ --endpoint-url https://s3.eu-central-003.backblazeb2.com --profile backblaze
 ```
-
-Keep at least 7 days of rotation, and periodically copy backups off the
-VPS (rsync to another machine, or object storage) — a backup on the same
-disk as the database doesn't protect against disk failure.
+Both DB and media files should show up dated today after a run.
 
 Docker won't delete a volume still referenced by a container under a
 *different* compose project name — check `docker volume ls` for orphaned
@@ -203,4 +215,5 @@ volumes before assuming data from an old `docker volume rm` is gone.
 - [ ] Swap is active: `free -h` shows `Swap: 2.0G` total
 - [ ] After first real traffic, `docker stats` for a few minutes and
       confirm no service is pinned at its memory limit
-- [ ] Cron backup job runs successfully once, and the `.sql.gz` file is valid
+- [ ] Cron backup job runs successfully once, and both the `.sql.gz` and
+      `eartha-media-*.tar.gz` show up locally and in the B2 bucket

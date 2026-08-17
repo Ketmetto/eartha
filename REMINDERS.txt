@@ -6,27 +6,39 @@ values are still needed before prod/staging actually works end to end,
 see DEPLOYMENT-KEYS-AND-ISSUES.md instead — that's the current list.
 ================================================================================
 
-1. PUBLIC IMPACT STATS — partially deferred
-   apps/engagement/models.py — ImpactStat is a single global row (not
-   per-user), currently admin-edited by hand:
-     - items_collected      -> CAN be computed live from Item.objects
-                                .filter(status="completed").count()
-     - partner_brands_count -> CAN be computed live from active Benefit
-                                rows (distinct brand_name)
-     - co2_saved_kg         -> CANNOT be computed live — nothing in the
-                                Item model tracks weight or a CO2 factor.
-                                No real data exists to derive this from.
+1. PUBLIC IMPACT STATS — partly done
+   apps/engagement/models.py — ImpactStat is a single global row.
+     - partner_brands_count -> DONE. No longer a stored field — removed
+       via migration 0003. ImpactStatSerializer now computes it live as
+       distinct active Benefit.brand_name (apps/engagement/serializers.py)
+       — same is_active=True filter BenefitListView uses for the real
+       Benefits page, so this always matches what that page shows.
+       The About page's PARTNER BRANDS number (apps/web/templates/web/
+       about.html) now fetches this live from GET /api/v1/engagement/
+       impact-stats/ instead of a hardcoded placeholder. ITEMS COLLECTED
+       and KG CO2 SAVED were deliberately left as their existing hardcoded
+       numbers — only partner_brands_count was wired up, per instruction.
+     - Also fixed in passing: ImpactStatsView.get_object() used to return
+       None (and the serializer would silently render nulls) when the
+       ImpactStat table was empty — now self-heals via get_or_create.
+       Doesn't affect the About page's display since items/CO2 aren't
+       read from this endpoint anymore, but the endpoint itself no longer
+       returns broken data if something else ever calls it.
+     - items_collected / co2_saved_kg -> still admin-edited by hand, per
+       your call to leave these for now. Same live-from-Item.objects
+       option as before remains open whenever you want it.
 
-   Pick one before I wire up live stats:
-     a) Fixed estimate: constant kg-CO2-saved per completed item
-        (e.g. 3kg), configurable in settings.
-     b) Per-category factor table: different constant per
-        Item.Category (clothing/shoes/accessories/bags) for a more
-        credible number.
-     c) Leave co2_saved_kg manual/admin-edited, only make the other two
-        fields live.
-
-   Not implemented yet, pending this decision.
+   Separate pre-existing thing noticed, not fixed: the About page's
+   partner-logo strip just below the stats band (Eartha.benefits() in
+   apps/web/static/web/js/store.js) reads from a client-side localStorage
+   cache seeded by defaultBenefits(), which includes a hardcoded "ByEartha"
+   placeholder brand that was never a real Benefit row in Postgres. That's
+   why the logo strip can show a different brand count than the now-live
+   PARTNER BRANDS number above it — the number is correct (real DB, same
+   filter as the Benefits page), the logo strip is what's stale. Didn't
+   touch it since it's a separate client-cache system used elsewhere too
+   (admin benefits management, redeem flow) — say the word if you want
+   that switched to a live fetch as well.
 
 2. SMS NOTIFICATIONS — not implemented
    apps/users/models.py — NotificationPreference.sms_enabled is stored
@@ -39,13 +51,37 @@ see DEPLOYMENT-KEYS-AND-ISSUES.md instead — that's the current list.
    Until you have a provider, sms_enabled stays inert — not a blocker,
    just doesn't do anything yet.
 
-3. CONTENT-SECURITY-POLICY HEADER — dependency decision
-   Baseline security headers ARE now in place (HSTS, nosniff,
-   X-Frame-Options, referrer-policy — see config/settings/prod.py and
-   staging.py). A real CSP header needs either:
-     a) Adding django-csp as a new dependency (small, well-maintained,
-        recommended), or
-     b) Skipping CSP for now and relying on the baseline headers above.
-   Not added yet — say the word and I'll add whichever you prefer.
+3. CONTENT-SECURITY-POLICY HEADER — done
+   django-csp added (config/settings/prod.py and staging.py). Policy is
+   'self' by default, with explicit allowances for what the frontend
+   actually loads: Firebase (Google sign-in) and Google Maps (address
+   autocomplete) script/connect origins, Google Fonts for style/font.
+   Inline <script> blocks across apps/web/templates/web/*.html now carry
+   a per-request nonce (nonce="{{ request.csp_nonce }}") instead of being
+   allowed by 'unsafe-inline'.
+
+   One accepted tradeoff: style-src still allows 'unsafe-inline', because
+   the templates use plain style="..." attributes throughout (~80 of
+   them), not just <style> blocks — nonces don't cover the attribute
+   form, and converting all of them to a stricter scheme wasn't in scope
+   here. CSS injection is meaningfully lower-severity than script
+   injection, so this was a deliberate call, not an oversight.
+
+   Originally verified only statically (grepped every template + JS file
+   for external resource origins against the policy) since no browser was
+   available to click through and watch for console violations — and that
+   gap turned out to matter: the CSP broke the Django admin (django-unfold
+   theme) on the next real check. Unfold is built on Alpine.js, which
+   evaluates its x-data/x-on directives through a mechanism CSP's
+   script-src treats as eval — needs 'unsafe-eval' to function at all,
+   which the original policy didn't have, silently breaking nearly every
+   interactive admin element (sidebar, dropdowns, tables) while leaving
+   plain HTML bits like a raw search form still working. Fixed via
+   base/middleware.py's AdminCSPMiddleware, which appends 'unsafe-eval'
+   to script-src for /admin/ only (staff-only path) rather than loosening
+   it site-wide — verified via response headers (curl), not a real
+   browser, so still worth an actual click-through of the admin once
+   there's a browser available. The Google sign-in popup flow on the
+   public site is the other piece that's still unverified live.
 
 ================================================================================
