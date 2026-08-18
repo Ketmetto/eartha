@@ -188,23 +188,45 @@ if (user && !user.isAdmin) {
     const redsBody = document.getElementById('redsBody');
     document.getElementById('redsEmpty').hidden = redsItems.length > 0;
     const rows = redsItems
-      .map(
-        (r) => `
+      .map((r) => {
+        const isRedeemed = r.status === 'redeemed';
+        return `
         <tr>
           <td>${Eartha.fmtDate(r.date)}</td>
           <td style="text-transform:uppercase;">${Eartha.esc(r.brand)}</td>
           <td>${r.discount}% OFF</td>
           <td style="font-weight:700;">${Eartha.esc(r.code)}</td>
           <td>−${r.points}</td>
-        </tr>`
-      )
+          <td><span class="badge ${isRedeemed ? 'badge-rejected' : 'badge-accepted'}">${isRedeemed ? 'REDEEMED' : 'AVAILABLE'}</span></td>
+          <td><button class="btn btn-sm btn-ghost" data-reds-qr="${r.id}" data-reds-code="${Eartha.esc(r.code)}">SHOW QR</button></td>
+        </tr>`;
+      })
       .join('');
     const sentinel = redsHasMore
-      ? '<tr id="redsSentinel"><td colspan="5" class="muted" style="text-align:center;font-size:11px;">LOADING MORE…</td></tr>'
+      ? '<tr id="redsSentinel"><td colspan="7" class="muted" style="text-align:center;font-size:11px;">LOADING MORE…</td></tr>'
       : '';
     redsBody.innerHTML = rows + sentinel;
     if (redsHasMore) wireRedsSentinel();
   }
+
+  // Event delegation, not a per-row listener — renderRedsList() replaces
+  // redsBody's innerHTML wholesale on every load/page, which would
+  // otherwise silently drop listeners bound to the old (now-removed) nodes.
+  const redsQrDialog = document.getElementById('redsQrDialog');
+  document.getElementById('redsBody').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-reds-qr]');
+    if (!btn) return;
+    document.getElementById('redsQrText').textContent = btn.dataset.redsCode;
+    document.getElementById('redsQrImg').src = '';
+    redsQrDialog.showModal();
+    try {
+      const url = await Eartha.fetchRedemptionQrObjectUrl(btn.dataset.redsQr);
+      document.getElementById('redsQrImg').src = url;
+    } catch (err) {
+      Eartha.toast(err.message || 'COULD NOT LOAD QR CODE.');
+    }
+  });
+  document.getElementById('redsQrClose').addEventListener('click', () => redsQrDialog.close());
 
   async function renderReds() {
     redsItems = [];

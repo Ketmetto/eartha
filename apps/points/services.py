@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 from .models import PointsLedgerEntry, Benefit, Redemption
 
 
@@ -134,3 +135,22 @@ def redeem_benefit(user, benefit: Benefit) -> Redemption:
     return Redemption.objects.create(
         user=user, benefit=benefit, points_spent=benefit.points_required, code=code
     )
+
+
+@transaction.atomic
+def mark_redemption_used(code: str) -> Redemption:
+    """Merchant-facing "confirm redemption" — row-locked so two
+    near-simultaneous scans of the same code can't both succeed (the
+    second one blocks on the lock, then sees status already REDEEMED)."""
+    try:
+        redemption = Redemption.objects.select_for_update().select_related("benefit").get(code=code)
+    except Redemption.DoesNotExist:
+        raise ValidationError("Voucher not found.")
+
+    if redemption.status == Redemption.Status.REDEEMED:
+        raise ValidationError("Voucher already redeemed.")
+
+    redemption.status = Redemption.Status.REDEEMED
+    redemption.redeemed_at = timezone.now()
+    redemption.save(update_fields=["status", "redeemed_at", "updated_at"])
+    return redemption

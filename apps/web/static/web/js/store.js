@@ -638,11 +638,37 @@ const Eartha = (() => {
         discount: r.discount_percent,
         code: r.code,
         points: r.points_spent,
+        status: r.status,
+        redeemedAt: r.redeemed_at ? new Date(r.redeemed_at).getTime() : null,
         date: new Date(r.created_at).getTime(),
       })),
       hasMore: !!data.next,
       count: data.count,
     };
+  }
+
+  // QR endpoint returns a PNG, not JSON, so it can't go through apiFetch
+  // (which always .json()s the body) — and a plain <img src="..."> can't
+  // carry the JWT Authorization header at all, so this fetches the image
+  // manually and hands back an object URL for an <img> to point at.
+  async function fetchRedemptionQrObjectUrl(redemptionId) {
+    const s = session();
+    if (!s || !s.access) throw new Error('YOU NEED TO SIGN IN AGAIN.');
+    let res = await fetch(`${API_ROOT}/points/redemptions/${redemptionId}/qr/`, {
+      headers: { Authorization: `Bearer ${s.access}` },
+      credentials: 'same-origin',
+    });
+    if (res.status === 401) {
+      const newAccess = await refreshAccessToken();
+      if (!newAccess) throw new Error('YOU NEED TO SIGN IN AGAIN.');
+      res = await fetch(`${API_ROOT}/points/redemptions/${redemptionId}/qr/`, {
+        headers: { Authorization: `Bearer ${newAccess}` },
+        credentials: 'same-origin',
+      });
+    }
+    if (!res.ok) throw new Error(`COULD NOT LOAD QR CODE (${res.status}).`);
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
   }
 
   // ---------- contact form (public — no auth) ----------
@@ -723,6 +749,42 @@ const Eartha = (() => {
       throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
     }
     return data;
+  }
+
+  // Public endpoint, no auth — the merchant-facing "is this code real?"
+  // check on the /verify/<code>/ page.
+  async function verifyRedemption(code) {
+    try {
+      const res = await fetch(`${API_ROOT}/points/verify/${encodeURIComponent(code)}/`, { credentials: 'same-origin' });
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+      if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+      return { redemption: data };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  // Public endpoint, no auth — the merchant taps "confirm redemption" on
+  // the same page. Race-safe server-side (select_for_update); a losing
+  // simultaneous confirm comes back here as an error, not a crash.
+  async function redeemVoucher(code) {
+    try {
+      const headers = {};
+      const csrfToken = getCookie('csrftoken');
+      if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+      const res = await fetch(`${API_ROOT}/points/verify/${encodeURIComponent(code)}/redeem/`, {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+      });
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+      if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+      return { redemption: data };
+    } catch (e) {
+      return { error: e.message };
+    }
   }
 
   // ---------- admin: contact inbox ----------
@@ -1182,7 +1244,7 @@ const Eartha = (() => {
     fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchPointsRules, savePointsRules,
-    fetchBalance, fetchMyRedemptions, redeemBenefitApi,
+    fetchBalance, fetchMyRedemptions, redeemBenefitApi, fetchRedemptionQrObjectUrl,
     submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats,
     fetchDashboardStats,
     fetchAdminUsers, banUser, unbanUser,
@@ -1190,6 +1252,8 @@ const Eartha = (() => {
     fetchMe, updateMe, deleteAccount, updatePhone, fetchAddress, updateAddress, fetchNotificationPrefs, updateNotificationPrefs, changePassword,
     benefits, addBenefit, updateBenefit, removeBenefit, reorderBenefits,
     redemptions, redeemBenefit,
+    verifyRedemption, redeemVoucher,
     compressImage, toast, fmtDate, esc, badge, renderHeader, refreshHeaderPts,
+    API_ROOT,
   };
 })();

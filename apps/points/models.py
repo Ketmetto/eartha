@@ -73,6 +73,10 @@ class Benefit(BaseModel):
 
 
 class Redemption(BaseModel):
+    class Status(models.TextChoices):
+        ISSUED = "issued", "Issued"
+        REDEEMED = "redeemed", "Redeemed"
+
     # PROTECT for the same reason as PointsLedgerEntry.user above — this is
     # redemption/audit history, not something that should vanish as a side
     # effect of deleting the account.
@@ -80,3 +84,5 @@ class Redemption(BaseModel):
     benefit = models.ForeignKey(Benefit, on_delete=models.PROTECT)
     points_spent = models.PositiveIntegerField()
     code = models.CharField(max_length=40, unique=True, editable=False)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ISSUED)
+    redeemed_at = models.DateTimeField(null=True, blank=True)

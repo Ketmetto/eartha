@@ -1,5 +1,8 @@
 from django.urls import path
-from .views import BalanceView, LedgerHistoryView, BenefitListView, RedeemBenefitView, MyRedemptionsView
+from .views import (
+    BalanceView, LedgerHistoryView, BenefitListView, RedeemBenefitView, MyRedemptionsView,
+    RedemptionQRCodeView, RedemptionVerifyView, RedemptionRedeemView,
+)
 from .admin_views import (
     BenefitAdminListCreateView, BenefitAdminDetailView, BenefitReorderView, ItemAwardView,
     PointsRuleAdminListView, PointsRuleBulkSaveView,
@@ -11,6 +14,9 @@ urlpatterns = [
     path("benefits/", BenefitListView.as_view(), name="benefits-list"),
     path("redeem/", RedeemBenefitView.as_view(), name="benefit-redeem"),
     path("redemptions/", MyRedemptionsView.as_view(), name="my-redemptions"),
+    path("redemptions/<uuid:pk>/qr/", RedemptionQRCodeView.as_view(), name="redemption-qr"),
+    path("verify/<str:code>/", RedemptionVerifyView.as_view(), name="redemption-verify"),
+    path("verify/<str:code>/redeem/", RedemptionRedeemView.as_view(), name="redemption-redeem-confirm"),
     path("admin/benefits/", BenefitAdminListCreateView.as_view(), name="benefits-admin-list-create"),
     path("admin/benefits/reorder/", BenefitReorderView.as_view(), name="benefits-admin-reorder"),
     path("admin/benefits/<uuid:pk>/", BenefitAdminDetailView.as_view(), name="benefits-admin-detail"),

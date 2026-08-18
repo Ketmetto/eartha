@@ -55,13 +55,24 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>DATE</th><th>BRAND</th><th>DISCOUNT</th><th>CODE</th><th>POINTS USED</th></tr>
+            <tr><th>DATE</th><th>BRAND</th><th>DISCOUNT</th><th>CODE</th><th>POINTS USED</th><th>STATUS</th><th></th></tr>
           </thead>
           <tbody id="redsBody"></tbody>
         </table>
       </div>
       <div class="empty" id="redsEmpty" hidden>NO REDEMPTIONS YET — <a href="{% url 'web:benefits' %}" class="link-underline" style="font-size:10px;">BROWSE BENEFITS</a></div>
     </div>
+
+    <!-- voucher QR (redemption history) -->
+    <dialog id="redsQrDialog">
+      <p class="dialog-title">YOUR CODE</p>
+      <p id="redsQrText" style="font-size:18px;font-weight:700;letter-spacing:0.12em;"></p>
+      <img id="redsQrImg" alt="Voucher QR code" width="180" height="180" style="display:block;margin:14px auto;">
+      <p class="muted" style="font-size:11px;margin-top:10px;">SHOW THIS AT CHECKOUT.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-sm" id="redsQrClose">DONE</button>
+      </div>
+    </dialog>
 
     <!-- settings -->
     <div class="tab-panel" id="panel-settings">

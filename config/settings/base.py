@@ -242,6 +242,12 @@ REST_FRAMEWORK = {
         # redeem_benefit is already race-safe; this just caps a scripted
         # hammering attempt well below any real redemption session's needs.
         "redeem": "20/hour",
+        # Public, no-auth — the merchant-facing voucher check/redeem. The
+        # code's random suffix is only 5 hex chars (~1M combos per benefit
+        # prefix), so this can't be as loose as "anon"; a busy store
+        # scanning many customers back-to-back still needs headroom.
+        # Per-IP, so one store's traffic doesn't cap another's.
+        "verify": "60/hour",
     },
 }
 

@@ -15,6 +15,7 @@ from .views import (
     VerifyEmailPageView,
     ConfirmEmailChangePageView,
     ResetPasswordPageView,
+    VoucherVerifyView,
 )
 
 app_name = "web"
@@ -35,4 +36,5 @@ urlpatterns = [
     path("verify-email/", VerifyEmailPageView.as_view(), name="verify-email"),
     path("confirm-email-change/", ConfirmEmailChangePageView.as_view(), name="confirm-email-change"),
     path("reset-password/", ResetPasswordPageView.as_view(), name="reset-password"),
+    path("verify/<str:code>/", VoucherVerifyView.as_view(), name="verify"),
 ]

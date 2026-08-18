@@ -285,6 +285,9 @@ if (user) {
       Eartha.refreshHeaderPts();
       render();
       document.getElementById('codeText').textContent = redemption.code;
+      Eartha.fetchRedemptionQrObjectUrl(redemption.id)
+        .then((url) => { document.getElementById('codeQr').src = url; })
+        .catch(() => { /* code text above is still shown even if the QR image fails to load */ });
       codeDialog.showModal();
     } catch (err) {
       redeemDialog.close();

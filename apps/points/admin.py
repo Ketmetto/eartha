@@ -25,6 +25,9 @@ class RedemptionAdmin(ModelAdmin):
     # search_fields is what makes this actually useful for the "is this
     # code real?" phone call from a partner store — list_display alongside
     # it since Redemption has no __str__, so the list would otherwise just
-    # show unhelpful "Redemption object (<uuid>)" rows.
+    # show unhelpful "Redemption object (<uuid>)" rows. Merchants now have
+    # the self-service /verify/<code>/ page for this, but staff can still
+    # cross-check status here.
     search_fields = ("code",)
-    list_display = ("code", "user", "benefit", "points_spent", "created_at")
+    list_display = ("code", "user", "benefit", "points_spent", "status", "redeemed_at", "created_at")
+    list_filter = ("status",)

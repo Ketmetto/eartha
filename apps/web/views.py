@@ -61,6 +61,12 @@ class ResetPasswordPageView(TemplateView):
     template_name = "web/reset-password.html"
 
 
+class VoucherVerifyView(TemplateView):
+    """Public, unauthenticated — the merchant-facing voucher check/redeem
+    page a store employee lands on after scanning a customer's QR code."""
+    template_name = "web/verify.html"
+
+
 class ProfileView(TemplateView):
     template_name = "web/profile.html"
 

@@ -58,5 +58,17 @@ class RedemptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Redemption
-        fields = ["id", "benefit", "brand_name", "discount_percent", "code", "points_spent", "created_at"]
-        read_only_fields = ["points_spent", "code", "created_at"]
+        fields = ["id", "benefit", "brand_name", "discount_percent", "code", "points_spent", "status", "redeemed_at", "created_at"]
+        read_only_fields = ["points_spent", "code", "status", "redeemed_at", "created_at"]
+
+
+class RedemptionVerifySerializer(serializers.ModelSerializer):
+    """Merchant-facing lookup by code — deliberately minimal fields, no
+    customer PII (no email/name), since this is reachable unauthenticated
+    by anyone who has the code."""
+    brand_name = serializers.CharField(source="benefit.brand_name", read_only=True)
+    discount_percent = serializers.IntegerField(source="benefit.discount_percent", read_only=True)
+
+    class Meta:
+        model = Redemption
+        fields = ["code", "brand_name", "discount_percent", "status", "redeemed_at"]
