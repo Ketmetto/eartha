@@ -70,7 +70,10 @@ CONTENT_SECURITY_POLICY = {
         # TODO: once AWS_STORAGE_BUCKET_NAME is set for real (see
         # DEPLOYMENT-KEYS-AND-ISSUES.md), add that bucket's domain here —
         # until then media is same-origin, so this is all that's needed.
-        "img-src": [SELF, "data:", "https://*.googleapis.com", "https://*.gstatic.com"],
+        # blob: is for the voucher QR code — fetchRedemptionQrObjectUrl()
+        # fetches the PNG with a JWT header (plain <img src> can't carry
+        # one) and points the <img> at a URL.createObjectURL() blob instead.
+        "img-src": [SELF, "data:", "blob:", "https://*.googleapis.com", "https://*.gstatic.com"],
         "connect-src": [SELF, "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com", "https://maps.googleapis.com"],
         # Firebase's signInWithPopup loads a relay iframe from the auth
         # helper (apis.google.com) and from the project's authDomain.
