@@ -211,6 +211,9 @@ if (user) {
       }
     }
     if (act === 'remove') {
+      const b = benefits.find((x) => x.id === id);
+      const ok = confirm(`Delete "${b ? b.brand : 'this benefit'}"? This can't be undone — any past redemption codes for it stay in history, but it disappears from this list permanently.`);
+      if (!ok) return;
       try {
         await Eartha.removeBenefitAdmin(id);
         Eartha.toast('BENEFIT REMOVED');
