@@ -1097,6 +1097,15 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   letter-spacing: var(--track-wide);
 }
 
+/* No .card-sub subtext on these cards (see accept-marquee markup), so the
+   title carries more visual weight on its own — sized up from the shared
+   13px base. Space Mono only loads 400/700 (see the Google Fonts link in
+   index.html), so 700 is already the boldest available; this reads
+   "bolder" via size instead of a font-weight that can't go any higher. */
+.accept-card .card-title {
+  font-size: 14px;
+}
+
 .card-sub {
   font-size: 12px;
   color: var(--text-muted);

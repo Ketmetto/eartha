@@ -26,9 +26,9 @@ if (group) {
 }
 
 function runAcceptMarquee(el, group) {
-  // seconds to travel one group — with six cards this is the ~43px/s the strip
-  // has always run at, and it stays honest if cards are added or removed
-  const SECONDS_PER_GROUP = 58;
+  // seconds to travel one group — stays honest (same px/s) if cards are
+  // added or removed. Lower = faster.
+  const SECONDS_PER_GROUP = 45;
   const RESUME_DELAY = 700; // just long enough for a flick's momentum to land
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
