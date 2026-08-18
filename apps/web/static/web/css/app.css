@@ -1148,17 +1148,12 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   background: var(--ink);
   color: var(--cream-text);
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* copy on the left, newsletter on the right — the batch numeral that used
+     to sit in a third column is gone */
+  grid-template-columns: 1fr auto;
   gap: clamp(32px, 5vw, 80px);
   padding: clamp(48px, 6vw, 80px) var(--pad-x);
   align-items: start;
-}
-
-.newsletter { min-width: 380px; }
-
-.batch-num {
-  font-size: 12px;
-  letter-spacing: var(--track-wide);
 }
 
 .batch-copy {
@@ -1223,8 +1218,7 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   position: relative;
   min-height: 92vh;
   background:
-    /* the lower scrim has to clear the whole copy stack, not just the CTAs */
-    linear-gradient(to bottom, rgba(23, 20, 15, 0.3), rgba(23, 20, 15, 0) 22%, rgba(23, 20, 15, 0) 32%, rgba(23, 20, 15, 0.72)),
+    linear-gradient(to bottom, rgba(23, 20, 15, 0.3), rgba(23, 20, 15, 0) 22%, rgba(23, 20, 15, 0) 70%, rgba(23, 20, 15, 0.35)),
     url("../images/image-8.jpg") center / cover no-repeat;
   color: var(--cream-text);
   display: flex;
@@ -1248,24 +1242,12 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
   line-height: 2;
 }
 
-.join-headline {
-  font-size: clamp(15px, 1.4vw, 18px);
-  font-weight: 700;
-  letter-spacing: var(--track-wide);
-  line-height: 1.8;
-  margin-bottom: 18px;
-}
-
 .join-copy {
   font-size: 12px;
   letter-spacing: var(--track-wide);
   line-height: 2;
   margin-bottom: 26px;
-  max-width: 60ch;
 }
-
-/* the two copy lines sit as one stack; only the last one clears the CTAs */
-.join-copy:not(:last-of-type) { margin-bottom: 14px; }
 
 .join-links {
   display: flex;
