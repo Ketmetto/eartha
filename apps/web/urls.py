@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from .views import (
     IndexView,
     AboutView,
@@ -37,4 +38,18 @@ urlpatterns = [
     path("confirm-email-change/", ConfirmEmailChangePageView.as_view(), name="confirm-email-change"),
     path("reset-password/", ResetPasswordPageView.as_view(), name="reset-password"),
     path("verify/<str:code>/", VoucherVerifyView.as_view(), name="verify"),
+
+    # Redirects for the site's original static-prototype filenames — old
+    # bookmarks/home-screen icons saved before the domain pointed here
+    # still request these exact paths (see the 404s from a client's iPhone
+    # for /contact.html and /index.html, confirmed via nginx access logs).
+    path("index.html", RedirectView.as_view(pattern_name="web:index", permanent=True)),
+    path("about.html", RedirectView.as_view(pattern_name="web:about", permanent=True)),
+    path("benefits.html", RedirectView.as_view(pattern_name="web:benefits", permanent=True)),
+    path("contact.html", RedirectView.as_view(pattern_name="web:contact", permanent=True)),
+    path("dashboard.html", RedirectView.as_view(pattern_name="web:dashboard", permanent=True)),
+    path("login.html", RedirectView.as_view(pattern_name="web:login", permanent=True)),
+    path("profile.html", RedirectView.as_view(pattern_name="web:profile", permanent=True)),
+    path("queue.html", RedirectView.as_view(pattern_name="web:queue", permanent=True)),
+    path("upload.html", RedirectView.as_view(pattern_name="web:upload", permanent=True)),
 ]
