@@ -87,6 +87,9 @@ def create_item_with_photos(*, user, category: str, condition: str, description:
                 raise ValidationError({"photos": exc.messages})
             ItemPhoto.objects.create(item=item, image=_make_browser_displayable(photo_file))
 
+    from notifications.tasks import notify_admin_of_new_submission
+    notify_admin_of_new_submission.delay(str(item.id))
+
     return item
 
 

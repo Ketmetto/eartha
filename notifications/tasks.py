@@ -95,6 +95,29 @@ def notify_points_awarded(user_id, points: int):
 
 
 @shared_task
+def notify_admin_of_new_submission(item_id):
+    """Called by apps.submissions.services.create_item_with_photos —
+    an operational alert, not a user-facing/preference-gated email like
+    notify_submission_status_changed, so it always fires."""
+    from apps.submissions.models import Item
+
+    try:
+        item = Item.objects.select_related("user").get(pk=item_id)
+    except Item.DoesNotExist:
+        return
+
+    submitter = item.user.first_name or item.user.email
+    subject = f"New submission: {item.get_category_display()} ({item.get_condition_display()})"
+    review_url = f"{settings.SITE_URL}/queue/#item-{item.id}"
+    message = (
+        f"{submitter} submitted a {item.get_category_display()} ({item.get_condition_display()} condition) item for review.\n\n"
+        f"Review it here: {review_url}"
+    )
+
+    send_transactional_email(to_email="info@eartha.me", subject=subject, message=message)
+
+
+@shared_task
 def notify_submission_status_changed(submission_id, new_status: str):
     """Called by apps.submissions.services on accept/reject/dispatch."""
     from apps.submissions.models import Item

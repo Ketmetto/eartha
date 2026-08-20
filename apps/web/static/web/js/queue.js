@@ -256,6 +256,20 @@ if (admin) {
     if (showSentinel) wireDoneSentinel();
   }
 
+  // Landing here from the "new submission" admin email's review link
+  // (#item-<uuid>) — jump straight to that card instead of leaving the
+  // admin to scan the whole queue for it.
+  function scrollToDeepLinkedItem() {
+    const match = location.hash.match(/^#item-(.+)$/);
+    if (!match) return;
+    const target = listEl.querySelector(`[data-card="${match[1]}"]`);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.style.outline = '2px solid var(--ok)';
+    target.style.outlineOffset = '4px';
+    setTimeout(() => { target.style.outline = ''; target.style.outlineOffset = ''; }, 2500);
+  }
+
   // Fetches the action list plus the first page of done, then renders —
   // an action can move an item between the two lists, so both need a
   // fresh first page. Any scrolled-past done pages are dropped.
@@ -806,7 +820,8 @@ if (admin) {
   // driversList/pointsRules synchronously while building each card.
   (async () => {
     await Promise.all([renderDrivers(), renderPointsRules()]);
-    render();
+    await render();
+    scrollToDeepLinkedItem();
   })();
   renderBenefits();
   renderInbox();
