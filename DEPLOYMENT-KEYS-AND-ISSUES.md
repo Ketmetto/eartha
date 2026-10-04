@@ -93,12 +93,11 @@ Terms & Privacy Policy were also on this list in earlier passes — both
 now resolved, see section 4.)
 
 - **`contact.html`** — Instagram and LinkedIn links are `href="#"`.
-- **`index.html` newsletter signup** — client-side only. It validates the
-  email format and shows *"SIGNED UP — WATCH YOUR INBOX"*, but never
-  sends the address anywhere — no backend call at all
-  (`apps/web/static/web/js/main.js`, marked `// Hook this up to your
-  backend / mail provider later`). Currently misleading: a visitor who
-  signs up believes it worked and nothing happens.
+- **`index.html` newsletter signup** — FIXED. Now POSTs to
+  `/api/v1/engagement/newsletter/`, stores the address in
+  `NewsletterSubscriber`, and sends a one-time welcome email. Export the
+  list from Django admin (Engagement → Newsletter subscribers → select →
+  "Export selected to CSV") to import into Brevo when a newsletter goes out.
 
 ---
 

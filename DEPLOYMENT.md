@@ -67,6 +67,19 @@ Also replace the domain placeholder in two places:
 
 ---
 
+## Brevo "Authorized IPs"
+
+Brevo's SMTP relay only accepts logins from IPs on the account's
+allowlist (Brevo → Security → Authorized IPs). The VPS's public IP is on
+it — if the app ever moves to a new server/IP, add the new one **before**
+cutting over, or every email (verification, password reset, newsletter
+welcome, notifications) fails with `525 5.7.1 Unauthorized IP address`.
+Celery logs the error, but users just never get the email. Find the
+VPS's IP with `curl -4 ifconfig.me`.
+
+Local dev doesn't need to be on the list: leave `EMAIL_HOST` blank in
+`.env` and `config/settings/dev.py` prints emails to the console.
+
 ## Resource limits (KVM1, 4 GB RAM total)
 
 `docker-compose.prod.yml` sets explicit `deploy.resources.limits.memory`

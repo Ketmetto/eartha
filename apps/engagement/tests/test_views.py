@@ -3,10 +3,11 @@ Tests for apps.engagement.views and apps.engagement.admin_views
 """
 import pytest
 from unittest.mock import patch
+from django.core import mail
 from django.urls import reverse
 from rest_framework import status
 
-from apps.engagement.models import ContactMessage, ImpactStat
+from apps.engagement.models import ContactMessage, ImpactStat, NewsletterSubscriber
 from apps.points.models import Benefit
 
 
@@ -192,3 +193,30 @@ class TestAdminDashboardStatsView:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["unread_messages_count"] == 1
         assert "recent_items" in response.data
+
+
+@pytest.mark.django_db
+class TestNewsletterSubscribeView:
+    url = reverse("newsletter-subscribe")
+
+    def test_subscribes_and_sends_welcome_email(self, api_client):
+        response = api_client.post(self.url, {"email": "Reader@Example.com "}, format="json")
+        assert response.status_code == status.HTTP_200_OK
+        assert NewsletterSubscriber.objects.filter(email="reader@example.com").exists()
+        assert len(mail.outbox) == 1
+        assert mail.outbox[0].to == ["reader@example.com"]
+
+    def test_resubscribing_is_silent_and_sends_no_second_email(self, api_client):
+        api_client.post(self.url, {"email": "reader@example.com"}, format="json")
+        response = api_client.post(self.url, {"email": "READER@example.com"}, format="json")
+        # Same response as a fresh signup — doesn't reveal the address
+        # was already on the list.
+        assert response.status_code == status.HTTP_200_OK
+        assert NewsletterSubscriber.objects.count() == 1
+        assert len(mail.outbox) == 1
+
+    def test_rejects_invalid_email(self, api_client):
+        response = api_client.post(self.url, {"email": "not-an-email"}, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert not NewsletterSubscriber.objects.exists()
+        assert len(mail.outbox) == 0

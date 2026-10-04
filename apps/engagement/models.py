@@ -18,3 +18,10 @@ class ImpactStat(BaseModel):
     Benefits page actually shows."""
     items_collected = models.PositiveIntegerField(default=0)
     co2_saved_kg = models.PositiveIntegerField(default=0)
+
+
+class NewsletterSubscriber(BaseModel):
+    """Homepage newsletter signups. Kept in our own DB as the source of
+    truth — export to CSV from the admin to import into Brevo (or any
+    other campaign tool) when a newsletter actually goes out."""
+    email = models.EmailField(unique=True)

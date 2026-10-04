@@ -1,8 +1,10 @@
 from rest_framework import generics, permissions
+from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
 from .models import ImpactStat
-from .serializers import ContactMessageSerializer, ImpactStatSerializer
-from .services import notify_admin_of_contact_message
+from .serializers import ContactMessageSerializer, ImpactStatSerializer, NewsletterSubscribeSerializer
+from .services import notify_admin_of_contact_message, subscribe_to_newsletter
 
 
 class ContactMessageCreateView(generics.CreateAPIView):
@@ -30,3 +32,20 @@ class ImpactStatsView(generics.RetrieveAPIView):
         # fixture/seed run yet) instead of returning None, which the
         # serializer would otherwise silently turn into null fields.
         return ImpactStat.objects.first() or ImpactStat.objects.create()
+
+
+class NewsletterSubscribeView(APIView):
+    """
+    POST /api/v1/engagement/newsletter/
+    Public. Always returns the same 200 whether the address is new or
+    already subscribed, so the form can't be used to probe the list.
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "newsletter"
+
+    def post(self, request):
+        serializer = NewsletterSubscribeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        subscribe_to_newsletter(serializer.validated_data["email"])
+        return Response({"detail": "Subscribed."})

@@ -27,6 +27,16 @@ class ContactMessageSerializer(serializers.ModelSerializer):
         return value
 
 
+class NewsletterSubscribeSerializer(serializers.Serializer):
+    # Plain Serializer, not ModelSerializer — the model's unique=True would
+    # otherwise add a UniqueValidator and reveal which addresses are
+    # already subscribed. Duplicates are handled in subscribe_to_newsletter.
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+
 class ContactMessageAdminSerializer(serializers.ModelSerializer):
     """Admin inbox view — `resolved` doubles as the read/unread flag."""
     class Meta:

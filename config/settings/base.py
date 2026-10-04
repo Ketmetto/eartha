@@ -236,6 +236,9 @@ REST_FRAMEWORK = {
         # Public and fires a real email to the admin on every submission —
         # the generic "anon" rate is too loose for that combination.
         "contact": "5/hour",
+        # Public and can trigger a welcome email (first signup per address
+        # only) — same reasoning as "contact".
+        "newsletter": "5/hour",
         # Generous for one real donation-photography session, well under
         # the "user" default's 10,000-photos/hour ceiling (10 per request).
         "item_upload": "30/hour",

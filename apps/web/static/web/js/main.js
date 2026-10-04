@@ -130,7 +130,7 @@ function runAcceptMarquee(el, group) {
 const form = document.getElementById('newsletterForm');
 const msg = document.getElementById('newsletterMsg');
 
-form.addEventListener('submit', (e) => {
+form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = form.email.value.trim();
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -140,7 +140,15 @@ form.addEventListener('submit', (e) => {
     return;
   }
 
-  // Hook this up to your backend / mail provider later
-  msg.textContent = 'SIGNED UP — WATCH YOUR INBOX.';
+  const submitBtn = form.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  const res = await Eartha.subscribeToNewsletter(email);
+  submitBtn.disabled = false;
+
+  if (res.error) {
+    msg.textContent = res.error.toUpperCase();
+    return;
+  }
+  msg.textContent = "YOU'RE SUBSCRIBED — THANKS FOR JOINING.";
   form.reset();
 });

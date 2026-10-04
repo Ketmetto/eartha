@@ -751,6 +751,25 @@ const Eartha = (() => {
     return data;
   }
 
+  // Public endpoint, no auth — homepage newsletter form. The backend
+  // answers the same way for new and already-subscribed addresses.
+  async function subscribeToNewsletter(email) {
+    try {
+      const res = await fetch(`${API_ROOT}/engagement/newsletter/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email }),
+      });
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+      if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+      return {};
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   // Public endpoint, no auth — the merchant-facing "is this code real?"
   // check on the /verify/<code>/ page.
   async function verifyRedemption(code) {
@@ -1245,7 +1264,7 @@ const Eartha = (() => {
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchPointsRules, savePointsRules,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi, fetchRedemptionQrObjectUrl,
-    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats,
+    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats, subscribeToNewsletter,
     fetchDashboardStats,
     fetchAdminUsers, banUser, unbanUser,
     fetchSiteTexts, updateSiteText, fetchSiteImages, updateSiteImage, clearSiteImage,
