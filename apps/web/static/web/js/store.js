@@ -754,10 +754,13 @@ const Eartha = (() => {
   // Public endpoint, no auth — homepage newsletter form. The backend
   // answers the same way for new and already-subscribed addresses.
   async function subscribeToNewsletter(email) {
+    const headers = { 'Content-Type': 'application/json' };
+    const csrfToken = getCookie('csrftoken');
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
     try {
       const res = await fetch(`${API_ROOT}/engagement/newsletter/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'same-origin',
         body: JSON.stringify({ email }),
       });
@@ -765,6 +768,19 @@ const Eartha = (() => {
       try { data = await res.json(); } catch { /* empty body */ }
       if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
       return {};
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  // token comes from the query string of the emailed confirmation link.
+  async function confirmNewsletter(token) {
+    try {
+      const res = await fetch(`${API_ROOT}/engagement/newsletter/confirm/?token=${encodeURIComponent(token)}`, { credentials: 'same-origin' });
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+      if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+      return { detail: data.detail };
     } catch (e) {
       return { error: e.message };
     }
@@ -1264,7 +1280,7 @@ const Eartha = (() => {
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchPointsRules, savePointsRules,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi, fetchRedemptionQrObjectUrl,
-    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats, subscribeToNewsletter,
+    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats, subscribeToNewsletter, confirmNewsletter,
     fetchDashboardStats,
     fetchAdminUsers, banUser, unbanUser,
     fetchSiteTexts, updateSiteText, fetchSiteImages, updateSiteImage, clearSiteImage,

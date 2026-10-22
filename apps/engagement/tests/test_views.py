@@ -1,10 +1,13 @@
 """
 Tests for apps.engagement.views and apps.engagement.admin_views
 """
+import re
+
 import pytest
 from unittest.mock import patch
 from django.core import mail
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 
 from apps.engagement.models import ContactMessage, ImpactStat, NewsletterSubscriber
@@ -195,28 +198,82 @@ class TestAdminDashboardStatsView:
         assert "recent_items" in response.data
 
 
+def confirmation_token_from(email_message):
+    """Pull the token out of the link in a newsletter confirmation email."""
+    match = re.search(r"/newsletter/confirm/\?token=(\S+)", email_message.body)
+    assert match, email_message.body
+    return match.group(1)
+
+
 @pytest.mark.django_db
 class TestNewsletterSubscribeView:
     url = reverse("newsletter-subscribe")
 
-    def test_subscribes_and_sends_welcome_email(self, api_client):
+    def test_stores_unconfirmed_and_emails_a_confirmation_link(self, api_client):
         response = api_client.post(self.url, {"email": "Reader@Example.com "}, format="json")
         assert response.status_code == status.HTTP_200_OK
-        assert NewsletterSubscriber.objects.filter(email="reader@example.com").exists()
+        subscriber = NewsletterSubscriber.objects.get(email="reader@example.com")
+        assert subscriber.confirmed_at is None
         assert len(mail.outbox) == 1
         assert mail.outbox[0].to == ["reader@example.com"]
+        assert "/newsletter/confirm/?token=" in mail.outbox[0].body
 
-    def test_resubscribing_is_silent_and_sends_no_second_email(self, api_client):
+    def test_resubmitting_unconfirmed_address_resends_the_link(self, api_client):
         api_client.post(self.url, {"email": "reader@example.com"}, format="json")
-        response = api_client.post(self.url, {"email": "READER@example.com"}, format="json")
+        api_client.post(self.url, {"email": "READER@example.com"}, format="json")
+        assert NewsletterSubscriber.objects.count() == 1
+        assert len(mail.outbox) == 2
+
+    def test_confirmed_address_gets_same_response_and_no_email(self, api_client):
+        NewsletterSubscriber.objects.create(email="reader@example.com", confirmed_at=timezone.now())
+        response = api_client.post(self.url, {"email": "reader@example.com"}, format="json")
         # Same response as a fresh signup — doesn't reveal the address
         # was already on the list.
         assert response.status_code == status.HTTP_200_OK
-        assert NewsletterSubscriber.objects.count() == 1
-        assert len(mail.outbox) == 1
+        assert len(mail.outbox) == 0
 
     def test_rejects_invalid_email(self, api_client):
         response = api_client.post(self.url, {"email": "not-an-email"}, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert not NewsletterSubscriber.objects.exists()
         assert len(mail.outbox) == 0
+
+
+@pytest.mark.django_db
+class TestNewsletterConfirmView:
+    url = reverse("newsletter-confirm")
+
+    def subscribe(self, api_client, email="reader@example.com"):
+        api_client.post(reverse("newsletter-subscribe"), {"email": email}, format="json")
+        return confirmation_token_from(mail.outbox[-1])
+
+    def test_valid_token_confirms_subscription(self, api_client):
+        token = self.subscribe(api_client)
+        response = api_client.get(self.url, {"token": token})
+        assert response.status_code == status.HTTP_200_OK
+        assert NewsletterSubscriber.objects.get(email="reader@example.com").confirmed_at is not None
+
+    def test_confirming_twice_keeps_original_timestamp(self, api_client):
+        token = self.subscribe(api_client)
+        api_client.get(self.url, {"token": token})
+        first = NewsletterSubscriber.objects.get().confirmed_at
+        response = api_client.get(self.url, {"token": token})
+        assert response.status_code == status.HTTP_200_OK
+        assert NewsletterSubscriber.objects.get().confirmed_at == first
+
+    def test_tampered_token_is_rejected(self, api_client):
+        token = self.subscribe(api_client)
+        response = api_client.get(self.url, {"token": token[:-2] + "xx"})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert NewsletterSubscriber.objects.get().confirmed_at is None
+
+    def test_expired_token_is_rejected(self, api_client):
+        token = self.subscribe(api_client)
+        with patch("apps.engagement.services.NEWSLETTER_CONFIRM_MAX_AGE", -1):
+            response = api_client.get(self.url, {"token": token})
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert NewsletterSubscriber.objects.get().confirmed_at is None
+
+    def test_missing_token_is_rejected(self, api_client):
+        response = api_client.get(self.url)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST

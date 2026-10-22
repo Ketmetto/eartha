@@ -1,10 +1,10 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from .models import ImpactStat
 from .serializers import ContactMessageSerializer, ImpactStatSerializer, NewsletterSubscribeSerializer
-from .services import notify_admin_of_contact_message, subscribe_to_newsletter
+from .services import confirm_newsletter_subscription, notify_admin_of_contact_message, subscribe_to_newsletter
 
 
 class ContactMessageCreateView(generics.CreateAPIView):
@@ -37,8 +37,9 @@ class ImpactStatsView(generics.RetrieveAPIView):
 class NewsletterSubscribeView(APIView):
     """
     POST /api/v1/engagement/newsletter/
-    Public. Always returns the same 200 whether the address is new or
-    already subscribed, so the form can't be used to probe the list.
+    Public. Emails a confirmation link (double opt-in). Always returns the
+    same 200 whether the address is new, pending, or already confirmed, so
+    the form can't be used to probe the list.
     """
     permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -47,5 +48,25 @@ class NewsletterSubscribeView(APIView):
     def post(self, request):
         serializer = NewsletterSubscribeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        subscribe_to_newsletter(serializer.validated_data["email"])
-        return Response({"detail": "Subscribed."})
+        subscribe_to_newsletter(serializer.validated_data["email"], request)
+        return Response({"detail": "Check your inbox to confirm your subscription."})
+
+
+class NewsletterConfirmView(APIView):
+    """
+    GET /api/v1/engagement/newsletter/confirm/?token=<token>
+    Called by the /newsletter/confirm/ page the emailed link opens.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        token = request.query_params.get("token")
+        if not token:
+            return Response(
+                {"detail": "Missing confirmation parameters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        success, message = confirm_newsletter_subscription(token)
+        status_code = status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST
+        return Response({"detail": message}, status=status_code)

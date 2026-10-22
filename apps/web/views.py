@@ -53,6 +53,10 @@ class VerifyEmailPageView(TemplateView):
     template_name = "web/verify-email.html"
 
 
+class NewsletterConfirmPageView(TemplateView):
+    template_name = "web/newsletter-confirm.html"
+
+
 class ConfirmEmailChangePageView(TemplateView):
     template_name = "web/confirm-email-change.html"
 

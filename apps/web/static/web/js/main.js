@@ -149,6 +149,6 @@ form.addEventListener('submit', async (e) => {
     msg.textContent = res.error.toUpperCase();
     return;
   }
-  msg.textContent = "YOU'RE SUBSCRIBED — THANKS FOR JOINING.";
+  msg.textContent = 'CHECK YOUR INBOX TO CONFIRM.';
   form.reset();
 });

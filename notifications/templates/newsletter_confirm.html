@@ -1,0 +1,11 @@
+{% extends "_email_base.html" %}
+{% block title %}Confirm your subscription{% endblock %}
+{% block content %}
+<h1>Confirm your subscription</h1>
+<p>Hi,</p>
+<p>Thanks for signing up for the Eartha newsletter! Please confirm your subscription to start hearing where your fabric goes.</p>
+<a href="{{ confirmation_url }}" class="btn">Confirm Subscription</a>
+<p class="muted">Or copy and paste this link into your browser:</p>
+<p class="url-fallback">{{ confirmation_url }}</p>
+<p class="muted">If you didn't sign up, you can safely ignore this email — you won't be subscribed.</p>
+{% endblock %}

@@ -95,9 +95,10 @@ now resolved, see section 4.)
 - **`contact.html`** — Instagram and LinkedIn links are `href="#"`.
 - **`index.html` newsletter signup** — FIXED. Now POSTs to
   `/api/v1/engagement/newsletter/`, stores the address in
-  `NewsletterSubscriber`, and sends a one-time welcome email. Export the
-  list from Django admin (Engagement → Newsletter subscribers → select →
-  "Export selected to CSV") to import into Brevo when a newsletter goes out.
+  `NewsletterSubscriber`, and emails a double opt-in confirmation link
+  (`/newsletter/confirm/`, valid 3 days). Export the list from Django admin
+  (Engagement → Newsletter subscribers → select → "Export selected to CSV")
+  to import into Brevo — only confirmed subscribers are exported.
 
 ---
 

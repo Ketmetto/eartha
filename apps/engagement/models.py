@@ -23,5 +23,8 @@ class ImpactStat(BaseModel):
 class NewsletterSubscriber(BaseModel):
     """Homepage newsletter signups. Kept in our own DB as the source of
     truth — export to CSV from the admin to import into Brevo (or any
-    other campaign tool) when a newsletter actually goes out."""
+    other campaign tool) when a newsletter actually goes out. Double
+    opt-in: an address only counts once confirmed_at is set, via the
+    emailed link (see services.confirm_newsletter_subscription)."""
     email = models.EmailField(unique=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
