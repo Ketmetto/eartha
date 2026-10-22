@@ -93,10 +93,6 @@ services:
       - media_data:/app/media:ro
       - certbot_www:/var/www/certbot:ro
       - certbot_certs:/etc/letsencrypt:ro
-      # Remove the two lines below once real certbot certs are live —
-      # self-signed cert was for local HTTPS testing only, not for prod.
-      - ./selfsigned.crt:/etc/ssl/selfsigned.crt:ro
-      - ./selfsigned.key:/etc/ssl/selfsigned.key:ro     #TEMP TEST
     depends_on:
       - web
     restart: unless-stopped
