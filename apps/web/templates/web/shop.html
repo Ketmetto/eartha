@@ -1,0 +1,193 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{% static 'web/images/favicon.svg' %}" type="image/svg+xml">
+  <title>Eartha Shop — Reimagined Pieces</title>
+  <meta name="description" content="Reworked and renewed pieces for men, women and kids, made with care by Eartha. Priced in dollars, cash on delivery.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+  {% csrf_token %}
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main>
+
+    <!-- ============ SHOP INTRO ============ -->
+    <section class="shop-intro">
+      <div class="shop-intro-text">
+        <p class="eyebrow">EARTHA SHOP</p>
+        <h1 class="shop-intro-title">Pieces with a past, made new again.</h1>
+        <p class="body-justified">Every piece is reworked, refreshed and reimagined by hand, so good fabric gets a new story. For men, women and kids. Priced in dollars, paid cash on delivery.</p>
+        <a href="#shop" class="link-underline">{% if has_products %}SHOP NOW{% else %}COMING SOON{% endif %}</a>
+      </div>
+      <figure class="img-card">
+        {% if site_images.shop_hero %}
+        <img src="{{ site_images.shop_hero }}" alt="Woman in a cream linen shirt and trousers seated on a wooden chair on the beach">
+        {% else %}
+        <img src="{% static 'web/images/shop-hero.jpg' %}" alt="Woman in a cream linen shirt and trousers seated on a wooden chair on the beach">
+        {% endif %}
+        <figcaption class="img-label">SECOND CHAPTER</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============ SHOP ============ -->
+    <section class="shop" id="shop">
+      {% if has_products %}
+      <div class="tabs" role="tablist" aria-label="Shop sections">
+        {% for section in sections %}
+        <button class="tab" role="tab" data-section="{{ section.key }}" aria-controls="section-{{ section.key }}">{{ section.label|upper }}</button>
+        {% endfor %}
+      </div>
+
+      {% for section in sections %}
+      <div class="tab-panel" id="section-{{ section.key }}" role="tabpanel" data-section="{{ section.key }}">
+        {% if section.products %}
+        <div class="shop-grid">
+          {% for p in section.products %}
+          <button type="button" class="product-card" data-product="{{ p.id }}">
+            <span class="product-img"><img src="{{ p.image.url }}" alt="{{ p.name }}" loading="lazy"></span>
+            <span class="product-name">{{ p.name }}</span>
+            {% if p.size %}<span class="product-meta">SIZE {{ p.size }}</span>{% endif %}
+            <span class="product-price">${{ p.price_usd }}</span>
+          </button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="shop-soon">
+          <p class="eyebrow">{{ section.label|upper }}</p>
+          <p class="heading-sm">Coming soon.</p>
+          <p class="muted">We're preparing this collection — check back shortly.</p>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="shop-soon">
+        <p class="eyebrow">MEN · WOMEN · KIDS</p>
+        <p class="heading-sm">Coming soon.</p>
+        <p class="muted">Our first collection is being reworked by hand. Sign up to the newsletter on the homepage to hear when it opens.</p>
+        <a href="{% url 'web:index' %}#newsletterForm" class="link-underline">GET NOTIFIED</a>
+      </div>
+      {% endif %}
+    </section>
+
+  </main>
+
+  {% if has_products %}
+  <!-- ============ BASKET BUTTON ============ -->
+  <button type="button" class="basket-fab" id="basketFab" hidden>BASKET (<span id="basketCount">0</span>)</button>
+
+  <!-- ============ PRODUCT DETAIL ============ -->
+  <div class="shop-overlay" id="productOverlay" hidden>
+    <div class="shop-dialog product-dialog" role="dialog" aria-modal="true" aria-labelledby="pdName">
+      <button type="button" class="shop-close" data-close aria-label="Close">×</button>
+      <div class="product-dialog-grid">
+        <div>
+          <div class="product-dialog-img"><img id="pdImg" src="" alt=""></div>
+          <div class="product-thumbs" id="pdThumbs"></div>
+        </div>
+        <div class="product-dialog-info">
+          <h2 class="heading-sm" id="pdName"></h2>
+          <p class="product-price" id="pdPrice"></p>
+          <p class="product-meta" id="pdMeta"></p>
+          <p class="body-justified" id="pdDesc"></p>
+          <div class="field" id="pdQtyField">
+            <label for="pdQty">QUANTITY</label>
+            <input type="number" id="pdQty" min="1" value="1" style="max-width:100px;">
+          </div>
+          <button type="button" class="btn" id="pdAdd">ADD TO BASKET</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BASKET + CHECKOUT ============ -->
+  <div class="shop-overlay" id="basketOverlay" hidden>
+    <aside class="shop-dialog basket-drawer" role="dialog" aria-modal="true" aria-labelledby="basketTitle">
+      <button type="button" class="shop-close" data-close aria-label="Close">×</button>
+      <h2 class="heading-sm" id="basketTitle">YOUR BASKET</h2>
+      <div id="basketLines"></div>
+      <p class="basket-total">TOTAL <strong id="basketTotal">$0.00</strong></p>
+      <p class="hint">PAYMENT IS CASH ON DELIVERY. WE'LL CALL YOU TO CONFIRM BEFORE DELIVERING.</p>
+
+      <form id="checkoutForm" data-form-token="{{ form_token }}" novalidate>
+        <p class="eyebrow" style="margin:28px 0 18px;">DELIVERY DETAILS</p>
+        <div class="field">
+          <label for="oName">FULL NAME</label>
+          <input type="text" id="oName" autocomplete="name" maxlength="120" required>
+        </div>
+        <div class="field">
+          <label for="oPhone">PHONE NUMBER</label>
+          <input type="tel" id="oPhone" autocomplete="tel" placeholder="e.g. 03123456" required>
+        </div>
+        <div class="field">
+          <label for="oEmail">EMAIL <span class="muted">(OPTIONAL — FOR YOUR CONFIRMATION)</span></label>
+          <input type="email" id="oEmail" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="oCity">CITY / AREA</label>
+          <input type="text" id="oCity" autocomplete="address-level2" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label for="oAddress">STREET ADDRESS</label>
+          <input type="text" id="oAddress" autocomplete="street-address" maxlength="255" required>
+        </div>
+        <div class="field">
+          <label for="oBuilding">BUILDING <span class="muted">(OPTIONAL)</span></label>
+          <input type="text" id="oBuilding" maxlength="120">
+        </div>
+        <div class="field">
+          <label for="oFloor">FLOOR / APARTMENT <span class="muted">(OPTIONAL)</span></label>
+          <input type="text" id="oFloor" maxlength="60">
+        </div>
+        <div class="field">
+          <label for="oNotes">NOTES FOR DELIVERY <span class="muted">(OPTIONAL)</span></label>
+          <textarea id="oNotes" rows="2"></textarea>
+        </div>
+        <!-- Honeypot — see base.form_guard / OrderCreateView. -->
+        <div class="hp-field" aria-hidden="true">
+          <label for="oWebsite">WEBSITE</label>
+          <input type="text" id="oWebsite" tabindex="-1" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-block">PLACE ORDER — CASH ON DELIVERY</button>
+        <p class="form-msg" id="checkoutMsg" role="status"></p>
+      </form>
+    </aside>
+  </div>
+  {{ products_json|json_script:"shop-products" }}
+  {% endif %}
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:shop' %}">SHOP</a>
+        <a href="{% url 'web:index' %}#wishlist">WISHLIST</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script nonce="{{ request.csp_nonce }}">Eartha.renderHeader(Eartha.currentUser(), 'shop');</script>
+  {% if has_products %}<script src="{% static 'web/js/shop.js' %}"></script>{% endif %}
+</body>
+</html>

@@ -44,6 +44,43 @@ class WishlistRequestView(TemplateView):
         return context
 
 
+class ShopView(SiteContentMixin, TemplateView):
+    """Public Eartha Shop. Products are server-rendered per section; the
+    same data goes to shop.js as JSON for the basket and detail view.
+    Any section without a published, in-stock product shows "coming
+    soon" — so does the whole page until the first product goes up."""
+    template_name = "web/shop.html"
+
+    def get_context_data(self, **kwargs):
+        from apps.shop.models import Product
+        from apps.shop.services import make_order_form_token
+
+        context = super().get_context_data(**kwargs)
+        products = list(
+            Product.objects.filter(is_active=True, stock__gt=0).prefetch_related("extra_images")
+        )
+        context["sections"] = [
+            {"key": key, "label": label, "products": [p for p in products if p.section == key]}
+            for key, label in Product.Section.choices
+        ]
+        context["has_products"] = bool(products)
+        context["products_json"] = [
+            {
+                "id": str(p.id),
+                "name": p.name,
+                "section": p.section,
+                "price": f"{p.price_usd:.2f}",
+                "size": p.size,
+                "description": p.description,
+                "stock": p.stock,
+                "images": [p.image.url] + [i.image.url for i in p.extra_images.all()],
+            }
+            for p in products
+        ]
+        context["form_token"] = make_order_form_token()
+        return context
+
+
 class DashboardView(TemplateView):
     template_name = "web/dashboard.html"
 
@@ -103,6 +140,10 @@ class UsersView(TemplateView):
 
 class ContentView(TemplateView):
     template_name = "web/content.html"
+
+
+class ShopManageView(TemplateView):
+    template_name = "web/shop-manage.html"
 
 
 class TermsView(TemplateView):

@@ -608,6 +608,67 @@ const Eartha = (() => {
     await apiFetch('/points/admin/benefits/reorder/', { method: 'POST', body: { ids: orderedIds } });
   }
 
+  // ---------- shop: admin (the /shop/manage/ page) ----------
+  // fields: { name, section, price, size, description, stock, active };
+  // files: File[] — when given, they replace all of the product's photos
+  // (the first becomes the main one). is_active is always sent: DRF's
+  // multipart parser reads an absent boolean as False (see createBenefitAdmin).
+  function shopProductFormData(fields, files) {
+    const form = new FormData();
+    const map = { name: 'name', section: 'section', price: 'price_usd', size: 'size', description: 'description', stock: 'stock' };
+    for (const [k, apiKey] of Object.entries(map)) {
+      if (fields[k] !== undefined) form.append(apiKey, fields[k]);
+    }
+    if (fields.active !== undefined) form.append('is_active', fields.active);
+    (files || []).forEach((f) => form.append('photos', f));
+    return form;
+  }
+
+  function mapShopProduct(p) {
+    return {
+      id: p.id,
+      name: p.name,
+      section: p.section,
+      price: p.price_usd,
+      size: p.size,
+      description: p.description,
+      stock: p.stock,
+      active: p.is_active,
+      images: p.images,
+    };
+  }
+
+  async function fetchShopProductsAdmin() {
+    return (await apiFetch('/shop/admin/products/')).map(mapShopProduct);
+  }
+
+  async function createShopProductAdmin(fields, files) {
+    const p = await apiFetch('/shop/admin/products/', { method: 'POST', body: shopProductFormData(fields, files), isFormData: true });
+    return mapShopProduct(p);
+  }
+
+  async function updateShopProductAdmin(id, fields, files) {
+    const p = await apiFetch(`/shop/admin/products/${id}/`, { method: 'PATCH', body: shopProductFormData(fields, files), isFormData: true });
+    return mapShopProduct(p);
+  }
+
+  async function deleteShopProductAdmin(id) {
+    await apiFetch(`/shop/admin/products/${id}/`, { method: 'DELETE' });
+  }
+
+  // view: 'open' (new + confirmed) or 'done' (delivered + cancelled)
+  async function fetchShopOrdersAdmin(view) {
+    return apiFetch(`/shop/admin/orders/?view=${encodeURIComponent(view)}`);
+  }
+
+  async function setShopOrderStatus(id, status) {
+    return apiFetch(`/shop/admin/orders/${id}/status/`, { method: 'POST', body: { status } });
+  }
+
+  async function fetchNewShopOrderCount() {
+    return (await apiFetch('/shop/admin/orders/new-count/')).new;
+  }
+
   // ---------- points: award rules (category x condition suggested points) ----------
   async function fetchPointsRules() {
     const rows = await apiFetch('/points/admin/rules/');
@@ -799,6 +860,28 @@ const Eartha = (() => {
       try { data = await res.json(); } catch { /* empty body */ }
       if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
       return {};
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  // Public endpoint, no auth — the /shop/ cash-on-delivery checkout.
+  // Resolves to { order, total_usd } or { error }; see OrderCreateView.
+  async function submitShopOrder(fields) {
+    const headers = { 'Content-Type': 'application/json' };
+    const csrfToken = getCookie('csrftoken');
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    try {
+      const res = await fetch(`${API_ROOT}/shop/orders/`, {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+        body: JSON.stringify(fields),
+      });
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+      if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+      return data;
     } catch (e) {
       return { error: e.message };
     }
@@ -1176,6 +1259,7 @@ const Eartha = (() => {
         ${MENU_TOGGLE_HTML}
         <nav class="app-nav" id="appNav" aria-label="Public">
           <a href="/about/" class="${current === 'about' ? 'is-current' : ''}">ABOUT US</a>
+          <a href="/shop/" class="${current === 'shop' ? 'is-current' : ''}">SHOP</a>
           <a href="/#wishlist">WISHLIST</a>
           <a href="/contact/" class="${current === 'contact' ? 'is-current' : ''}">CONTACT</a>
           <a href="/login/" class="${current === 'login' ? 'is-current' : ''}">SIGN IN</a>
@@ -1195,6 +1279,11 @@ const Eartha = (() => {
     // Admins land on /dashboard/ first (see login.js), but from then on the
     // logo always means "home" — the dashboard stays reachable via its own
     // nav link instead, in upload's usual first slot (admins don't upload).
+    // Admins manage the shop from /shop/manage/ (a VIEW LIVE SHOP link
+    // there opens the public page); everyone else just shops.
+    const shopLink = user.isAdmin
+      ? `<a href="/shop/manage/" class="${current === 'shop-manage' ? 'is-current' : ''}">SHOP</a>`
+      : `<a href="/shop/" class="${current === 'shop' ? 'is-current' : ''}">SHOP</a>`;
     const firstLink = user.isAdmin
       ? `<a href="/dashboard/" class="${current === 'dashboard' ? 'is-current' : ''}">DASHBOARD</a>`
       : `<a href="/upload/" class="${current === 'upload' ? 'is-current' : ''}">UPLOAD</a>`;
@@ -1204,6 +1293,7 @@ const Eartha = (() => {
       <nav class="app-nav" id="appNav" aria-label="App">
         ${firstLink}
         <a href="/benefits/" class="${current === 'benefits' ? 'is-current' : ''}">BENEFITS</a>
+        ${shopLink}
         <a href="/#wishlist">WISHLIST</a>
         <a href="/contact/" class="${current === 'contact' ? 'is-current' : ''}">CONTACT</a>
         ${profileLink}
@@ -1312,8 +1402,9 @@ const Eartha = (() => {
     fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchPointsRules, savePointsRules,
+    fetchShopProductsAdmin, createShopProductAdmin, updateShopProductAdmin, deleteShopProductAdmin, fetchShopOrdersAdmin, setShopOrderStatus, fetchNewShopOrderCount,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi, fetchRedemptionQrObjectUrl,
-    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats, subscribeToNewsletter, confirmNewsletter, submitWishlistRequest,
+    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats, subscribeToNewsletter, confirmNewsletter, submitWishlistRequest, submitShopOrder,
     fetchDashboardStats,
     fetchAdminUsers, banUser, unbanUser,
     fetchSiteTexts, updateSiteText, fetchSiteImages, updateSiteImage, clearSiteImage,

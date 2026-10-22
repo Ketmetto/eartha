@@ -333,7 +333,8 @@ img:not([src*="logo"]),
   margin-bottom: 8px;
 }
 
-.field .hint {
+.field .hint,
+.basket-drawer .hint {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 6px;
@@ -1191,6 +1192,219 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 }
 
 .wishlist-steps-list .card-sub { margin-top: 8px; }
+
+/* ============================================================
+   SHOP
+   ============================================================ */
+
+/* portrait photo, so a split intro rather than the full-bleed .hero —
+   a wide crop of it would cut off the subject */
+.shop-intro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+  padding: clamp(40px, 6vw, 80px) var(--pad-x);
+}
+.shop-intro-text {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 440px;
+  justify-self: center;
+}
+.shop-intro-title {
+  font-size: clamp(18px, 2.2vw, 24px);
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+.shop-intro-text .link-underline { align-self: flex-start; margin-top: 8px; }
+.shop-intro .img-card { aspect-ratio: 2 / 3; max-height: 780px; }
+
+.shop {
+  background: var(--cream-deep);
+  padding: clamp(48px, 7vw, 96px) var(--pad-x);
+  min-height: 60vh;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(20px, 2.5vw, 36px) clamp(14px, 2vw, 28px);
+}
+
+.product-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.product-img {
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: var(--cream-card);
+}
+.product-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s ease; }
+.product-card:hover .product-img img { transform: scale(1.03); }
+.product-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+.product-name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+}
+.product-meta { font-size: 11px; color: var(--text-muted); letter-spacing: var(--track); }
+.product-price { font-size: 13px; font-weight: 700; letter-spacing: var(--track); }
+
+.shop-soon {
+  max-width: 460px;
+  margin: clamp(24px, 6vw, 72px) auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.basket-fab {
+  position: fixed;
+  right: var(--pad-x);
+  bottom: 24px;
+  z-index: 40;
+  background: var(--ink);
+  color: var(--cream-text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: var(--track-wide);
+  padding: 14px 22px;
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(23, 20, 15, 0.25);
+}
+
+body.no-scroll { overflow: hidden; }
+
+.shop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(23, 20, 15, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+.shop-overlay[hidden] { display: none; }
+
+.shop-dialog {
+  position: relative;
+  background: var(--cream);
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: clamp(24px, 4vw, 40px);
+}
+.shop-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.product-dialog { max-width: 920px; }
+.product-dialog-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: clamp(20px, 3vw, 40px);
+}
+.product-dialog-img { aspect-ratio: 4 / 5; overflow: hidden; background: var(--cream-card); }
+.product-dialog-img img { width: 100%; height: 100%; object-fit: cover; }
+.product-dialog-info { display: flex; flex-direction: column; gap: 14px; padding-top: 8px; }
+.product-dialog-info .product-price { font-size: 16px; }
+.product-dialog-info .btn { align-self: flex-start; }
+.product-dialog-info .field { margin-bottom: 0; }
+.product-thumbs { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.product-thumbs button { width: 56px; height: 70px; padding: 0; border: 1px solid var(--line); background: none; cursor: pointer; }
+.product-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+
+/* basket slides in as a right-hand drawer on desktop */
+#basketOverlay { justify-content: flex-end; align-items: stretch; padding: 0; }
+.basket-drawer { max-width: 460px; max-height: 100vh; }
+.basket-drawer .heading-sm { margin-bottom: 20px; }
+
+.basket-line {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.basket-line img { width: 56px; height: 70px; object-fit: cover; flex-shrink: 0; }
+.qty-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; }
+.qty-btn {
+  width: 26px;
+  height: 26px;
+  font: inherit;
+  border: 1px solid var(--line-strong);
+  background: none;
+  cursor: pointer;
+}
+.qty-btn:disabled { opacity: 0.35; cursor: default; }
+.basket-remove { font-size: 10px; margin-left: 6px; background: none; border: 0; cursor: pointer; font-family: inherit; }
+.basket-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  letter-spacing: var(--track-wide);
+  margin: 18px 0 8px;
+}
+
+/* shop manager (admin) */
+.product-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 20px;
+}
+.order-lines { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12px; }
+.order-lines li + li { margin-top: 2px; }
+.order-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 1024px) {
+  .shop-grid { grid-template-columns: repeat(3, 1fr); }
+  .product-form-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .shop-intro { grid-template-columns: 1fr; }
+  .product-form-grid { grid-template-columns: 1fr; }
+  .shop-intro .img-card { order: -1; max-height: 560px; }
+  .shop-grid { grid-template-columns: repeat(2, 1fr); }
+  .product-dialog-grid { grid-template-columns: 1fr; }
+}
 
 /* ============================================================
    HOMEPAGE — BATCH BAND / NEWSLETTER

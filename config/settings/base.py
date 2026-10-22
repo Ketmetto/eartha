@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.points",
     "apps.engagement",
     "apps.content",
+    "apps.shop",
     "apps.web",
 ]
 
@@ -180,6 +181,13 @@ UNFOLD = {
                 ],
             },
             {
+                "title": _("Shop"),
+                "items": [
+                    {"title": _("Products"), "icon": "storefront", "link": reverse_lazy("admin:shop_product_changelist")},
+                    {"title": _("Orders"), "icon": "receipt_long", "link": reverse_lazy("admin:shop_order_changelist")},
+                ],
+            },
+            {
                 "title": _("Engagement"),
                 "items": [
                     {"title": _("Contact messages"), "icon": "mail", "link": reverse_lazy("admin:engagement_contactmessage_changelist")},
@@ -243,6 +251,9 @@ REST_FRAMEWORK = {
         # Public, no account, emails the admin on every submission — same
         # reasoning as "contact".
         "wishlist": "5/hour",
+        # Public checkout — each order reserves real stock and emails the
+        # admin, so it's capped like the other no-account forms.
+        "shop_order": "5/hour",
         # Generous for one real donation-photography session, well under
         # the "user" default's 10,000-photos/hour ceiling (10 per request).
         "item_upload": "30/hour",

@@ -1,0 +1,116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{% static 'web/images/favicon.svg' %}" type="image/svg+xml">
+  <title>Manage Shop — EARTHA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+  {% csrf_token %}
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main class="page">
+    <div class="page-head">
+      <div>
+        <p class="eyebrow muted">EARTHA SHOP</p>
+        <h1 class="page-title" style="margin-top:6px;">MANAGE SHOP</h1>
+      </div>
+      <a href="{% url 'web:shop' %}" class="link-underline" target="_blank" rel="noopener">VIEW LIVE SHOP ↗</a>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" data-panel="orders" role="tab">ORDERS <span class="tab-count" id="countNewOrders" hidden>0</span></button>
+      <button class="tab" data-panel="products" role="tab">PRODUCTS</button>
+    </div>
+
+    <!-- ============ ORDERS ============ -->
+    <div class="tab-panel is-active" id="panel-orders">
+      <div class="filter-row" id="orderFilters" role="group" aria-label="Filter orders">
+        <button class="filter-btn is-active" data-view="open">TO DO</button>
+        <button class="filter-btn" data-view="done">DELIVERED &amp; CANCELLED</button>
+      </div>
+      <p class="hint" style="margin-bottom:16px;">NEW ORDER → CALL THE CUSTOMER → <strong>CONFIRM</strong> → DELIVER &amp; COLLECT CASH → <strong>MARK DELIVERED</strong>. CANCELLING PUTS THE ITEMS BACK ON SALE.</p>
+      <div id="ordersList"></div>
+    </div>
+
+    <!-- ============ PRODUCTS ============ -->
+    <div class="tab-panel" id="panel-products">
+      <form id="productForm" class="card" style="margin-bottom:28px;" novalidate>
+        <p class="eyebrow" style="font-weight:700;margin-bottom:18px;" id="productFormTitle">ADD PRODUCT</p>
+        <div class="product-form-grid">
+          <div class="field">
+            <label for="pName">NAME</label>
+            <input type="text" id="pName" maxlength="120" placeholder="e.g. Linen wrap dress" required>
+          </div>
+          <div class="field">
+            <label for="pSection">SECTION</label>
+            <div class="select-wrap">
+              <select id="pSection">
+                <option value="women">WOMEN</option>
+                <option value="men">MEN</option>
+                <option value="kids">KIDS</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="pPrice">PRICE (USD $)</label>
+            <input type="number" id="pPrice" min="0.01" step="0.01" placeholder="e.g. 25" required>
+          </div>
+          <div class="field">
+            <label for="pSize">SIZE <span class="muted">(OPTIONAL)</span></label>
+            <input type="text" id="pSize" maxlength="40" placeholder="e.g. M, 38, 6–8 YEARS">
+          </div>
+          <div class="field">
+            <label for="pStock">HOW MANY IN STOCK</label>
+            <input type="number" id="pStock" min="0" step="1" value="1" required>
+            <p class="hint">1 FOR A ONE-OFF PIECE. AT 0 IT LEAVES THE SHOP.</p>
+          </div>
+          <div class="field">
+            <label class="checkbox-row" for="pActive" style="margin-top:22px;">
+              <input type="checkbox" id="pActive" checked>
+              <span>SHOW IN THE SHOP</span>
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="pDesc">DESCRIPTION <span class="muted">(OPTIONAL)</span></label>
+          <textarea id="pDesc" rows="2" placeholder="Fabric, fit, anything a shopper should know"></textarea>
+        </div>
+        <div class="field">
+          <label for="pPhotos">PHOTOS</label>
+          <div class="photo-drop" id="pPhotoDrop" tabindex="0" role="button" aria-label="Add photos">
+            DROP PHOTOS HERE OR CLICK TO BROWSE
+          </div>
+          <input type="file" id="pPhotos" accept="image/*" multiple hidden>
+          <div class="photo-previews" id="pPhotoPreviews"></div>
+          <p class="hint" id="pPhotoHint">UP TO 8 PHOTOS.</p>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:6px;">
+          <button type="submit" class="btn btn-sm" id="productSubmit">ADD PRODUCT</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="productCancel" hidden>CANCEL EDIT</button>
+        </div>
+        <p class="form-msg" id="productMsg" role="status"></p>
+      </form>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th></th><th>PRODUCT</th><th>SECTION</th><th>PRICE</th><th>STOCK</th><th>STATUS</th><th>ACTIONS</th></tr>
+          </thead>
+          <tbody id="productsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script src="{% static 'web/js/shop-manage.js' %}"></script>
+</body>
+</html>
