@@ -51,10 +51,10 @@ class TestItemUploadView:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "photos" in str(response.data)
 
-    def test_create_item_with_multiple_photos(self, auth_client, make_image_bytes):
+    def test_rejects_more_than_one_photo(self, auth_client, make_image_bytes):
         photos = [
             SimpleUploadedFile(f"test{i}.jpg", make_image_bytes(), content_type="image/jpeg")
-            for i in range(3)
+            for i in range(2)
         ]
 
         response = auth_client.post(
@@ -67,8 +67,51 @@ class TestItemUploadView:
             format="multipart",
         )
 
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "photos" in response.data
+        assert not Item.objects.exists()
+
+    def test_quantity_defaults_to_one(self, auth_client, make_image_bytes):
+        photo = SimpleUploadedFile("test.jpg", make_image_bytes(), content_type="image/jpeg")
+        response = auth_client.post(
+            reverse("submissions-list-create"),
+            data={"category": Item.Category.SHOES, "condition": Item.Condition.GOOD, "photos": [photo]},
+            format="multipart",
+        )
         assert response.status_code == status.HTTP_201_CREATED
-        assert len(response.data["photos"]) == 3
+        assert response.data["quantity"] == 1
+
+    def test_bulk_submission_stores_quantity(self, auth_client, make_image_bytes):
+        photo = SimpleUploadedFile("stack.jpg", make_image_bytes(), content_type="image/jpeg")
+        response = auth_client.post(
+            reverse("submissions-list-create"),
+            data={
+                "category": Item.Category.CLOTHING,
+                "condition": Item.Condition.GOOD,
+                "quantity": 6,
+                "photos": [photo],
+            },
+            format="multipart",
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["quantity"] == 6
+        assert Item.objects.get().quantity == 6
+
+    def test_rejects_out_of_range_quantity(self, auth_client, make_image_bytes):
+        for bad in (0, 201):
+            photo = SimpleUploadedFile("stack.jpg", make_image_bytes(), content_type="image/jpeg")
+            response = auth_client.post(
+                reverse("submissions-list-create"),
+                data={
+                    "category": Item.Category.CLOTHING,
+                    "condition": Item.Condition.GOOD,
+                    "quantity": bad,
+                    "photos": [photo],
+                },
+                format="multipart",
+            )
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert "quantity" in response.data
 
     def test_rejects_svg_upload(self, auth_client):
         svg = SimpleUploadedFile(

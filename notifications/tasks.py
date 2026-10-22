@@ -117,10 +117,12 @@ def notify_admin_of_new_submission(item_id):
         return
 
     submitter = item.user.first_name or item.user.email
-    subject = f"New submission: {item.get_category_display()} ({item.get_condition_display()})"
+    count = f"{item.quantity} × " if item.quantity > 1 else ""
+    subject = f"New submission: {count}{item.get_category_display()} ({item.get_condition_display()})"
     review_url = f"{settings.SITE_URL}/queue/#item-{item.id}"
     message = (
-        f"{submitter} submitted a {item.get_category_display()} ({item.get_condition_display()} condition) item for review.\n\n"
+        f"{submitter} submitted {item.quantity if item.quantity > 1 else 'a'} {item.get_category_display()} ({item.get_condition_display()} condition) "
+        f"{'items' if item.quantity > 1 else 'item'} for review.\n\n"
         f"Review it here: {review_url}"
     )
 

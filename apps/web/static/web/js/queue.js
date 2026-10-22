@@ -81,7 +81,7 @@ if (admin) {
   // on accept/dispatch, since neither confirms the item is actually in
   // hand. Pre-filled from the suggested default but freely editable.
   function awardControl(s) {
-    const suggested = pointsRulesLookup(s.category, s.condition);
+    const suggested = pointsRulesLookup(s.category, s.condition) * s.quantity;
     const already = s.awardedPoints != null;
     const label = already ? `CORRECT AWARD (CURRENTLY ${s.awardedPoints} PTS)` : 'AWARD POINTS';
     return `
@@ -219,7 +219,7 @@ if (admin) {
         <div style="flex:1;min-width:200px;">
           <p class="batch-tag">${s.num} · ${Eartha.fmtDate(s.createdAt)} · FROM ${Eartha.esc((s.userName || 'UNKNOWN').toUpperCase())}</p>
           <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:2px;">
-            ${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}
+            ${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}${Eartha.qtyLabel(s)}
           </p>
           ${s.description ? `<p class="muted" style="font-size:11px;margin-top:4px;">"${Eartha.esc(s.description)}"</p>` : ''}
           ${addressLine}

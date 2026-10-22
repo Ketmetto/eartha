@@ -8,7 +8,9 @@ if (user) {
   const drop = document.getElementById('photoDrop');
   const input = document.getElementById('photos');
   const previews = document.getElementById('photoPreviews');
-  const MAX_PHOTOS = 5;
+  // One photo per submission — several pieces go in that one photo, with
+  // the count set in NUMBER OF ITEMS. Kept as an array so the preview and
+  // upload code stay the same shape.
   // { file: File, preview: dataURL|null } — the original File is what
   // actually gets uploaded; the compressed dataURL is only for the
   // on-page thumbnail, and can be null (see addFiles below).
@@ -34,12 +36,8 @@ if (user) {
   });
 
   async function addFiles(fileList) {
-    const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
-    for (const file of files) {
-      if (photos.length >= MAX_PHOTOS) {
-        Eartha.toast('MAX 5 PHOTOS PER ITEM');
-        break;
-      }
+    const file = Array.from(fileList).find((f) => f.type.startsWith('image/'));
+    if (file) {
       // Some iPhone HEIC photos (e.g. HDR shots with a gain map) can't be
       // decoded into a canvas by this browser for a thumbnail — the
       // server converts HEIC to JPEG on upload regardless, so still
@@ -50,7 +48,8 @@ if (user) {
       } catch {
         /* no preview available — file is still uploaded as-is */
       }
-      photos.push({ file, preview });
+      // a new pick replaces the current photo rather than adding a second
+      photos = [{ file, preview }];
     }
     renderPreviews();
   }
@@ -148,6 +147,13 @@ if (user) {
       return;
     }
 
+    const quantity = Number(document.getElementById('quantity').value);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 200) {
+      msg.textContent = 'SET THE NUMBER OF ITEMS — A WHOLE NUMBER FROM 1 TO 200.';
+      msg.className = 'form-msg is-error';
+      return;
+    }
+
     let addressToSave = null;
     if (!addressField.hidden && manualMode) {
       const city = pickupManualCity.value.trim();
@@ -213,6 +219,7 @@ if (user) {
         category: document.getElementById('category').value,
         condition: document.querySelector('input[name="condition"]:checked').value,
         description: document.getElementById('description').value.trim(),
+        quantity,
         files: photos.map((p) => p.file),
       });
 
@@ -283,7 +290,7 @@ if (user) {
             <div style="flex:1;min-width:160px;">
               <p class="batch-tag">${s.num} · ${Eartha.fmtDate(s.createdAt)}</p>
               <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:2px;">
-                ${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}
+                ${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}${Eartha.qtyLabel(s)}
               </p>
               <p class="muted" style="font-size:11px;margin-top:4px;">${note}</p>
             </div>

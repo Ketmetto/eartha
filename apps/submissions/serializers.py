@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Item, ItemPhoto, Driver, DriverAssignment
+from .models import ITEM_MAX_QUANTITY, Item, ItemPhoto, Driver, DriverAssignment
 
 
 class ItemPhotoSerializer(serializers.ModelSerializer):
@@ -17,7 +17,7 @@ class ItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ["id", "category", "condition", "description", "status", "photos", "created_at", "awarded_points"]
+        fields = ["id", "category", "condition", "description", "quantity", "status", "photos", "created_at", "awarded_points"]
         read_only_fields = ["id", "status", "created_at"]
 
     def get_awarded_points(self, obj):
@@ -106,14 +106,18 @@ class ItemCreateWithPhotosSerializer(serializers.Serializer):
     category = serializers.ChoiceField(choices=Item.Category.choices)
     condition = serializers.ChoiceField(choices=Item.Condition.choices)
     description = serializers.CharField(required=False, allow_blank=True)
+    quantity = serializers.IntegerField(min_value=1, max_value=ITEM_MAX_QUANTITY, default=1)
     photos = serializers.ListField(
         # Plain FileField, not ImageField: ImageField does a strict PIL
         # decode which is redundant with base.validators' size/content-type
         # checks applied in the service layer when the item is created.
         child=serializers.FileField(),
         min_length=1,
-        max_length=10,
-        help_text="At least one photo is required. Max 10 photos."
+        max_length=1,
+        help_text="Exactly one photo. Several items go in one photo, with quantity set.",
+        error_messages={
+            "max_length": "Upload one photo per submission — for several items, photograph them together and set the quantity.",
+        },
     )
 
 

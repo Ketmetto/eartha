@@ -60,7 +60,7 @@ def transition_item_status(item: Item, target_status: str, *, reason: str = "") 
     return item
 
 
-def create_item_with_photos(*, user, category: str, condition: str, description: str = "", photos: list) -> Item:
+def create_item_with_photos(*, user, category: str, condition: str, description: str = "", quantity: int = 1, photos: list) -> Item:
     """
     Create an Item only if at least one valid photo is provided.
     All photos are saved inside the same transaction.
@@ -75,6 +75,7 @@ def create_item_with_photos(*, user, category: str, condition: str, description:
             category=category,
             condition=condition,
             description=description,
+            quantity=quantity,
         )
 
         for photo_file in photos:

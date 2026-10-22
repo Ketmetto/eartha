@@ -18,9 +18,9 @@ class ItemUploadView(AwardedTotalsListMixin, generics.ListCreateAPIView):
     def get_queryset(self):
         return Item.objects.filter(user=self.request.user)
 
-    # Only POST gets the tighter cap — up to 10 photos per submission
-    # means the generic default alone would allow 10,000 photos/hour from
-    # one account. Browsing your own history isn't a spam vector.
+    # Only POST gets the tighter cap — every submission stores a photo,
+    # so the generic default alone would allow 1,000 photos/hour from one
+    # account. Browsing your own history isn't a spam vector.
     def get_throttles(self):
         if self.request.method == "POST":
             self.throttle_scope = "item_upload"
@@ -46,6 +46,7 @@ class ItemUploadView(AwardedTotalsListMixin, generics.ListCreateAPIView):
             category=validated["category"],
             condition=validated["condition"],
             description=validated.get("description", ""),
+            quantity=validated["quantity"],
             photos=photos,
         )
 

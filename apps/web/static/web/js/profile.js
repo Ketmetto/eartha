@@ -129,7 +129,7 @@ if (user && !user.isAdmin) {
         <tr>
           <td>${s.num}</td>
           <td>${Eartha.fmtDate(s.createdAt)}</td>
-          <td style="text-transform:uppercase;">${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}</td>
+          <td style="text-transform:uppercase;">${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}${Eartha.qtyLabel(s)}</td>
           <td>${Eartha.badge(s.status)}${s.status === 'rejected' && s.rejectReason ? `<div class="muted" style="font-size:10px;margin-top:4px;">${Eartha.esc(s.rejectReason)}</div>` : ''}</td>
           <td>${s.awardedPoints != null ? '+' + s.awardedPoints : '—'}</td>
         </tr>`

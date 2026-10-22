@@ -375,6 +375,12 @@ const Eartha = (() => {
     return data;
   }
 
+  // " · × 6 ITEMS" suffix for the category · condition line of a bulk
+  // submission; empty for a single item, so most rows read as before.
+  function qtyLabel(item) {
+    return item.quantity > 1 ? ` · × ${item.quantity} ITEMS` : '';
+  }
+
   // num: a display-only "N. 0001" label derived from list position, since
   // the backend Item model doesn't store a sequence number.
   function mapItem(apiItem, num) {
@@ -384,6 +390,7 @@ const Eartha = (() => {
       category: apiItem.category,
       condition: apiItem.condition,
       description: apiItem.description,
+      quantity: apiItem.quantity || 1,
       status: apiItem.status,
       rejectReason: apiItem.rejection_reason || '',
       photos: (apiItem.photos || []).map((p) => p.image),
@@ -422,10 +429,11 @@ const Eartha = (() => {
     };
   }
 
-  async function createSubmission({ category, condition, description, files }) {
+  async function createSubmission({ category, condition, description, quantity, files }) {
     const form = new FormData();
     form.append('category', category);
     form.append('condition', condition);
+    form.append('quantity', String(quantity || 1));
     if (description) form.append('description', description);
     files.forEach((file) => form.append('photos', file));
     const item = await apiFetch('/submissions/', { method: 'POST', body: form, isFormData: true });
@@ -1168,6 +1176,7 @@ const Eartha = (() => {
         ${MENU_TOGGLE_HTML}
         <nav class="app-nav" id="appNav" aria-label="Public">
           <a href="/about/" class="${current === 'about' ? 'is-current' : ''}">ABOUT US</a>
+          <a href="/#wishlist">WISHLIST</a>
           <a href="/contact/" class="${current === 'contact' ? 'is-current' : ''}">CONTACT</a>
           <a href="/login/" class="${current === 'login' ? 'is-current' : ''}">SIGN IN</a>
         </nav>
@@ -1195,6 +1204,7 @@ const Eartha = (() => {
       <nav class="app-nav" id="appNav" aria-label="App">
         ${firstLink}
         <a href="/benefits/" class="${current === 'benefits' ? 'is-current' : ''}">BENEFITS</a>
+        <a href="/#wishlist">WISHLIST</a>
         <a href="/contact/" class="${current === 'contact' ? 'is-current' : ''}">CONTACT</a>
         ${profileLink}
         ${adminLink}
@@ -1297,7 +1307,7 @@ const Eartha = (() => {
 
   return {
     currentUser, register, login, socialLogin, verifyEmail, confirmEmailChange, requestPasswordReset, confirmPasswordReset, logout, requireAuth, requireAdmin,
-    fetchMySubmissions, createSubmission,
+    fetchMySubmissions, createSubmission, qtyLabel,
     fetchAdminSubmissions, fetchAdminSubmissionsDone, acceptItem, rejectItem, dispatchItem, reassignDriver, collectItem, completeItem, awardItemPoints,
     fetchDriversAdmin, createDriverAdmin, updateDriverAdmin, removeDriverAdmin,
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,

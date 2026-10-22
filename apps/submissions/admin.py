@@ -47,7 +47,7 @@ class ItemPhotoInline(TabularInline):
 @admin.register(Item)
 class ItemAdmin(ModelAdmin):
     form = ItemAdminForm
-    list_display = ("id", "user", "category", "condition", "status", "created_at")
+    list_display = ("id", "user", "category", "condition", "quantity", "status", "created_at")
     list_filter = ("status", "category", "condition")
     search_fields = ("user__email", "user__username", "id")
     # Read-only, not editable: reassigning a submission to a different user
@@ -57,7 +57,7 @@ class ItemAdmin(ModelAdmin):
     inlines = [ItemPhotoInline]
     actions = ["award_points"]
 
-    @admin.action(description="Award points (suggested amount, per category/condition)")
+    @admin.action(description="Award points (suggested amount, per category/condition × quantity)")
     def award_points(self, request, queryset):
         # Suggested-default only — free-text correction is the ops queue
         # web UI's job (apps/web/static/web/js/queue.js), this is a
@@ -67,7 +67,7 @@ class ItemAdmin(ModelAdmin):
 
         for item in queryset:
             try:
-                set_item_award(item, suggested_points(item.category, item.condition), request.user)
+                set_item_award(item, suggested_points(item.category, item.condition) * item.quantity, request.user)
             except ValidationError as e:
                 self.message_user(request, f"Skipped {item.id}: {e}", level=messages.ERROR)
 
@@ -79,7 +79,7 @@ class ItemAdmin(ModelAdmin):
         if change and "status" in form.changed_data:
             fresh = Item.objects.get(pk=obj.pk)
             transition_item_status(fresh, obj.status, reason=obj.rejection_reason)
-            other_changed = [f for f in ("category", "condition", "description") if f in form.changed_data]
+            other_changed = [f for f in ("category", "condition", "description", "quantity") if f in form.changed_data]
             if other_changed:
                 for field_name in other_changed:
                     setattr(fresh, field_name, getattr(obj, field_name))

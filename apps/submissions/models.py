@@ -1,7 +1,11 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from base.models import BaseModel
 from base.validators import validate_image_size, validate_image_content_type
+
+
+ITEM_MAX_QUANTITY = 200
 
 
 class Item(BaseModel):
@@ -29,6 +33,12 @@ class Item(BaseModel):
     category = models.CharField(max_length=20, choices=Category.choices)
     condition = models.CharField(max_length=20, choices=Condition.choices)
     description = models.TextField(blank=True)
+    # One submission = one photo. A bulk donation is several pieces shot
+    # together in that one photo, with the count given here; the admin
+    # verifies it physically at collection either way.
+    quantity = models.PositiveSmallIntegerField(
+        default=1, validators=[MinValueValidator(1), MaxValueValidator(ITEM_MAX_QUANTITY)]
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
     rejection_reason = models.TextField(blank=True)
 

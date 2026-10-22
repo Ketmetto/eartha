@@ -71,7 +71,7 @@ if (admin) {
               <div style="flex:1;min-width:180px;">
                 <p class="batch-tag">${s.num} · ${Eartha.fmtDate(s.updatedAt)} · FROM ${Eartha.esc((s.userName || 'UNKNOWN').toUpperCase())}</p>
                 <p style="font-weight:700;text-transform:uppercase;letter-spacing:var(--track-wide);font-size:12px;margin-top:2px;">
-                  ${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}
+                  ${Eartha.esc(s.category)} · ${Eartha.esc(s.condition)}${Eartha.qtyLabel(s)}
                 </p>
               </div>
               ${Eartha.badge(s.status)}
