@@ -3,7 +3,7 @@ import csv
 from django.contrib import admin
 from django.http import HttpResponse
 from unfold.admin import ModelAdmin
-from .models import ContactMessage, ImpactStat, NewsletterSubscriber
+from .models import ContactMessage, ImpactStat, NewsletterSubscriber, WishlistRequest
 
 
 @admin.register(ContactMessage)
@@ -41,3 +41,12 @@ class NewsletterSubscriberAdmin(ModelAdmin):
                 email = "'" + email
             writer.writerow([email, sub.confirmed_at.isoformat()])
         return response
+
+
+@admin.register(WishlistRequest)
+class WishlistRequestAdmin(ModelAdmin):
+    list_display = ["organization", "contact_name", "location", "needed_by", "status", "created_at"]
+    list_filter = ["status"]
+    list_editable = ["status"]
+    search_fields = ["organization", "contact_name", "email", "items_needed"]
+    readonly_fields = ["created_at"]

@@ -154,6 +154,48 @@
       </div>
     </section>
 
+    <!-- ============ EARTHA WISHLIST ============ -->
+    <section class="wishlist" id="wishlist">
+      <div class="wishlist-grid">
+        <figure class="img-card">
+          {% if site_images.index_wishlist %}
+          <img src="{{ site_images.index_wishlist }}" alt="White top and skirt drying on a washing line above a green meadow" loading="lazy">
+          {% else %}
+          <img src="{% static 'web/images/wishlist.jpg' %}" alt="White top and skirt drying on a washing line above a green meadow" loading="lazy">
+          {% endif %}
+          <figcaption class="img-label">HUMAN PURPOSE</figcaption>
+        </figure>
+        <div class="wishlist-body">
+        <div class="wishlist-text">
+          <p class="eyebrow">EARTHA WISHLIST</p>
+          <h2 class="heading-sm">Circular fashion, with a human purpose.</h2>
+          <p class="body-justified">Through Eartha Wishlist, organizations and community partners can share specific clothing needs with us. We collect, prepare, and match available pieces to those requests — giving clothing a new life while meeting a real need.</p>
+          <a href="{% url 'web:wishlist-request' %}" class="link-underline">WISHLIST REQUEST</a>
+        </div>
+        <div class="wishlist-steps">
+          <p class="eyebrow">HOW IT WORKS</p>
+          <ol class="wishlist-steps-list">
+            <li>
+              <p class="card-num">01</p>
+              <p class="card-title">SHARE A NEED</p>
+              <p class="card-sub">An organization sends us a specific clothing request.</p>
+            </li>
+            <li>
+              <p class="card-num">02</p>
+              <p class="card-title">WE MATCH</p>
+              <p class="card-sub">We find suitable pieces through Eartha's community.</p>
+            </li>
+            <li>
+              <p class="card-num">03</p>
+              <p class="card-title">WE GIVE</p>
+              <p class="card-sub">The items reach the person or family through the organization.</p>
+            </li>
+          </ol>
+        </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ BATCH NUMBER / NEWSLETTER ============ -->
     <section class="batch-band">
       <p class="batch-copy">Your sustainable choices become Eartha Points, unlocking exclusive offers from brands, workshops, cafés, events, and experiences across our growing community.</p>
@@ -199,6 +241,7 @@
         <p class="footer-head">EXPLORE</p>
         <a href="{% url 'web:index' %}">HOME</a>
         <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:index' %}#wishlist">WISHLIST</a>
         <a href="{% url 'web:contact' %}">CONTACT</a>
       </div>
       <div class="footer-col">

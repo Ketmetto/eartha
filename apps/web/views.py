@@ -31,6 +31,19 @@ class ContactView(SiteContentMixin, TemplateView):
     template_name = "web/contact.html"
 
 
+class WishlistRequestView(TemplateView):
+    """Public form for organizations — see WishlistRequestCreateView for
+    the spam defenses the embedded form_token feeds into."""
+    template_name = "web/wishlist-request.html"
+
+    def get_context_data(self, **kwargs):
+        from apps.engagement.services import make_wishlist_form_token
+
+        context = super().get_context_data(**kwargs)
+        context["form_token"] = make_wishlist_form_token()
+        return context
+
+
 class DashboardView(TemplateView):
     template_name = "web/dashboard.html"
 

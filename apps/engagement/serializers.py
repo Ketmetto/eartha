@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from apps.points.models import Benefit
-from .models import ContactMessage, ImpactStat
+from .models import ContactMessage, ImpactStat, WishlistRequest
 
 
 class ContactMessageSerializer(serializers.ModelSerializer):
@@ -25,6 +25,29 @@ class ContactMessageSerializer(serializers.ModelSerializer):
                 "This email belongs to a registered account. Sign in to contact us using it."
             )
         return value
+
+
+class WishlistRequestSerializer(serializers.ModelSerializer):
+    # Spam traps, never stored: `website` is a hidden field only bots fill
+    # in, and `form_token` is the signed page-load timestamp the
+    # /wishlist/request/ page embeds — both checked in WishlistRequestCreateView.
+    website = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    form_token = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = WishlistRequest
+        fields = [
+            "organization", "contact_name", "email", "phone", "items_needed",
+            "sizes", "quantity", "location", "needed_by", "website", "form_token",
+        ]
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+    def create(self, validated_data):
+        validated_data.pop("website", None)
+        validated_data.pop("form_token", None)
+        return super().create(validated_data)
 
 
 class NewsletterSubscribeSerializer(serializers.Serializer):

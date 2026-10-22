@@ -37,6 +37,7 @@ class SiteImage(BaseModel):
         ACCEPT_DRESSES = "accept_dresses", "Home — What we accept: Dresses"
         ACCEPT_ACCESSORIES = "accept_accessories", "Home — What we accept: Accessories"
         ACCEPT_SHOES_BAGS = "accept_shoes_bags", "Home — What we accept: Shoes & bags"
+        INDEX_WISHLIST = "index_wishlist", "Home — Wishlist image"
 
     key = models.CharField(max_length=40, choices=Key.choices, unique=True)
     image = models.ImageField(upload_to="site_content/", blank=True)

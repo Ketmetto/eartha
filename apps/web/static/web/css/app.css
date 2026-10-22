@@ -345,6 +345,7 @@ img:not([src*="logo"]),
 .field input[type="password"],
 .field input[type="number"],
 .field input[type="tel"],
+.field input[type="date"],
 .field select,
 .field textarea {
   width: 100%;
@@ -1141,6 +1142,57 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 .rewards-text .link-underline { align-self: flex-start; margin-top: 12px; }
 
 /* ============================================================
+   HOMEPAGE — WISHLIST
+   ============================================================ */
+
+.wishlist {
+  background: var(--cream-deep);
+  padding: clamp(56px, 7vw, 96px) var(--pad-x);
+}
+
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+}
+
+.wishlist .img-card { aspect-ratio: 4 / 5; max-height: 640px; }
+
+.wishlist-body {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(40px, 5vw, 64px);
+}
+
+.wishlist-text {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 400px;
+}
+
+.wishlist-text .link-underline { align-self: flex-start; margin-top: 12px; }
+
+.wishlist-steps .eyebrow { margin-bottom: 22px; }
+
+.wishlist-steps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(16px, 2vw, 32px);
+}
+
+.wishlist-steps-list li {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.wishlist-steps-list .card-sub { margin-top: 8px; }
+
+/* ============================================================
    HOMEPAGE — BATCH BAND / NEWSLETTER
    ============================================================ */
 
@@ -1422,6 +1474,11 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
 
 .contact-aside .eyebrow { margin-bottom: 12px; }
 .contact-aside .eyebrow ~ .eyebrow { margin-top: 24px; }
+.contact-aside .card-sub + .card-sub { margin-top: 10px; }
+
+/* wishlist-request's honeypot — off-screen rather than display:none,
+   which some bots skip */
+.hp-field { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
 .contact-link-row {
   display: flex;
@@ -1459,6 +1516,7 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
     justify-self: start;
     max-width: 520px;
   }
+  .wishlist-text { max-width: 520px; }
   .batch-band { grid-template-columns: auto 1fr; }
   .newsletter { grid-column: 1 / -1; }
 
@@ -1483,6 +1541,9 @@ dialog .dialog-actions { display: flex; gap: 12px; margin-top: 24px; }
      its card box, opening a gap between the image and the next card. */
   .accept-marquee { --accept-gap: 16px; }
   .accept-card { --accept-card-w: min(78vw, 320px); }
+
+  .wishlist-grid,
+  .wishlist-steps-list { grid-template-columns: 1fr; }
 
   .batch-band { grid-template-columns: 1fr; gap: 28px; }
 

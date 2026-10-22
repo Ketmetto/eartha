@@ -773,6 +773,29 @@ const Eartha = (() => {
     }
   }
 
+  // Public endpoint, no auth — the /wishlist/request/ form. `fields`
+  // includes the page's form_token and the (normally empty) website
+  // honeypot; see WishlistRequestCreateView.
+  async function submitWishlistRequest(fields) {
+    const headers = { 'Content-Type': 'application/json' };
+    const csrfToken = getCookie('csrftoken');
+    if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+    try {
+      const res = await fetch(`${API_ROOT}/engagement/wishlist/`, {
+        method: 'POST',
+        headers,
+        credentials: 'same-origin',
+        body: JSON.stringify(fields),
+      });
+      let data = null;
+      try { data = await res.json(); } catch { /* empty body */ }
+      if (!res.ok) throw new Error(extractErrorMessage(data) || `REQUEST FAILED (${res.status}).`);
+      return {};
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   // token comes from the query string of the emailed confirmation link.
   async function confirmNewsletter(token) {
     try {
@@ -1280,7 +1303,7 @@ const Eartha = (() => {
     fetchBenefitsAdmin, fetchActiveBenefits, createBenefitAdmin, updateBenefitAdmin, removeBenefitAdmin, reorderBenefitsAdmin,
     fetchPointsRules, savePointsRules,
     fetchBalance, fetchMyRedemptions, redeemBenefitApi, fetchRedemptionQrObjectUrl,
-    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats, subscribeToNewsletter, confirmNewsletter,
+    submitContactMessage, fetchContactMessages, fetchUnreadMessageCount, resolveMessage, contactMessageCardHtml, fetchImpactStats, subscribeToNewsletter, confirmNewsletter, submitWishlistRequest,
     fetchDashboardStats,
     fetchAdminUsers, banUser, unbanUser,
     fetchSiteTexts, updateSiteText, fetchSiteImages, updateSiteImage, clearSiteImage,

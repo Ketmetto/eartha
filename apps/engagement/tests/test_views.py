@@ -277,3 +277,79 @@ class TestNewsletterConfirmView:
     def test_missing_token_is_rejected(self, api_client):
         response = api_client.get(self.url)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+class TestWishlistRequestCreateView:
+    url = reverse("wishlist-create")
+
+    @staticmethod
+    def token(age_seconds=60):
+        """A form token as if the page was loaded `age_seconds` ago."""
+        from apps.engagement.services import make_wishlist_form_token
+        with patch("apps.engagement.services.time.time", return_value=timezone.now().timestamp() - age_seconds):
+            return make_wishlist_form_token()
+
+    def valid_payload(self, **overrides):
+        payload = {
+            "organization": "Beirut Shelter",
+            "contact_name": "Rana K.",
+            "email": "Rana@Shelter.org",
+            "items_needed": "Winter coats for 12 children aged 6-10",
+            "location": "Beirut",
+            "needed_by": "2026-12-01",
+            "website": "",
+            "form_token": self.token(),
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_anonymous_request_is_saved_and_admin_notified(self, api_client):
+        from apps.engagement.models import WishlistRequest
+        response = api_client.post(self.url, self.valid_payload(), format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+        req = WishlistRequest.objects.get()
+        assert req.email == "rana@shelter.org"
+        assert req.status == WishlistRequest.Status.NEW
+        assert len(mail.outbox) == 1
+        assert mail.outbox[0].to == ["info@eartha.me"]
+        assert "Beirut Shelter" in mail.outbox[0].subject
+        assert f"/admin/engagement/wishlistrequest/{req.id}/change/" in mail.outbox[0].body
+
+    def test_honeypot_is_silently_dropped(self, api_client):
+        from apps.engagement.models import WishlistRequest
+        response = api_client.post(self.url, self.valid_payload(website="http://spam.example"), format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+        assert not WishlistRequest.objects.exists()
+        assert not mail.outbox
+
+    def test_too_fast_submission_is_silently_dropped(self, api_client):
+        from apps.engagement.models import WishlistRequest
+        response = api_client.post(self.url, self.valid_payload(form_token=self.token(age_seconds=1)), format="json")
+        assert response.status_code == status.HTTP_201_CREATED
+        assert not WishlistRequest.objects.exists()
+
+    @pytest.mark.parametrize("bad_token", ["forged", None])
+    def test_missing_or_forged_token_is_rejected(self, api_client, bad_token):
+        payload = self.valid_payload(form_token=bad_token)
+        if bad_token is None:
+            del payload["form_token"]
+        response = api_client.post(self.url, payload, format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_expired_token_is_rejected(self, api_client):
+        response = api_client.post(self.url, self.valid_payload(form_token=self.token(age_seconds=2 * 86400)), format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "expired" in response.data["detail"]
+
+    def test_required_fields(self, api_client):
+        response = api_client.post(self.url, self.valid_payload(organization="", items_needed=""), format="json")
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert {"organization", "items_needed"} <= set(response.data)
+
+    def test_request_page_embeds_a_valid_token(self, client):
+        from apps.engagement.services import check_wishlist_form_token
+        response = client.get(reverse("web:wishlist-request"))
+        assert response.status_code == 200
+        token = re.search(r'data-form-token="([^"]+)"', response.content.decode()).group(1)
+        assert check_wishlist_form_token(token) is False  # valid, just too fresh

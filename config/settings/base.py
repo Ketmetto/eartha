@@ -183,6 +183,7 @@ UNFOLD = {
                 "title": _("Engagement"),
                 "items": [
                     {"title": _("Contact messages"), "icon": "mail", "link": reverse_lazy("admin:engagement_contactmessage_changelist")},
+                    {"title": _("Wishlist requests"), "icon": "volunteer_activism", "link": reverse_lazy("admin:engagement_wishlistrequest_changelist")},
                     {"title": _("Impact stats"), "icon": "insights", "link": reverse_lazy("admin:engagement_impactstat_changelist")},
                 ],
             },
@@ -239,6 +240,9 @@ REST_FRAMEWORK = {
         # Public and can trigger a welcome email (first signup per address
         # only) — same reasoning as "contact".
         "newsletter": "5/hour",
+        # Public, no account, emails the admin on every submission — same
+        # reasoning as "contact".
+        "wishlist": "5/hour",
         # Generous for one real donation-photography session, well under
         # the "user" default's 10,000-photos/hour ceiling (10 per request).
         "item_upload": "30/hour",

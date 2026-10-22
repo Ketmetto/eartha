@@ -1,0 +1,125 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="{% static 'web/images/favicon.svg' %}" type="image/svg+xml">
+  <title>Wishlist Request — EARTHA</title>
+  <meta name="description" content="Organizations and community partners can share specific clothing needs with Eartha. We match available pieces to each request.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'web/css/app.css' %}">
+</head>
+<body>
+  {% csrf_token %}
+
+  <header class="app-header" id="appHeader"></header>
+
+  <main>
+
+    <!-- ============ WISHLIST REQUEST FORM ============ -->
+    <section class="contact-form-section">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow muted">EARTHA WISHLIST</p>
+          <h1 class="page-title" style="margin-top:6px;">WISHLIST REQUEST</h1>
+        </div>
+      </div>
+
+      <div class="contact-form-grid">
+
+        <form id="wishlistForm" data-form-token="{{ form_token }}" novalidate>
+          <div class="field">
+            <label for="wOrg">ORGANIZATION</label>
+            <input type="text" id="wOrg" autocomplete="organization" maxlength="200" required>
+          </div>
+          <div class="field">
+            <label for="wName">CONTACT PERSON</label>
+            <input type="text" id="wName" autocomplete="name" maxlength="120" required>
+          </div>
+          <div class="field">
+            <label for="wEmail">EMAIL ADDRESS</label>
+            <input type="email" id="wEmail" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="wPhone">PHONE <span class="muted">(OPTIONAL)</span></label>
+            <input type="tel" id="wPhone" autocomplete="tel" maxlength="40">
+          </div>
+          <div class="field">
+            <label for="wItems">WHAT'S NEEDED</label>
+            <textarea id="wItems" placeholder="E.G. WINTER COATS AND SCHOOL SHOES FOR CHILDREN AGED 6–10" required></textarea>
+          </div>
+          <div class="field">
+            <label for="wSizes">SIZES <span class="muted">(OPTIONAL)</span></label>
+            <input type="text" id="wSizes" maxlength="200">
+          </div>
+          <div class="field">
+            <label for="wQty">QUANTITY <span class="muted">(OPTIONAL)</span></label>
+            <input type="text" id="wQty" maxlength="100">
+          </div>
+          <div class="field">
+            <label for="wLocation">AREA / CITY <span class="muted">(OPTIONAL)</span></label>
+            <input type="text" id="wLocation" autocomplete="address-level2" maxlength="200">
+          </div>
+          <div class="field">
+            <label for="wNeededBy">NEEDED BY <span class="muted">(OPTIONAL)</span></label>
+            <input type="date" id="wNeededBy">
+          </div>
+          <!-- Honeypot: hidden from people and screen readers, so only a bot
+               fills it in — see WishlistRequestCreateView. -->
+          <div class="hp-field" aria-hidden="true">
+            <label for="wWebsite">WEBSITE</label>
+            <input type="text" id="wWebsite" tabindex="-1" autocomplete="off">
+          </div>
+          <button type="submit" class="btn">SEND REQUEST</button>
+          <p class="form-msg" id="wishlistMsg" role="status"></p>
+        </form>
+
+        <aside class="contact-aside">
+          <div class="card">
+            <p class="eyebrow">HOW IT WORKS</p>
+            <p class="card-sub"><strong>01 — SHARE A NEED.</strong> An organization sends us a specific clothing request.</p>
+            <p class="card-sub"><strong>02 — WE MATCH.</strong> We find suitable pieces through Eartha's community.</p>
+            <p class="card-sub"><strong>03 — WE GIVE.</strong> The items reach the person or family through the organization.</p>
+          </div>
+          <div class="card card-dark">
+            <p class="card-sub">
+              We review every request and reply by email. Questions first?
+              Write to <a href="mailto:info@eartha.me" class="link-underline">INFO@EARTHA.ME</a>.
+            </p>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-brand">
+      <img src="{% static 'web/images/logo-dark.svg' %}" alt="EARTHA" width="120" height="26">
+      <p class="footer-tag">EARTHA COLLECTION / CIRCULAR FASHION<br>EST. 2026</p>
+    </div>
+    <nav class="footer-cols" aria-label="Footer">
+      <div class="footer-col">
+        <p class="footer-head">EXPLORE</p>
+        <a href="{% url 'web:index' %}">HOME</a>
+        <a href="{% url 'web:about' %}">ABOUT US</a>
+        <a href="{% url 'web:index' %}#wishlist">WISHLIST</a>
+        <a href="{% url 'web:contact' %}">CONTACT</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-head">GET STARTED</p>
+        <a href="{% url 'web:login' %}">SIGN IN</a>
+        <a href="{% url 'web:login' %}#register">CREATE ACCOUNT</a>
+      </div>
+    </nav>
+  </footer>
+
+  <script src="{% static 'web/js/store.js' %}"></script>
+  <script nonce="{{ request.csp_nonce }}">Eartha.renderHeader(Eartha.currentUser(), 'wishlist-request');</script>
+  <script src="{% static 'web/js/wishlist-request.js' %}"></script>
+</body>
+</html>
