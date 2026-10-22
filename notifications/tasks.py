@@ -1,4 +1,5 @@
 import logging
+import smtplib
 
 from celery import shared_task
 from django.core.mail import send_mail
@@ -8,7 +9,16 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-@shared_task
+# SMTPException covers provider-side refusals (rate limits, 4xx greylisting,
+# a dropped session); OSError covers connection failures and EMAIL_TIMEOUT.
+# Without retries, any one of these silently loses the email for good.
+@shared_task(
+    autoretry_for=(smtplib.SMTPException, OSError),
+    retry_backoff=30,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    max_retries=6,
+)
 def send_transactional_email(to_email: str, subject: str, message: str = "", template_name: str = None, context: dict = None):
     """
     Send a transactional email.
@@ -78,7 +88,7 @@ def notify_points_awarded(user_id, points: int):
         .first()
     )
 
-    send_transactional_email(
+    send_transactional_email.delay(
         to_email=user.email,
         subject="You just earned points",
         template_name="points_awarded",
@@ -114,7 +124,7 @@ def notify_admin_of_new_submission(item_id):
         f"Review it here: {review_url}"
     )
 
-    send_transactional_email(to_email="info@eartha.me", subject=subject, message=message)
+    send_transactional_email.delay(to_email="info@eartha.me", subject=subject, message=message)
 
 
 @shared_task
@@ -133,7 +143,7 @@ def notify_submission_status_changed(submission_id, new_status: str):
     if not get_or_create_notification_prefs(user).email_enabled:
         return
 
-    send_transactional_email(
+    send_transactional_email.delay(
         to_email=user.email,
         subject="Your submission status changed",
         template_name="submission_status_changed",

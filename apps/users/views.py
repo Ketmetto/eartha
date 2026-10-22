@@ -98,7 +98,7 @@ class ResendVerificationView(APIView):
         email = request.data.get("email", "").strip().lower()
         if email:
             try:
-                user = User.objects.get(email=email)
+                user = User.objects.get(email__iexact=email)
                 from allauth.account.models import EmailAddress
                 if not EmailAddress.objects.filter(user=user, verified=True).exists():
                     services.send_verification_email(user, request)

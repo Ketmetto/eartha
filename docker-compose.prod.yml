@@ -67,7 +67,10 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    # volatile-lru, not allkeys-lru: Redis is also the Celery broker, and
+    # allkeys-lru could evict the queue itself (pending emails, silently
+    # lost). Only keys with a TTL — the cache — are evictable now.
+    command: redis-server --maxmemory 128mb --maxmemory-policy volatile-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

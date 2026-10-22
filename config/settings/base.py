@@ -305,6 +305,13 @@ CELERY_BROKER_URL = config("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = config("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
+# Nothing reads task results; storing them just fills Redis (see the
+# maxmemory-policy note in docker-compose.prod.yml).
+CELERY_TASK_IGNORE_RESULT = True
+# Ack only after the task finishes, so an email task in flight when the
+# worker is OOM-killed or restarted gets redelivered instead of dropped.
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
 
 # --- Email ---
 # Absolute base URL for links inside emails sent from Celery tasks (e.g.
@@ -324,6 +331,9 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_USE_TLS = True
+# Django's default is no timeout: a hung SMTP connection would pin one of
+# the worker's two slots indefinitely, stalling every email queued behind it.
+EMAIL_TIMEOUT = 30
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="")
 
 AUTHENTICATION_BACKENDS = [
