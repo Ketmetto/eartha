@@ -287,7 +287,7 @@ class TestWishlistRequestCreateView:
     def token(age_seconds=60):
         """A form token as if the page was loaded `age_seconds` ago."""
         from apps.engagement.services import make_wishlist_form_token
-        with patch("apps.engagement.services.time.time", return_value=timezone.now().timestamp() - age_seconds):
+        with patch("base.form_guard.time.time", return_value=timezone.now().timestamp() - age_seconds):
             return make_wishlist_form_token()
 
     def valid_payload(self, **overrides):

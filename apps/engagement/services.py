@@ -1,10 +1,9 @@
-import time
-
 from django.conf import settings
 from django.core import signing
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from base.form_guard import check_form_token, make_form_token
 from notifications.tasks import send_transactional_email
 
 
@@ -61,32 +60,16 @@ def confirm_newsletter_subscription(token):
     return True, "You're subscribed to the Eartha newsletter."
 
 
-# Signed timestamp embedded in the /wishlist/request/ page. A submission is
-# only accepted with a token that's genuine (so scripts can't skip loading
-# the page), at least WISHLIST_MIN_FILL_SECONDS old (no human fills the
-# form that fast) and no older than a day (a stale tab just needs a refresh).
 WISHLIST_FORM_SALT = "engagement.wishlist-form"
-WISHLIST_MIN_FILL_SECONDS = 3
-WISHLIST_FORM_MAX_AGE = 60 * 60 * 24
-
-
-class WishlistTokenExpired(Exception):
-    pass
 
 
 def make_wishlist_form_token():
-    return signing.dumps(time.time(), salt=WISHLIST_FORM_SALT)
+    return make_form_token(WISHLIST_FORM_SALT)
 
 
 def check_wishlist_form_token(token):
-    """Returns True if the form was filled at a human pace, False if it
-    was submitted too fast (treat as a bot). Raises WishlistTokenExpired
-    for a missing, forged or day-old token."""
-    try:
-        issued_at = signing.loads(token, salt=WISHLIST_FORM_SALT, max_age=WISHLIST_FORM_MAX_AGE)
-    except signing.BadSignature:
-        raise WishlistTokenExpired
-    return time.time() - float(issued_at) >= WISHLIST_MIN_FILL_SECONDS
+    """See base.form_guard.check_form_token."""
+    return check_form_token(token, WISHLIST_FORM_SALT)
 
 
 def notify_admin_of_wishlist_request(wishlist_request):

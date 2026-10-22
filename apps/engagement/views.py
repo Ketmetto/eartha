@@ -3,9 +3,10 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from .models import ImpactStat
+from base.form_guard import FormTokenExpired
+
 from .serializers import ContactMessageSerializer, ImpactStatSerializer, NewsletterSubscribeSerializer, WishlistRequestSerializer
 from .services import (
-    WishlistTokenExpired,
     check_wishlist_form_token,
     confirm_newsletter_subscription,
     notify_admin_of_contact_message,
@@ -101,7 +102,7 @@ class WishlistRequestCreateView(APIView):
 
         try:
             human_paced = check_wishlist_form_token(serializer.validated_data["form_token"])
-        except WishlistTokenExpired:
+        except FormTokenExpired:
             return Response(
                 {"detail": "This form has expired. Refresh the page and try again."},
                 status=status.HTTP_400_BAD_REQUEST,
