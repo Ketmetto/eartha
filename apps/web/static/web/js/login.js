@@ -155,15 +155,38 @@ if (!firebaseConfig.apiKey) {
 } else {
   firebase.initializeApp(firebaseConfig);
 
+  // Inside the Android app (eartha-app, a Capacitor shell around this
+  // site), Google blocks its OAuth popup in embedded WebViews. There the
+  // native FirebaseAuthentication plugin shows Google's own account
+  // picker and hands back a Google ID token, which signs in to the same
+  // Firebase JS SDK — so everything after this point, including the
+  // backend call, is identical to the browser flow.
+  const cap = window.Capacitor;
+  const inApp = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
+
+  async function firebaseUserFromGoogle() {
+    if (!inApp) {
+      return (await firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())).user;
+    }
+    const plugin = cap.Plugins && cap.Plugins.FirebaseAuthentication;
+    if (!plugin) {
+      const unavailable = new Error('Native Google sign-in plugin missing');
+      unavailable.code = 'app/google-unavailable';
+      throw unavailable;
+    }
+    const native = await plugin.signInWithGoogle();
+    const credential = firebase.auth.GoogleAuthProvider.credential(native.credential.idToken);
+    return (await firebase.auth().signInWithCredential(credential)).user;
+  }
+
   googleBtn.addEventListener('click', async () => {
     googleBtn.disabled = true;
     try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      const result = await firebase.auth().signInWithPopup(provider);
-      const idToken = await result.user.getIdToken();
+      const fbUser = await firebaseUserFromGoogle();
+      const idToken = await fbUser.getIdToken();
       const res = await Eartha.socialLogin({
         id_token: idToken,
-        display_name: result.user.displayName || '',
+        display_name: fbUser.displayName || '',
       });
       if (res.error) {
         Eartha.toast(res.error);
@@ -172,7 +195,11 @@ if (!firebaseConfig.apiKey) {
       location.href = res.user.isAdmin ? '/dashboard/' : '/';
     } catch (err) {
       console.error('Firebase sign-in error:', err.code, err.message);
-      Eartha.toast('SIGN-IN FAILED — PLEASE TRY AGAIN.');
+      // Backing out of Google's native account picker isn't a failure.
+      if (/cancel/i.test(err.message || '')) return;
+      Eartha.toast(err.code === 'app/google-unavailable'
+        ? 'GOOGLE SIGN-IN NEEDS THE LATEST APP — USE YOUR EMAIL AND PASSWORD FOR NOW.'
+        : 'SIGN-IN FAILED — PLEASE TRY AGAIN.');
     } finally {
       googleBtn.disabled = false;
     }
